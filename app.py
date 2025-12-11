@@ -8,31 +8,7 @@ STORAGE_KEY = 'basketball_data';
 # 1. Add the main player (yourself)
 # Force count to 1 because we are splitting them
 # 2. Add friends as separate entries if count > 1
-const handleUpdatePlayer = (id: string, updatedData: Omit<Player, 'id' | 'timestamp'>) => {
-    // When updating, we keep the count logic simple (editing a single entry)
-    // If they want to add more friends later, they should add a new entry or we keep it simple here.
-    // For this specific requirement, we assume editing applies to that specific row.
-    setPlayers(prev => prev.map(p => 
-      p.id === id ? { ...p, ...updatedData, count: 1 } : p // Force count 1 to maintain single-entry structure
-    ));
-    setEditingPlayer(null);
-  };
-
-  const handleDeletePlayer = (id: string) => {
-    if (window.confirm('確定要刪除這位報名者嗎？')) {
-      setPlayers(prev => prev.filter(p => p.id !== id));
-      if (editingPlayer?.id === id) {
-        setEditingPlayer(null);
-      }
-    }
-  };
-
-  const handleEditClick = (player: Player) => {
-    setEditingPlayer(player);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Logic to split Main List vs Waitlist
+# Logic to split Main List vs Waitlist
   const sortedPlayers = [...players].sort((a, b) => a.timestamp - b.timestamp);
   
   const mainList: Player[] = [];
@@ -235,6 +211,7 @@ const handleUpdatePlayer = (id: string, updatedData: Omit<Player, 'id' | 'timest
       </div>
     </div>
   );
+
 
 
 
