@@ -8,10 +8,7 @@ STORAGE_KEY = 'basketball_data';
 # 1. Add the main player (yourself)
 # Force count to 1 because we are splitting them
 # 2. Add friends as separate entries if count > 1
-    if (playerData.count > 1) {
-      const friendCount = playerData.count - 1;
-      for (let i = 0; i < friendCount; i++) {
-        newPlayers.push({
+newPlayers.push({
           name: `${playerData.name} (朋友${friendCount > 1 ? i + 1 : ''})`,
           count: 1,
           bringBall: false, // Default friends to not bringing ball to avoid double counting
@@ -253,6 +250,7 @@ STORAGE_KEY = 'basketball_data';
       </div>
     </div>
   );
+
 
 
 
