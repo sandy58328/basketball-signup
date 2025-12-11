@@ -7,28 +7,24 @@ import uuid
 from datetime import datetime, date, timedelta
 
 # ==========================================
-# 0. 設定區 (管理員密碼 & 分享網址)
+# 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-# ⚠️ 請將下方網址改成你實際部署後的網址
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
-
-# ==========================================
-# 1. 資料處理函式
-# ==========================================
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
 
+# ==========================================
+# 1. 資料處理
+# ==========================================
 def load_data():
     default_data = {"sessions": {}, "hidden": []}
     if os.path.exists(FILE_PATH):
         try:
             with open(FILE_PATH, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                if "sessions" not in data:
-                    data["sessions"] = {}
-                if "hidden" not in data:
-                    data["hidden"] = []
+                if "sessions" not in data: data["sessions"] = {}
+                if "hidden" not in data: data["hidden"] = []
                 return data
         except:
             return default_data
@@ -40,453 +36,392 @@ def save_data(data):
 
 if 'data' not in st.session_state:
     st.session_state.data = load_data()
-
-# 用來記錄目前正在編輯哪一筆 ID
 if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. 介面樣式
+# 2. 手機版 UI 優化樣式 (CSS)
 # ==========================================
-st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="wide")
+st.set_page_config(page_title="Sunny Girls", page_icon="☀️", layout="centered") 
+# 注意：layout 改成 centered 在手機上反而比較集中好看
 
 st.markdown("""
     <style>
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+    /* 1. 減少手機版過大的邊距 */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    /* 2. 優化 Tabs 樣式 */
+    .stTabs [data-baseweb="tab-list"] { gap: 4px; }
     .stTabs [data-baseweb="tab"] {
-        height: 50px; white-space: pre-wrap; background-color: #f0f9ff;
-        border-radius: 4px 4px 0 0; gap: 1px; padding-top: 10px; padding-bottom: 10px;
+        height: 40px; 
+        white-space: pre-wrap; 
+        background-color: #f1f5f9;
+        border-radius: 5px;
+        padding: 5px 10px;
+        font-size: 0.9rem;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #e0f2fe; border-bottom: 2px solid #0ea5e9; font-weight: bold;
+        background-color: #3b82f6; 
+        color: white;
     }
+
+    /* 3. 標題區塊優化 */
     .header-box {
-        background: linear-gradient(to right, #38bdf8, #3b82f6, #6366f1);
-        padding: 2rem; border-radius: 1rem; color: white; margin-bottom: 1rem;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        padding: 1.5rem; 
+        border-radius: 12px; 
+        color: white; 
+        margin-bottom: 1rem;
         text-align: center;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-    .info-tag {
-        background: rgba(255, 255, 255, 0.2);
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-weight: bold;
+    .header-title {
+        font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: 1px;
+    }
+    .header-sub {
+        font-size: 0.9rem; opacity: 0.9; margin-top: 5px; margin-bottom: 10px;
+    }
+    .info-pill {
+        background: rgba(255, 255, 255, 0.25);
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.85rem;
         display: inline-block;
-        margin-top: 10px;
-        backdrop-filter: blur(5px);
+        backdrop-filter: blur(4px);
     }
-    button[kind="secondary"] {
-        padding: 0px 10px;
-        border-radius: 5px;
+
+    /* 4. 列表卡片樣式 (重要！) */
+    .player-card {
+        background-color: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
-    /* 調整 Expander 樣式 */
-    div[data-testid="stExpander"] {
-        border: none !important;
-        box-shadow: none !important;
-        background-color: transparent !important;
+    .player-text {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #334155;
     }
-    div[data-testid="stExpander"] details {
-        border: none !important;
+    .player-tags {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-left: 5px;
     }
-    /* 編輯模式的框框 */
+    
+    /* 編輯模式框框 */
     .edit-box {
         border: 2px solid #3b82f6;
         border-radius: 10px;
-        padding: 15px;
-        background-color: #f0f9ff;
+        padding: 10px;
+        background-color: #eff6ff;
         margin-bottom: 10px;
     }
+    
+    /* 按鈕微調 */
+    button[kind="secondary"] {
+        padding: 2px 8px;
+        font-size: 0.8rem;
+        height: auto;
+        line-height: 1.5;
+    }
+    
+    /* 隱藏 Streamlit 預設選單以節省空間 */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. 側邊欄：場次管理
+# 3. 側邊欄 (管理區)
 # ==========================================
 with st.sidebar:
-    st.header("⚙️ 場次管理員")
-    pwd_input = st.text_input("輸入管理密碼解鎖功能", type="password")
-    
+    st.header("⚙️ 管理員")
+    pwd_input = st.text_input("密碼", type="password")
     is_admin = (pwd_input == ADMIN_PASSWORD)
     
     if is_admin:
-        st.success("🔓 已解鎖 (管理員模式)")
-        
-        # 新增場次
-        new_date = st.date_input("新增打球日期", min_value=date.today())
-        if st.button("➕ 新增場次"):
-            date_str = str(new_date)
-            if date_str not in st.session_state.data["sessions"]:
-                st.session_state.data["sessions"][date_str] = []
+        st.success("已登入")
+        new_date = st.date_input("新增日期", min_value=date.today())
+        if st.button("➕ 新增"):
+            d_str = str(new_date)
+            if d_str not in st.session_state.data["sessions"]:
+                st.session_state.data["sessions"][d_str] = []
                 save_data(st.session_state.data)
-                st.success(f"已新增 {date_str}")
                 st.rerun()
-            else:
-                st.warning("日期已存在")
         
         st.markdown("---")
-        
-        all_session_dates = sorted(st.session_state.data["sessions"].keys())
-        
-        if all_session_dates:
-            st.write("👁️ **設定隱藏場次**")
-            current_hidden = st.session_state.data["hidden"]
-            current_hidden = [d for d in current_hidden if d in all_session_dates]
-            
-            # 設定 placeholder="Choose Date"
-            selected_hidden = st.multiselect(
-                "Choose Date",
-                options=all_session_dates,
-                default=current_hidden,
-                placeholder="Choose Date"
-            )
-            
-            if set(selected_hidden) != set(st.session_state.data["hidden"]):
-                st.session_state.data["hidden"] = selected_hidden
+        all_dates = sorted(st.session_state.data["sessions"].keys())
+        if all_dates:
+            st.write("隱藏設定")
+            cur_hidden = [d for d in st.session_state.data["hidden"] if d in all_dates]
+            sel_hidden = st.multiselect("隱藏場次", all_dates, default=cur_hidden, placeholder="選擇日期...")
+            if set(sel_hidden) != set(st.session_state.data["hidden"]):
+                st.session_state.data["hidden"] = sel_hidden
                 save_data(st.session_state.data)
                 st.rerun()
-
+            
             st.markdown("---")
-            
-            # 刪除場次
-            del_date = st.selectbox("刪除日期", options=all_session_dates)
+            del_d = st.selectbox("刪除場次", all_dates)
             if st.button("確認刪除"):
-                del st.session_state.data["sessions"][del_date]
-                if del_date in st.session_state.data["hidden"]:
-                    st.session_state.data["hidden"].remove(del_date)
+                del st.session_state.data["sessions"][del_d]
+                if del_d in st.session_state.data["hidden"]: st.session_state.data["hidden"].remove(del_d)
                 save_data(st.session_state.data)
-                st.success("已刪除")
                 st.rerun()
-    else:
-        if pwd_input: st.error("密碼錯誤")
 
 # ==========================================
-# 4. 主頁面邏輯
+# 4. 主畫面
 # ==========================================
 
-col_header, col_share = st.columns([8, 2])
+# 標題區 (HTML 優化版)
+st.markdown("""
+    <div class="header-box">
+        <div class="header-title">☀️ Sunny Girls</div>
+        <div class="header-sub">Keep playing, keep shining.</div>
+        <div class="info-pill">🏀 朱崙公園 19:00</div>
+    </div>
+""", unsafe_allow_html=True)
 
-with col_header:
-    st.markdown("""
-        <div class="header-box">
-            <h1 style="margin:0; font-size: 2.2rem; font-weight: 800; letter-spacing: 1px;">晴女☀️在場邊等妳🌈</h1>
-            <p style="margin:5px 0 15px 0; font-size: 0.9rem; opacity: 0.9; letter-spacing: 1px;">✨ 希望永遠是晴天 ✨</p>
-            <div class="info-tag">
-                📍 地點：朱崙公園 &nbsp;&nbsp;|&nbsp;&nbsp; 🕒 時間：19:00開打
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-with col_share:
-    st.write("") 
-    st.write("")
-    components.html(
-        f"""
-        <style>
-        .copy-btn {{
-            background-color: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            color: #333;
-            padding: 8px 16px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            font-family: "Source Sans Pro", sans-serif;
-            font-weight: 600;
-            cursor: pointer;
-            transition-duration: 0.4s;
-            width: 100%;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }}
-        .copy-btn:hover {{
-            background-color: #f8f9fa;
-            border-color: #d0d0d0;
-        }}
-        .copy-btn:active {{
-            background-color: #e9ecef;
-            transform: translateY(1px);
-        }}
-        </style>
-        <button class="copy-btn" onclick="copyToClipboard()" id="shareBtn">
-            🔗 分享連結
-        </button>
-        <script>
-        function copyToClipboard() {{
-            const url = "{APP_URL}";
-            navigator.clipboard.writeText(url).then(function() {{
-                const btn = document.getElementById("shareBtn");
-                btn.innerText = "✅ 已複製！";
-                btn.style.borderColor = "#4CAF50";
-                btn.style.color = "#4CAF50";
-                setTimeout(function() {{
-                    btn.innerText = "🔗 分享連結";
-                    btn.style.borderColor = "#e0e0e0";
-                    btn.style.color = "#333";
-                }}, 2000);
-            }}, function(err) {{
-                console.error('Async: Could not copy text: ', err);
-            }});
-        }}
-        </script>
-        """,
-        height=50
-    )
+# 分享按鈕 (精簡版)
+components.html(
+    f"""
+    <style>
+    body {{ margin: 0; padding: 0; display: flex; justify-content: center; }}
+    .btn {{
+        background: white; border: 1px solid #ddd; border-radius: 20px;
+        padding: 6px 15px; font-size: 14px; cursor: pointer; color: #555;
+        font-family: sans-serif; display: flex; align-items: center; gap: 5px;
+    }}
+    </style>
+    <button class="btn" onclick="navigator.clipboard.writeText('{APP_URL}').then(()=>{{document.getElementById('t').innerText='已複製!'}})">
+        🔗 <span id="t">分享連結</span>
+    </button>
+    """, height=40
+)
 
 # -----------------------------------------------------
 
 all_dates_raw = sorted(st.session_state.data["sessions"].keys())
 hidden_list = st.session_state.data.get("hidden", [])
-
-if is_admin:
-    display_dates = all_dates_raw
-else:
-    display_dates = [d for d in all_dates_raw if d not in hidden_list]
+display_dates = all_dates_raw if is_admin else [d for d in all_dates_raw if d not in hidden_list]
 
 if not display_dates:
-    if is_admin:
-        st.info("👋 目前沒有場次，請在左側新增！")
-    else:
-        st.info("👋 目前沒有開放報名的場次，請稍後再來！")
+    st.info("👋 暫無開放場次")
 else:
+    # 簡化 Tab 標題，避免手機版太長
     tab_titles = []
     for d in display_dates:
-        title = f"📅 {d}"
-        if is_admin and d in hidden_list:
-            title += " (🔒隱藏)"
+        # 取月/日 (例如 12/25) 比較短
+        dt_obj = datetime.strptime(d, "%Y-%m-%d")
+        title = f"{dt_obj.month}/{dt_obj.day}"
+        if is_admin and d in hidden_list: title += "🔒"
         tab_titles.append(title)
 
     tabs = st.tabs(tab_titles)
 
     for i, date_key in enumerate(display_dates):
         with tabs[i]:
-            # ==========================================
-            # 判斷是否截止 (開團前一天 18:00)
-            # ==========================================
+            # 計算截止
             try:
                 y, m, d_int = map(int, date_key.split('-'))
-                session_date = datetime(y, m, d_int)
-                # 截止時間：前一天 18:00
-                deadline_dt = (session_date - timedelta(days=1)).replace(hour=18, minute=0, second=0)
-                current_dt = datetime.now()
-                is_locked = current_dt > deadline_dt
+                sess_dt = datetime(y, m, d_int)
+                deadline = (sess_dt - timedelta(days=1)).replace(hour=18, minute=0, second=0)
+                is_locked = datetime.now() > deadline
             except:
                 is_locked = False
 
             can_edit = is_admin or (not is_locked)
-            form_disabled = not can_edit
-
-            current_players = st.session_state.data["sessions"][date_key]
             
-            sorted_players = sorted(current_players, key=lambda x: x.get('timestamp', 0))
-            main_list = []
-            wait_list = []
-            current_count = 0
-
-            for p in sorted_players:
-                p_count = p.get('count', 1)
-                if current_count + p_count <= MAX_CAPACITY:
-                    main_list.append(p)
-                    current_count += p_count
+            # 取得資料
+            players = st.session_state.data["sessions"][date_key]
+            players = sorted(players, key=lambda x: x.get('timestamp', 0))
+            
+            main, wait = [], []
+            curr_count = 0
+            for p in players:
+                if curr_count + p.get('count', 1) <= MAX_CAPACITY:
+                    main.append(p)
+                    curr_count += p.get('count', 1)
                 else:
-                    wait_list.append(p)
-            
-            total_reg = sum(p.get('count', 1) for p in current_players)
+                    wait.append(p)
+
+            # 統計資訊 (使用較小的字體)
             c1, c2, c3 = st.columns(3)
-            c1.metric("總人數", f"{total_reg}")
-            c2.metric("正選", f"{len(main_list)} / {MAX_CAPACITY}")
-            c3.metric("候補", f"{len(wait_list)}")
+            c1.caption(f"總人數: {len(players)}")
+            c2.caption(f"正選: {len(main)}/{MAX_CAPACITY}")
+            c3.caption(f"候補: {len(wait)}")
             st.markdown("---")
 
-            col_form, col_list = st.columns([1, 2])
+            # === 功能函式 ===
+            def update_p(pid, d_key, name, is_m, ball, court):
+                target = next((p for p in st.session_state.data["sessions"][d_key] if p['id'] == pid), None)
+                if target:
+                    target['name'], target['isMember'] = name, is_m
+                    target['bringBall'], target['occupyCourt'] = ball, court
+                    save_data(st.session_state.data)
+                    st.session_state.edit_target = None
+                    st.rerun()
 
-            with col_form:
-                st.subheader("📝 我要報名")
+            def delete_p(pid, d_key):
+                st.session_state.data["sessions"][d_key] = [p for p in st.session_state.data["sessions"][d_key] if p["id"] != pid]
+                if st.session_state.edit_target == pid: st.session_state.edit_target = None
+                save_data(st.session_state.data)
+                st.rerun()
+
+            def promote_p(wait_pid, d_key):
+                all_p = st.session_state.data["sessions"][d_key]
+                w_p = next((p for p in all_p if p['id'] == wait_pid), None)
+                # 找最後一個非晴女
+                target_g = None
+                for p in reversed(main): # 這裡直接用 main list
+                    if not p.get('isMember'):
+                        target_g = next((op for op in all_p if op['id'] == p['id']), None)
+                        break
                 
-                if is_locked and not is_admin:
-                    st.warning(f"⛔ 報名已於前一日 18:00 截止，表單已鎖定。\n\n如需異動請聯繫管理員。")
+                if w_p and target_g:
+                    cutoff = main[-1]['timestamp']
+                    w_p['timestamp'] = target_g['timestamp'] - 1.0
+                    target_g['timestamp'] = cutoff + 1.0
+                    save_data(st.session_state.data)
+                    st.success("遞補成功")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error("無法遞補")
 
-                with st.form(f"form_{date_key}", clear_on_submit=True):
-                    name_input = st.text_input("球員姓名", disabled=form_disabled)
-                    is_member = st.checkbox("⭐我是晴女", key=f"mem_{date_key}", disabled=form_disabled)
-                    total_count = st.number_input("報名總人數 (含自己, Max 3)", 1, 3, 1, key=f"tot_{date_key}", disabled=form_disabled)
+            # === 報名與名單顯示 (針對手機優化佈局) ===
+            
+            # 使用 Expander 收折報名表單，節省空間
+            with st.expander("📝 我要報名 / 查看規則", expanded=not is_locked):
+                if is_locked and not is_admin:
+                    st.warning("⛔ 已截止")
+                
+                with st.form(f"f_{date_key}", clear_on_submit=True):
+                    f_name = st.text_input("姓名", disabled=not can_edit)
+                    f_mem = st.checkbox("⭐晴女", key=f"m_{date_key}", disabled=not can_edit)
+                    f_tot = st.number_input("人數 (含自己)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
                     
-                    c_b, c_c = st.columns(2)
-                    bring_ball = c_b.checkbox("🏀帶球", key=f"b_{date_key}", disabled=form_disabled)
-                    occupy_court = c_c.checkbox("🚩佔場", key=f"c_{date_key}", disabled=form_disabled)
+                    fc1, fc2 = st.columns(2)
+                    f_ball = fc1.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
+                    f_crt = fc2.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
                     
-                    submit_label = "送出" if can_edit else "⛔ 已截止"
-                    
-                    if st.form_submit_button(submit_label, disabled=form_disabled):
-                        if name_input:
+                    if st.form_submit_button("送出報名", disabled=not can_edit):
+                        if f_name:
                             ts = time.time()
-                            new_entries = []
-                            # 自己
-                            new_entries.append({
-                                "id": str(uuid.uuid4()), "name": name_input, "count": 1,
-                                "isMember": is_member, "bringBall": bring_ball,
-                                "occupyCourt": occupy_court, "timestamp": ts
-                            })
-                            # 朋友
-                            friends = total_count - 1
-                            for f in range(friends):
-                                new_entries.append({
-                                    "id": str(uuid.uuid4()), 
-                                    "name": f"{name_input} (朋友{f+1})",
-                                    "count": 1, 
-                                    "isMember": False, 
-                                    "bringBall": False,
-                                    "occupyCourt": False, 
-                                    "timestamp": ts + 0.1 + (f * 0.01)
+                            new_ps = [{
+                                "id": str(uuid.uuid4()), "name": f_name, "count": 1,
+                                "isMember": f_mem, "bringBall": f_ball, "occupyCourt": f_crt, "timestamp": ts
+                            }]
+                            for f in range(f_tot - 1):
+                                new_ps.append({
+                                    "id": str(uuid.uuid4()), "name": f"{f_name} (友{f+1})",
+                                    "count": 1, "isMember": False, "bringBall": False, "occupyCourt": False, "timestamp": ts + 0.1 + (f*0.01)
                                 })
-                            st.session_state.data["sessions"][date_key].extend(new_entries)
+                            st.session_state.data["sessions"][date_key].extend(new_ps)
                             save_data(st.session_state.data)
                             st.rerun()
                         else:
-                            st.error("需填寫姓名")
+                            st.error("請輸入姓名")
+                st.caption("規則：加人請重填，減人請刪除。晴女優先遞補。")
 
-                st.info("""
-                **📌 規則**
-                * **人數修改**：若要「減人」，請直接在名單中按刪除❌；若要「加人」，請重新報名排隊。
-                * **資料修改**：點擊名單旁的✏️可修改屬性 (晴女/帶球/佔場)。
-                * **遞補規則**：候補⭐晴女可優先遞補正選「非晴女」。
-                * **截止時間**：開團前一日 18:00 截止。
-                """)
-
-            with col_list:
-                # 刪除功能
-                def delete_p(pid, d_key):
-                    st.session_state.data["sessions"][d_key] = [
-                        p for p in st.session_state.data["sessions"][d_key] if p["id"] != pid
-                    ]
-                    if st.session_state.edit_target == pid:
-                        st.session_state.edit_target = None
-                    save_data(st.session_state.data)
-                    st.rerun()
-
-                # 遞補功能
-                def promote_p(wait_pid, d_key, target_main_list):
-                    all_p = st.session_state.data["sessions"][d_key]
-                    wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
-                    
-                    target_guest = None
-                    for p in reversed(target_main_list):
-                        if not p.get('isMember'):
-                            target_id = p['id']
-                            target_guest = next((op for op in all_p if op['id'] == target_id), None)
-                            break
-                    
-                    if wait_person and target_guest:
-                        cutoff_person = target_main_list[-1]
-                        cutoff_time = cutoff_person.get('timestamp', 0)
+            # === 名單顯示 (Mobile Friendly) ===
+            st.subheader("✅ 正選名單")
+            if main:
+                for idx, p in enumerate(main):
+                    # 編輯模式
+                    if st.session_state.edit_target == p['id']:
+                        with st.container():
+                            st.markdown(f"<div class='edit-box'>✏️ {p['name']}</div>", unsafe_allow_html=True)
+                            with st.form(key=f"e_{p['id']}"):
+                                en = st.text_input("名", p['name'])
+                                ec1, ec2, ec3 = st.columns(3)
+                                em = ec1.checkbox("⭐", p.get('isMember'))
+                                eb = ec2.checkbox("🏀", p.get('bringBall'))
+                                ec = ec3.checkbox("🚩", p.get('occupyCourt'))
+                                if st.form_submit_button("💾"):
+                                    update_p(p['id'], date_key, en, em, eb, ec)
+                                if st.form_submit_button("取消"):
+                                    st.session_state.edit_target = None
+                                    st.rerun()
+                    else:
+                        # === 手機版核心改動：合併欄位 ===
+                        # 1. 準備顯示文字
+                        tags = []
+                        if p.get('isMember'): tags.append("⭐")
+                        if p.get('bringBall'): tags.append("🏀")
+                        if p.get('occupyCourt'): tags.append("🚩")
+                        tag_str = " ".join(tags)
                         
-                        wait_person['timestamp'] = target_guest['timestamp'] - 1.0
-                        target_guest['timestamp'] = cutoff_time + 1.0
+                        # 2. 顯示卡片列 (Text | Edit | Del)
+                        # 使用 columns 來控制比例，文字區給最大 (6), 按鈕給小 (1)
+                        r1, r2, r3 = st.columns([6, 1, 1])
                         
-                        save_data(st.session_state.data)
-                        st.success(f"遞補成功！晴女 {wait_person['name']} 已晉升正選。")
-                        time.sleep(0.5)
-                        st.rerun()
-                    elif wait_person and not target_guest:
-                        st.error("❌ 無法遞補：正選名單全是晴女。")
+                        # 文字區
+                        r1.markdown(f"**{idx+1}. {p['name']}** <span style='color:#666; font-size:0.85em'>{tag_str}</span>", unsafe_allow_html=True)
+                        
+                        # 按鈕區 (只有在可編輯時出現)
+                        if can_edit:
+                            if r2.button("✏️", key=f"btn_e_{p['id']}"):
+                                st.session_state.edit_target = p['id']
+                                st.rerun()
+                            if r3.button("❌", key=f"btn_d_{p['id']}"):
+                                delete_p(p['id'], date_key)
+            else:
+                st.write("尚無人報名")
 
-                # 修改功能
-                def update_p(pid, d_key, new_name, new_is_mem, new_ball, new_court):
-                    all_p = st.session_state.data["sessions"][d_key]
-                    target = next((p for p in all_p if p['id'] == pid), None)
-                    if target:
-                        target['name'] = new_name
-                        target['isMember'] = new_is_mem
-                        target['bringBall'] = new_ball
-                        target['occupyCourt'] = new_court
-                        save_data(st.session_state.data)
-                        st.session_state.edit_target = None
-                        st.rerun()
-
-                st.subheader("✅ 正選名單")
-                if main_list:
-                    for idx, p in enumerate(main_list):
-                        # 如果是編輯狀態 (且 ID 符合)
-                        if st.session_state.edit_target == p['id']:
-                            with st.container():
-                                st.markdown(f"<div class='edit-box'><b>✏️ 編輯中：{p['name']}</b>", unsafe_allow_html=True)
-                                with st.form(key=f"edit_{p['id']}"):
-                                    e_name = st.text_input("姓名", value=p['name'])
-                                    col_e1, col_e2, col_e3 = st.columns(3)
-                                    e_mem = col_e1.checkbox("⭐晴女", value=p.get('isMember', False))
-                                    e_ball = col_e2.checkbox("🏀帶球", value=p.get('bringBall', False))
-                                    e_court = col_e3.checkbox("🚩佔場", value=p.get('occupyCourt', False))
-                                    
-                                    b1, b2 = st.columns([1, 1])
-                                    if b1.form_submit_button("💾 儲存"):
-                                        update_p(p['id'], date_key, e_name, e_mem, e_ball, e_court)
-                                    if b2.form_submit_button("取消"):
-                                        st.session_state.edit_target = None
-                                        st.rerun()
-                                st.markdown("</div>", unsafe_allow_html=True)
-
-                        else:
-                            # 正常顯示模式
-                            cols = st.columns([0.5, 3, 1.5, 0.5, 0.5]) 
-                            cols[0].write(f"{idx+1}.")
-                            cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
-                            
-                            tag_s = []
-                            if p.get('bringBall'): tag_s.append("🏀")
-                            if p.get('occupyCourt'): tag_s.append("🚩")
-                            cols[2].write(" ".join(tag_s))
-                            
-                            if can_edit:
-                                # 編輯按鈕
-                                if cols[3].button("✏️", key=f"e_{p['id']}"):
+            if wait:
+                st.write("") # Spacer
+                st.subheader(f"⏳ 候補 ({len(wait)})")
+                for idx, p in enumerate(wait):
+                    # 候補編輯邏輯同上，略微簡化
+                    if st.session_state.edit_target == p['id']:
+                         with st.container():
+                            st.markdown(f"<div class='edit-box'>✏️ {p['name']}</div>", unsafe_allow_html=True)
+                            with st.form(key=f"ew_{p['id']}"):
+                                en = st.text_input("名", p['name'])
+                                ec1, ec2, ec3 = st.columns(3)
+                                em = ec1.checkbox("⭐", p.get('isMember'))
+                                eb = ec2.checkbox("🏀", p.get('bringBall'))
+                                ec = ec3.checkbox("🚩", p.get('occupyCourt'))
+                                if st.form_submit_button("💾"):
+                                    update_p(p['id'], date_key, en, em, eb, ec)
+                                if st.form_submit_button("取消"):
+                                    st.session_state.edit_target = None
+                                    st.rerun()
+                    else:
+                        tags = []
+                        if p.get('isMember'): tags.append("⭐")
+                        if p.get('bringBall'): tags.append("🏀")
+                        if p.get('occupyCourt'): tags.append("🚩")
+                        tag_str = " ".join(tags)
+                        
+                        # 候補列布局：文字 | 遞補 | 編輯 | 刪除
+                        cols_cfg = [4, 1.5, 1, 1] if is_admin else [5, 1, 1]
+                        cols = st.columns(cols_cfg)
+                        
+                        cols[0].markdown(f"{idx+1}. {p['name']} <span style='color:#666; font-size:0.8em'>{tag_str}</span>", unsafe_allow_html=True)
+                        
+                        btn_idx = 1
+                        if is_admin and p.get('isMember'):
+                            if cols[btn_idx].button("⬆️", key=f"up_{p['id']}"):
+                                promote_p(p['id'], date_key)
+                            btn_idx += 1
+                        
+                        if can_edit:
+                            # 確保索引不會超出 (針對非管理員看不到遞補鈕的情況)
+                            if btn_idx < len(cols):
+                                if cols[btn_idx].button("✏️", key=f"bew_{p['id']}"):
                                     st.session_state.edit_target = p['id']
                                     st.rerun()
-                                # 刪除按鈕
-                                if cols[4].button("❌", key=f"d_{p['id']}"):
-                                    delete_p(p['id'], date_key)
-                else:
-                    st.write("尚無人報名")
-
-                if wait_list:
-                    st.divider()
-                    st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
-                    
-                    for idx, p in enumerate(wait_list):
-                        if st.session_state.edit_target == p['id']:
-                            with st.container():
-                                st.markdown(f"<div class='edit-box'><b>✏️ 編輯中：{p['name']}</b>", unsafe_allow_html=True)
-                                with st.form(key=f"edit_wait_{p['id']}"):
-                                    e_name = st.text_input("姓名", value=p['name'])
-                                    col_e1, col_e2, col_e3 = st.columns(3)
-                                    e_mem = col_e1.checkbox("⭐晴女", value=p.get('isMember', False))
-                                    e_ball = col_e2.checkbox("🏀帶球", value=p.get('bringBall', False))
-                                    e_court = col_e3.checkbox("🚩佔場", value=p.get('occupyCourt', False))
-                                    
-                                    b1, b2 = st.columns([1, 1])
-                                    if b1.form_submit_button("💾 儲存"):
-                                        update_p(p['id'], date_key, e_name, e_mem, e_ball, e_court)
-                                    if b2.form_submit_button("取消"):
-                                        st.session_state.edit_target = None
-                                        st.rerun()
-                                st.markdown("</div>", unsafe_allow_html=True)
-                        else:
-                            can_promote = p.get('isMember')
-                            cols = st.columns([0.5, 3, 1, 1, 0.5, 0.5]) 
-
-                            cols[0].write(f"{idx+1}.")
-                            cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
-                            
-                            tag_s = []
-                            if p.get('bringBall'): tag_s.append("🏀")
-                            if p.get('occupyCourt'): tag_s.append("🚩")
-                            cols[2].write(" ".join(tag_s))
-                            
-                            if can_promote and is_admin:
-                                if cols[3].button("⬆️遞補", key=f"up_{p['id']}"):
-                                    promote_p(p['id'], date_key, main_list)
-                            
-                            if can_edit:
-                                if cols[4].button("✏️", key=f"ew_{p['id']}"):
-                                    st.session_state.edit_target = p['id']
-                                    st.rerun()
-                                if cols[5].button("❌", key=f"dw_{p['id']}"):
+                            if btn_idx + 1 < len(cols):
+                                if cols[btn_idx+1].button("❌", key=f"bdw_{p['id']}"):
                                     delete_p(p['id'], date_key)
