@@ -245,7 +245,7 @@ export default function App() {
                     <span className="text-pink-400"> </span>
                     <span className="flex-1">
                         <CloudRain className="w-4 h-4 inline mr-1" />
-                        若遇雨天,當日 17:00 前通知是否取消。
+                        若遇雨天,當日 17:00 前通知是否取消
                     </span>
                   </li>
                 </ul>
@@ -300,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
