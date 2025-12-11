@@ -10,7 +10,7 @@ from datetime import datetime, date, timedelta
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-# (APP_URL 設定已保留，但前台不會顯示按鈕)
+# ⚠️ 請將下方網址改成你實際部署後的網址
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.16 無分享鈕版
+# 2. UI 極簡禪意風格 (CSS) - V3.17 結構修復版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -98,7 +98,7 @@ st.markdown("""
 
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
-    /* 名字樣式 (保持 V3.13 妳喜歡的大小) */
+    /* 名字樣式 */
     .list-name { 
         color: #334155; 
         font-weight: 700; 
@@ -147,6 +147,9 @@ st.markdown("""
     .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
     
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
+    
+    /* 修正 st.code */
+    .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -185,7 +188,11 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# [已移除] 分享連結按鈕區塊
+# 分享區塊 (使用官方 st.code)
+c_s1, c_s2, c_s3 = st.columns([1, 6, 1])
+with c_s2:
+    st.caption("👇 點擊右側按鈕複製連結")
+    st.code(APP_URL, language=None)
 
 # ==========================================
 # 4. 主畫面邏輯
@@ -300,7 +307,7 @@ else:
                 * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # === 名單渲染 ===
+            # === 名單渲染 (HTML 結構強化版) ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
@@ -329,14 +336,15 @@ else:
                         c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
                         cols = st.columns(c_cfg, gap="small")
                         
+                        # [修正重點] 使用 div 取代 span，避免 HTML 嵌套錯誤
                         with cols[0]:
                             st.markdown(f"""
                             <div class="player-row">
-                                <span style="display:flex; align-items:center; width:100%;">
+                                <div style="display:flex; align-items:center; width:100%;">
                                     <span class="list-index">{idx+1}.</span>
                                     <span class="list-name">{p['name']}</span>
                                     {badges}
-                                </span>
+                                </div>
                             </div>
                             """, unsafe_allow_html=True)
                         
