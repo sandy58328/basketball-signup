@@ -74,21 +74,23 @@ st.markdown("""
         padding: 0px 10px;
         border-radius: 5px;
     }
+    /* 調整 Popover 按鈕樣式，讓它看起來更像一個單純的圖示 */
+    div[data-testid="stPopover"] button {
+        border: none;
+        background: transparent;
+        font-size: 1.2rem;
+        padding: 5px;
+    }
+    div[data-testid="stPopover"] button:hover {
+        background: #f0f2f6;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. 側邊欄：分享 & 管理
+# 3. 側邊欄：場次管理 (已移除舊的分享區塊)
 # ==========================================
 with st.sidebar:
-    # --- [簡化後] 分享連結區塊 ---
-    st.header("🔗 分享報名連結")
-    st.caption("點擊下方框框右側按鈕即可複製")
-    st.code(APP_URL, language="text")
-    
-    st.markdown("---")
-
-    # --- 管理員區塊 ---
     st.header("⚙️ 場次管理員")
     pwd_input = st.text_input("輸入管理密碼解鎖功能", type="password")
     
@@ -148,9 +150,18 @@ with st.sidebar:
 # 4. 主頁面邏輯
 # ==========================================
 
+# [新增功能] 在標題區塊上方放置一個小小的分享圖示按鈕
+# 使用 columns 將其推到最右邊
+col_spacer, col_share = st.columns([15, 1])
+with col_share:
+    # 使用 Popover 建立點擊彈出效果
+    with st.popover("🔗", help="點擊複製報名連結"):
+        st.caption("複製下方連結分享：")
+        st.code(APP_URL, language="text")
+
+# 原本的標題區塊 (保持不變)
 st.markdown("""
-    <div class="header-box">
-        <h1 style="margin:0; font-size: 2.5rem; font-weight: 800; letter-spacing: 1px;">晴女☀️在場邊等妳🌈</h1>
+    <div class="header-box" style="margin-top: -10px;"> <h1 style="margin:0; font-size: 2.5rem; font-weight: 800; letter-spacing: 1px;">晴女☀️在場邊等妳🌈</h1>
         <p style="margin:5px 0 15px 0; font-size: 0.9rem; opacity: 0.9; letter-spacing: 1px;">✨ 希望永遠是晴天 ✨</p>
         <div class="info-tag">
             📍 地點：朱崙公園 &nbsp;&nbsp;|&nbsp;&nbsp; 🕒 時間：19:00開打
