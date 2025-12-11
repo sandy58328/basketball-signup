@@ -11,7 +11,7 @@ from datetime import datetime, date, timedelta
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 # ⚠️ 上線後請換成真實網址
-APP_URL = "https://basketball-app-8uphy7gcfou6nxmfz54ezn.streamlit.app/#a0a5de55"
+APP_URL = "https://sunny-girls-basketball.streamlit.app"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
 
@@ -53,7 +53,7 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
-    /* Header: 乾淨清爽白色懸浮 */
+    /* Header */
     .header-box {
         background: white;
         padding: 1.5rem 1rem; border-radius: 20px; 
@@ -68,7 +68,7 @@ st.markdown("""
         display: inline-block; margin-top: 10px;
     }
 
-    /* Tabs: 極簡 */
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
         height: 38px; background-color: transparent; border-radius: 20px;
@@ -79,17 +79,16 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
 
-    /* 列表樣式：無框線，純淨 */
+    /* 列表樣式 */
     .row-content {
         background: white;
         padding: 10px 14px;
         border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02); /* 極淡陰影 */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         display: flex; align-items: center;
-        margin-bottom: 4px; /* 行距 */
+        margin-bottom: 4px;
         transition: transform 0.1s;
     }
-    /* 讓它看起來像浮起來 */
     .row-content:hover {
         transform: scale(1.005);
         box-shadow: 0 4px 10px rgba(0,0,0,0.04);
@@ -98,13 +97,12 @@ st.markdown("""
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.85rem; margin-right: 12px; min-width: 20px; text-align: right;}
     .list-name { color: #334155; font-weight: 600; font-size: 1rem; flex-grow: 1; }
     
-    /* 膠囊標籤 */
     .badge { padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; }
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
 
-    /* 按鈕微調 */
+    /* 按鈕樣式 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; }
     .list-btn-col button {
         border: none !important; background: transparent !important;
@@ -112,18 +110,16 @@ st.markdown("""
     }
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 50%; }
     
-    /* ❌ 這裡設定讓紅色叉叉按鈕不會變色 */
     .list-btn-d button { color: unset !important; opacity: 0.9; }
     .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 50%; }
     
     .list-btn-up button { padding: 2px 8px !important; min-height: 24px !important; font-size: 0.7rem !important; border-radius: 12px !important; background: #f1f5f9 !important; color: #475569 !important;}
 
-    /* 進度條 */
+    /* Progress Bar */
     .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
     .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
     
-    /* 編輯框 */
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
@@ -239,8 +235,12 @@ else:
                 if is_locked and not is_admin: st.warning("⛔ 已截止")
                 with st.form(f"f_{date_key}", clear_on_submit=True):
                     name = st.text_input("球員姓名", disabled=not can_edit, placeholder="輸入您的稱呼...")
+                    # [新增] 這裡加了小標題提醒
+                    st.caption("⚠️ 名字請依照社群內名字填寫")
+                    
                     c1, c2, c3 = st.columns(3)
-                    im = c1.checkbox("⭐晴女", key=f"m_{date_key}", disabled=not can_edit)
+                    # [修改] 這裡改了勾選文案
+                    im = c1.checkbox("⭐晴女 (團員務必勾選)", key=f"m_{date_key}", disabled=not can_edit)
                     bb = c2.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
                     oc = c3.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
                     tot = st.number_input("總人數 (含自己)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
@@ -282,6 +282,7 @@ else:
                             with st.form(key=f"e_{p['id']}"):
                                 en = st.text_input("名", p['name'])
                                 ec1, ec2, ec3 = st.columns(3)
+                                # [修改] 編輯模式也同步修改標題，保持一致
                                 em = ec1.checkbox("⭐晴女", p.get('isMember'))
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
@@ -323,7 +324,7 @@ else:
                             if b_idx+1 < len(cols):
                                 with cols[b_idx+1]:
                                     st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
-                                    # 這裡改回紅色叉叉 emoji
+                                    # 紅色叉叉
                                     if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
                                     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -333,4 +334,3 @@ else:
                 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
                 st.subheader(f"⏳ 候補名單")
                 render_list(wait, is_wait=True)
-
