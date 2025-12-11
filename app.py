@@ -167,7 +167,7 @@ export default function App() {
                   <MapPin className="w-5 h-5 text-yellow-300" />
                   <div className="flex flex-col">
                     <span className="text-xs text-sky-200">地點</span>
-                    <span className="font-medium">台北市朱崙公園籃球場</span>
+                    <span className="font-medium">朱崙公園籃球場</span>
                   </div>
                 </div>
               </div>
@@ -193,7 +193,7 @@ export default function App() {
           </div>
           
           <div className="bg-white p-4 rounded-xl shadow-sm border border-sky-100">
-            <p className="text-xs text-gray-500 uppercase font-semibold">幫忙帶球</p>
+            <p className="text-xs text-gray-500 uppercase font-semibold">🏀幫忙帶球</p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-2xl font-bold text-orange-500">
                 {players.filter(p => p.bringBall).length}
@@ -202,7 +202,7 @@ export default function App() {
           </div>
           
           <div className="bg-white p-4 rounded-xl shadow-sm border border-sky-100">
-            <p className="text-xs text-gray-500 uppercase font-semibold">幫忙佔場</p>
+            <p className="text-xs text-gray-500 uppercase font-semibold">🚩幫忙佔場</p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-2xl font-bold text-green-600">
                 {players.filter(p => p.occupyCourt).length}
@@ -300,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
