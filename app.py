@@ -73,6 +73,10 @@ st.markdown("""
         background-color: #fefce8; border-left: 5px solid #eab308;
         padding: 1rem; color: #854d0e; margin-bottom: 1rem;
     }
+    /* 按鈕樣式微調 */
+    button[kind="secondary"] {
+        border-color: #e5e7eb;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -231,7 +235,6 @@ else:
                         else:
                             st.error("請輸入名字")
 
-                # 這裡是你指定的規則更新！
                 st.info("""
                 **📌 報名規則**
                 * 上限 **20 人**，超過系統自動轉候補。
@@ -242,6 +245,7 @@ else:
 
             # [右側] 名單顯示
             with col_list:
+                # === 功能函數 ===
                 def delete_p(pid, d_key):
                     st.session_state.data["sessions"][d_key] = [
                         p for p in st.session_state.data["sessions"][d_key] if p["id"] != pid
@@ -249,13 +253,49 @@ else:
                     save_data(st.session_state.data)
                     st.rerun()
 
-                # 優先權警告
+                def promote_p(wait_pid, d_key, target_main_list):
+                    """
+                    篡位功能：
+                    1. 找到在候補名單的團員 (wait_pid)
+                    2. 找到在正選名單中，最後一個非團員 (target_guest)
+                    3. 交換他們的時間戳記 (Timestamp)
+                    """
+                    session_players = st.session_state.data["sessions"][d_key]
+                    
+                    # 找出這兩個人在完整名單中的參照
+                    wait_person = next((p for p in session_players if p['id'] == wait_pid), None)
+                    
+                    # 找出正選名單中，最後一個非團員 (反向搜尋)
+                    # target_main_list 是已經排好序的，我們從後面找
+                    target_guest = None
+                    for p in reversed(target_main_list):
+                        if not p.get('isMember'):
+                            target_guest_id = p['id']
+                            # 必須回到原始 session_players 抓取該物件才能修改
+                            target_guest = next((op for op in session_players if op['id'] == target_guest_id), None)
+                            break
+                    
+                    if wait_person and target_guest:
+                        # 交換時間戳記
+                        temp_ts = target_guest['timestamp']
+                        target_guest['timestamp'] = wait_person['timestamp']
+                        wait_person['timestamp'] = temp_ts
+                        
+                        save_data(st.session_state.data)
+                        st.success(f"已成功讓 {wait_person['name']} 遞補，取代 {target_guest['name']}！")
+                        st.rerun()
+                    else:
+                        st.error("找不到可以取代的對象，或操作失敗。")
+
+                # === 介面顯示 ===
+
+                # 優先權警告 (保留提示)
                 has_mem_wait = any(p.get('isMember') for p in wait_list)
                 has_guest_main = any(not p.get('isMember') for p in main_list)
                 if has_mem_wait and has_guest_main:
                     st.markdown(f"""<div class="priority-alert">
                     ⚠️ <b>優先權提醒 ({date_key})</b><br>
-                    候補有團員，但正選有名朋友。建議協調讓團員遞補。
+                    候補有團員，但正選有名朋友。請使用下方按鈕執行遞補。
                     </div>""", unsafe_allow_html=True)
 
                 # 正選列表
@@ -282,8 +322,24 @@ else:
                     st.divider()
                     st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
                     for idx, p in enumerate(wait_list):
-                        cols = st.columns([0.5, 5, 1])
+                        # 檢查是否可以顯示「遞補」按鈕
+                        # 條件：此人是團員 AND 正選名單有非團員
+                        can_promote = p.get('isMember') and has_guest_main
+                        
+                        # 欄位分配：如果可以遞補，按鈕欄位要大一點
+                        col_ratio = [0.5, 3.5, 2] if can_promote else [0.5, 5, 1]
+                        cols = st.columns(col_ratio)
+                        
                         cols[0].write(f"{idx+1}.")
                         cols[1].write(p['name'] + (" (團員)" if p.get('isMember') else ""))
-                        if cols[2].button("取消", key=f"del_w_{p['id']}"):
-                            delete_p(p['id'], date_key)
+                        
+                        if can_promote:
+                            # 顯示兩個按鈕：遞補 & 取消
+                            c_btn1, c_btn2 = cols[2].columns(2)
+                            if c_btn1.button("⬆️遞補", key=f"up_{p['id']}", help="點擊取代正選最後一位朋友"):
+                                promote_p(p['id'], date_key, main_list)
+                            if c_btn2.button("❌", key=f"del_w_{p['id']}"):
+                                delete_p(p['id'], date_key)
+                        else:
+                            if cols[2].button("取消", key=f"del_w_{p['id']}"):
+                                delete_p(p['id'], date_key)
