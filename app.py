@@ -2,15 +2,6 @@ import streamlit as st
 import json
 STORAGE_KEY = 'basketball_data';
 
-export default function App() {
-  const [gameDate, setGameDate] = useState<string>(() => {
-    // Default to today
-    return new Date().toISOString().split('T')[0];
-  });
-  
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
-
   // Load data from localStorage
   useEffect(() => {
     const savedData = localStorage.getItem(STORAGE_KEY);
@@ -296,6 +287,7 @@ export default function App() {
   );
 
 }
+
 
 
 
