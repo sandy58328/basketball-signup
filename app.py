@@ -53,7 +53,7 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; padding-bottom: 4rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
-    /* Header: 柔和漸層 + 陰影 */
+    /* Header */
     .header-box {
         background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
         padding: 1.8rem 1rem; border-radius: 20px; color: #4a5568; 
@@ -68,7 +68,7 @@ st.markdown("""
         display: inline-block; margin-top: 12px; backdrop-filter: blur(8px);
     }
 
-    /* Tabs: 圓潤膠囊風格 */
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 15px; }
     .stTabs [data-baseweb="tab"] {
         height: 42px; background-color: #f8fafc; border-radius: 25px;
@@ -79,7 +79,7 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
     }
 
-    /* Player Card: 懸浮效果 */
+    /* Player Card */
     .player-row {
         background: white; border: 1px solid #f1f5f9; border-radius: 16px;
         padding: 10px 6px 10px 14px; margin-bottom: 10px;
@@ -118,8 +118,12 @@ st.markdown("""
 # 3. 側邊欄 & Header
 # ==========================================
 with st.sidebar:
-    st.header("⚙️ 管理員")
-    if (pwd := st.text_input("密碼", type="password")) == ADMIN_PASSWORD:
+    st.header("⚙️ 場次管理員")
+    # [修正] 明確定義 pwd 與 is_admin 變數，避免 NameError
+    pwd = st.text_input("密碼", type="password")
+    is_admin = (pwd == ADMIN_PASSWORD)
+    
+    if is_admin:
         st.success("🔓 已解鎖")
         new_date = st.date_input("新增日期", min_value=date.today())
         if st.button("➕ 新增場次"):
@@ -155,7 +159,7 @@ components.html(
 # ==========================================
 all_dates = sorted(st.session_state.data["sessions"].keys())
 hidden = st.session_state.data.get("hidden", [])
-dates = all_dates if (pwd == ADMIN_PASSWORD) else [d for d in all_dates if d not in hidden]
+dates = all_dates if is_admin else [d for d in all_dates if d not in hidden]
 
 if not dates:
     st.info("👋 目前沒有開放報名的場次，請稍後再來！")
@@ -171,7 +175,7 @@ else:
                 deadline = (dt_obj - timedelta(days=1)).replace(hour=18, minute=0, second=0)
                 is_locked = datetime.now() > deadline
             except: is_locked = False
-            can_edit = (pwd == ADMIN_PASSWORD) or (not is_locked)
+            can_edit = is_admin or (not is_locked)
 
             # 資料分組
             players = sorted(st.session_state.data["sessions"][date_key], key=lambda x: x.get('timestamp', 0))
@@ -181,9 +185,8 @@ else:
                 if curr + p.get('count', 1) <= MAX_CAPACITY: main.append(p); curr += p.get('count', 1)
                 else: wait.append(p)
 
-            # === [新功能] 智慧變色進度條 ===
+            # === 智慧變色進度條 ===
             pct = min(100, (len(main) / MAX_CAPACITY) * 100)
-            # 顏色邏輯: 綠(<50%) -> 橘(50-80%) -> 紅(>80%)
             bar_color = "#4ade80" if pct < 50 else "#fbbf24" if pct < 85 else "#f87171"
             
             st.markdown(f"""
@@ -212,8 +215,7 @@ else:
             def promote(wid, d):
                 all_p = st.session_state.data["sessions"][d]
                 w = next((p for p in all_p if p['id']==wid), None)
-                tg = next((p for p in reversed(main) if not p.get('isMember') and next((x for x in all_p if x['id']==p['id']), None)), None) # Find last non-member in main
-                # Re-match target in all_p to get reference
+                tg = next((p for p in reversed(main) if not p.get('isMember') and next((x for x in all_p if x['id']==p['id']), None)), None) 
                 tg_ref = next((p for p in all_p if p['id']==tg['id']), None) if tg else None
 
                 if w and tg_ref:
@@ -225,7 +227,7 @@ else:
 
             # === 報名表單 ===
             with st.expander("📝 點擊報名 / 規則說明", expanded=not is_locked):
-                if is_locked and not (pwd == ADMIN_PASSWORD): st.warning("⛔ 已截止")
+                if is_locked and not is_admin: st.warning("⛔ 已截止")
                 with st.form(f"f_{date_key}", clear_on_submit=True):
                     name = st.text_input("球員姓名", disabled=not can_edit, placeholder="輸入您的稱呼...")
                     c1, c2, c3 = st.columns(3)
@@ -241,7 +243,6 @@ else:
                             for k in range(tot-1): new.append({"id":str(uuid.uuid4()),"name":f"{name} (友{k+1})","count":1,"isMember":False,"bringBall":False,"occupyCourt":False,"timestamp":ts+0.1+(k*0.01)})
                             st.session_state.data["sessions"][date_key].extend(new)
                             save_data(st.session_state.data)
-                            # 🎉 驚喜特效：氣球 + Toast
                             st.balloons() 
                             st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀")
                             time.sleep(1.5)
@@ -249,25 +250,20 @@ else:
                         else: st.toast("❌ 請輸入姓名")
 
                 st.info("""
-                **📌 報名須知**
-                * **人數限制**：上限 20 人，每人最多報 3 位。額滿將自動排入候補。
-                * **優先遞補**：候補名單中之「⭐晴女」，享有優先遞補「非晴女」之權益。
-                * **修改/減人**：需減少人數或修改資料，請直接點擊名單右側的 ✏️ 或 ❌。
-                * **增加人數**：為維護排隊公平，**加人請重新填寫報名表**。
-                * **截止/雨備**：前一日 18:00 截止報名 (逾時請洽管理員)；雨天於當日 17:00 公告。
+                **📌 報名規則**
+                * **人數上限**：每場20人，含自己最多報名3位，超過的進入候補名單。
+                * **遞補規則**：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
+                * **修改/刪除**：若需「減少人數」或「修改屬性」，請直接點擊名單上的 ✏️ 或 ❌。
+                * **增加人數**：若需「增加人數」，請重新填寫報名表，以維護公平性。
+                * **截止時間**：開團前一日 18:00 截止報名，後續修改請通知管理員協助。
+                * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
             # === 名單顯示 ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
-                        # 🧸 空狀態可愛插圖
-                        st.markdown("""
-                        <div style="text-align: center; padding: 30px; color: #cbd5e1;">
-                            <div style="font-size: 40px; margin-bottom: 10px;">🏀</div>
-                            <p style="font-size: 0.9rem;">場地空蕩蕩...<br>快來當第一位！</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        st.markdown("""<div style="text-align: center; padding: 30px; color: #cbd5e1;"><div style="font-size: 40px; margin-bottom: 10px;">🏀</div><p style="font-size: 0.9rem;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
                     return
 
                 for idx, p in enumerate(lst):
