@@ -145,4 +145,135 @@ else:
                     main_list.append(p)
                     current_count += p_count
                 else:
-                    wait_list.
+                    # 修正重點：這裡原本斷掉了，現在修好了
+                    wait_list.append(p)
+            
+            # 統計
+            total_reg = sum(p.get('count', 1) for p in current_players)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("總人數", f"{total_reg}")
+            c2.metric("正選", f"{len(main_list)} / {MAX_CAPACITY}")
+            c3.metric("候補", f"{len(wait_list)}")
+            st.markdown("---")
+
+            col_form, col_list = st.columns([1, 2])
+
+            # [左側] 報名表單
+            with col_form:
+                st.subheader("📝 我要報名")
+                with st.form(f"form_{date_key}", clear_on_submit=True):
+                    name_input = st.text_input("球員姓名")
+                    is_member = st.checkbox("我是團員", key=f"mem_{date_key}")
+                    total_count = st.number_input("報名總人數 (含自己, Max 3)", 1, 3, 1, key=f"tot_{date_key}")
+                    
+                    c_b, c_c = st.columns(2)
+                    bring_ball = c_b.checkbox("🏀帶球", key=f"b_{date_key}")
+                    occupy_court = c_c.checkbox("🚩佔場", key=f"c_{date_key}")
+                    
+                    if st.form_submit_button("送出"):
+                        if name_input:
+                            ts = time.time()
+                            new_entries = []
+                            # 主報名者
+                            new_entries.append({
+                                "id": str(uuid.uuid4()), "name": name_input, "count": 1,
+                                "isMember": is_member, "bringBall": bring_ball,
+                                "occupyCourt": occupy_court, "timestamp": ts
+                            })
+                            # 朋友
+                            friends = total_count - 1
+                            for f in range(friends):
+                                new_entries.append({
+                                    "id": str(uuid.uuid4()), "name": f"{name_input} (朋友{f+1})",
+                                    "count": 1, "isMember": False, "bringBall": False,
+                                    "occupyCourt": False, "timestamp": ts + 0.1 + (f * 0.01)
+                                })
+                            st.session_state.data["sessions"][date_key].extend(new_entries)
+                            save_data(st.session_state.data)
+                            st.rerun()
+                        else:
+                            st.error("需填寫姓名")
+
+                st.info("""
+                **📌 規則**
+                * 上限 20 人，超過轉候補。
+                * 單次報名上限 3 人。
+                * 候補團員 (⭐) 可優先遞補。
+                * 雨天 17:00 前通知。
+                """)
+
+            # [右側] 名單
+            with col_list:
+                def delete_p(pid, d_key):
+                    st.session_state.data["sessions"][d_key] = [
+                        p for p in st.session_state.data["sessions"][d_key] if p["id"] != pid
+                    ]
+                    save_data(st.session_state.data)
+                    st.rerun()
+
+                def promote_p(wait_pid, d_key, target_main_list):
+                    # 篡位邏輯
+                    all_p = st.session_state.data["sessions"][d_key]
+                    wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
+                    
+                    # 找正選最後一個非團員
+                    target_guest = None
+                    for p in reversed(target_main_list):
+                        if not p.get('isMember'):
+                            target_id = p['id']
+                            target_guest = next((op for op in all_p if op['id'] == target_id), None)
+                            break
+                    
+                    if wait_person and target_guest:
+                        # 交換時間
+                        t_temp = target_guest['timestamp']
+                        target_guest['timestamp'] = wait_person['timestamp']
+                        wait_person['timestamp'] = t_temp
+                        save_data(st.session_state.data)
+                        st.success(f"遞補成功！{wait_person['name']} 已取代 {target_guest['name']}")
+                        st.rerun()
+
+                # 正選顯示
+                st.subheader("✅ 正選名單")
+                if main_list:
+                    for idx, p in enumerate(main_list):
+                        cols = st.columns([0.5, 3, 2, 1])
+                        cols[0].write(f"{idx+1}.")
+                        cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
+                        tag_s = []
+                        if p.get('bringBall'): tag_s.append("🏀")
+                        if p.get('occupyCourt'): tag_s.append("🚩")
+                        cols[2].write(" ".join(tag_s))
+                        if cols[3].button("刪", key=f"d_{p['id']}"):
+                            delete_p(p['id'], date_key)
+                else:
+                    st.write("尚無人報名")
+
+                # 候補顯示 (含遞補按鈕)
+                if wait_list:
+                    st.divider()
+                    st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
+                    
+                    # 判斷正選裡有沒有「非團員」可被取代
+                    has_guest_in_main = any(not p.get('isMember') for p in main_list)
+
+                    for idx, p in enumerate(wait_list):
+                        # 判斷是否顯示遞補按鈕：此人是團員 AND 正選有軟柿子
+                        can_promote = p.get('isMember') and has_guest_in_main
+                        
+                        if can_promote:
+                            cols = st.columns([0.5, 4, 1.5, 1]) # 4欄
+                        else:
+                            cols = st.columns([0.5, 5, 0.1, 1]) # 4欄
+
+                        cols[0].write(f"{idx+1}.")
+                        cols[1].write(p['name'] + (" (團員)" if p.get('isMember') else ""))
+                        
+                        # 遞補按鈕欄位
+                        if can_promote:
+                            if cols[2].button("⬆️遞補", key=f"up_{p['id']}"):
+                                promote_p(p['id'], date_key, main_list)
+                        
+                        # 刪除按鈕欄位
+                        if cols[3].button("❌", key=f"dw_{p['id']}"):
+                            delete_p(p['id'], date_key)
