@@ -1,10 +1,10 @@
 import streamlit as st
-import streamlit.components.v1 as components # 引入元件庫
+import streamlit.components.v1 as components
 import json
 import os
 import time
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 # ==========================================
 # 0. 設定區 (管理員密碼 & 分享網址)
@@ -75,6 +75,28 @@ st.markdown("""
         padding: 0px 10px;
         border-radius: 5px;
     }
+    /* 調整 Expander 樣式 */
+    div[data-testid="stExpander"] {
+        border: none !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
+    }
+    div[data-testid="stExpander"] details {
+        border: none !important;
+    }
+    /* 調整 Code Block 樣式 */
+    code {
+        background-color: transparent !important;
+        color: #3b82f6 !important;
+        font-weight: bold;
+        border: none !important;
+    }
+    div[data-testid="stCodeBlock"] {
+        background-color: #f0f9ff !important;
+        border-radius: 10px;
+        padding: 5px;
+        border: 1px dashed #3b82f6;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -107,7 +129,6 @@ with st.sidebar:
         all_session_dates = sorted(st.session_state.data["sessions"].keys())
         
         if all_session_dates:
-            # 隱藏場次設定
             st.write("👁️ **設定隱藏場次**")
             current_hidden = st.session_state.data["hidden"]
             current_hidden = [d for d in current_hidden if d in all_session_dates]
@@ -141,7 +162,6 @@ with st.sidebar:
 # 4. 主頁面邏輯
 # ==========================================
 
-# 排版：標題佔 8，按鈕佔 2 (調整比例讓按鈕靠近標題)
 col_header, col_share = st.columns([8, 2])
 
 with col_header:
@@ -156,12 +176,8 @@ with col_header:
     """, unsafe_allow_html=True)
 
 with col_share:
-    # 塞一些空白讓按鈕垂直置中
     st.write("") 
     st.write("")
-    
-    # 【核心修改】嵌入 HTML/JS 按鈕
-    # 這段代碼會創造一個漂亮的白色按鈕，點擊後觸發 JavaScript 複製功能
     components.html(
         f"""
         <style>
@@ -191,11 +207,9 @@ with col_share:
             transform: translateY(1px);
         }}
         </style>
-        
         <button class="copy-btn" onclick="copyToClipboard()" id="shareBtn">
             🔗 分享連結
         </button>
-
         <script>
         function copyToClipboard() {{
             const url = "{APP_URL}";
@@ -215,7 +229,7 @@ with col_share:
         }}
         </script>
         """,
-        height=50 # 設定iframe高度，確保按鈕完整顯示
+        height=50
     )
 
 # -----------------------------------------------------
@@ -245,15 +259,36 @@ else:
 
     for i, date_key in enumerate(display_dates):
         with tabs[i]:
+            # ==========================================
+            # 判斷是否截止 (開團前一天 18:00)
+            # ==========================================
+            try:
+                y, m, d_int = map(int, date_key.split('-'))
+                session_date = datetime(y, m, d_int)
+                # 截止時間：前一天 18:00
+                deadline_dt = (session_date - timedelta(days=1)).replace(hour=18, minute=0, second=0)
+                current_dt = datetime.now()
+                is_locked = current_dt > deadline_dt
+            except:
+                is_locked = False
+
+            # 【重要】是否允許編輯
+            # 如果是管理員 -> 永遠可以編輯 (True)
+            # 如果不是管理員，但還沒過期 -> 可以編輯 (True)
+            # 如果不是管理員，且過期了 -> 不能編輯 (False)
+            can_edit = is_admin or (not is_locked)
+            
+            # 【重要】表單是否要「禁用」(灰色)
+            # 只有在「不能編輯」時，表單才變成禁用狀態
+            form_disabled = not can_edit
+
             current_players = st.session_state.data["sessions"][date_key]
             
-            # 依照時間排序
             sorted_players = sorted(current_players, key=lambda x: x.get('timestamp', 0))
             main_list = []
             wait_list = []
             current_count = 0
 
-            # 分組
             for p in sorted_players:
                 p_count = p.get('count', 1)
                 if current_count + p_count <= MAX_CAPACITY:
@@ -262,7 +297,6 @@ else:
                 else:
                     wait_list.append(p)
             
-            # 統計
             total_reg = sum(p.get('count', 1) for p in current_players)
             c1, c2, c3 = st.columns(3)
             c1.metric("總人數", f"{total_reg}")
@@ -274,18 +308,26 @@ else:
 
             with col_form:
                 st.subheader("📝 我要報名")
+                
+                # 如果鎖定了，顯示警告文字
+                if is_locked and not is_admin:
+                    st.warning(f"⛔ 報名已於前一日 18:00 截止，表單已鎖定。\n\n如需異動請聯繫管理員。")
+
+                # 【表單區】
+                # 表單依然顯示，但透過 disabled 參數控制是否能輸入
                 with st.form(f"form_{date_key}", clear_on_submit=True):
-                    name_input = st.text_input("球員姓名")
-                    
-                    is_member = st.checkbox("⭐我是晴女", key=f"mem_{date_key}")
-                    
-                    total_count = st.number_input("報名總人數 (含自己, Max 3)", 1, 3, 1, key=f"tot_{date_key}")
+                    name_input = st.text_input("球員姓名", disabled=form_disabled)
+                    is_member = st.checkbox("⭐我是晴女", key=f"mem_{date_key}", disabled=form_disabled)
+                    total_count = st.number_input("報名總人數 (含自己, Max 3)", 1, 3, 1, key=f"tot_{date_key}", disabled=form_disabled)
                     
                     c_b, c_c = st.columns(2)
-                    bring_ball = c_b.checkbox("🏀帶球", key=f"b_{date_key}")
-                    occupy_court = c_c.checkbox("🚩佔場", key=f"c_{date_key}")
+                    bring_ball = c_b.checkbox("🏀帶球", key=f"b_{date_key}", disabled=form_disabled)
+                    occupy_court = c_c.checkbox("🚩佔場", key=f"c_{date_key}", disabled=form_disabled)
                     
-                    if st.form_submit_button("送出"):
+                    # 按鈕文字隨狀態改變
+                    submit_label = "送出" if can_edit else "⛔ 已截止"
+                    
+                    if st.form_submit_button(submit_label, disabled=form_disabled):
                         if name_input:
                             ts = time.time()
                             new_entries = []
@@ -312,6 +354,7 @@ else:
                 * **人數上限**：上限 20 人，超過轉候補，每人報名上限 3 人含本人。
                 * **排序原則**：正選與候補皆依「填單時間」先後排列。
                 * **優先遞補**：候補名單中之⭐晴女，可優先遞補正選名單中之「非晴女」。
+                * **報名截止**：開團前一日 18:00 截止報名，後續異動請通知管理員。
                 * **雨備**：雨天當日 17:00 前通知是否開團。
                 """)
 
@@ -323,12 +366,10 @@ else:
                     save_data(st.session_state.data)
                     st.rerun()
 
-                # 遞補邏輯：插隊 (Cut in) 強力版
                 def promote_p(wait_pid, d_key, target_main_list):
                     all_p = st.session_state.data["sessions"][d_key]
                     wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
                     
-                    # 找正選名單中「最後一個」非晴女
                     target_guest = None
                     for p in reversed(target_main_list):
                         if not p.get('isMember'):
@@ -340,18 +381,13 @@ else:
                         cutoff_person = target_main_list[-1]
                         cutoff_time = cutoff_person.get('timestamp', 0)
                         
-                        # 1. 晴女時間 = 對方時間 - 1秒
                         wait_person['timestamp'] = target_guest['timestamp'] - 1.0
-                        
-                        # 2. 非晴女時間 = 第20名時間 + 1秒
                         target_guest['timestamp'] = cutoff_time + 1.0
                         
                         save_data(st.session_state.data)
                         st.success(f"遞補成功！晴女 {wait_person['name']} 已晉升正選，{target_guest['name']} 轉為候補首位。")
-                        
                         time.sleep(0.5)
                         st.rerun()
-
                     elif wait_person and not target_guest:
                         st.error("❌ 無法遞補：正選名單全是晴女，無非晴女可替換。")
 
@@ -367,8 +403,10 @@ else:
                         if p.get('occupyCourt'): tag_s.append("🚩")
                         cols[2].write(" ".join(tag_s))
                         
-                        if cols[3].button("❌", key=f"d_{p['id']}"):
-                            delete_p(p['id'], date_key)
+                        # [重要] 只有在可以編輯 (沒過期 或 管理員) 時，才顯示刪除按鈕
+                        if can_edit:
+                            if cols[3].button("❌", key=f"d_{p['id']}"):
+                                delete_p(p['id'], date_key)
                 else:
                     st.write("尚無人報名")
 
@@ -394,6 +432,8 @@ else:
                             if cols[3].button("⬆️遞補", key=btn_key):
                                 promote_p(p['id'], date_key, main_list)
                         
-                        del_key = f"dw_{p['id']}"
-                        if cols[4].button("❌", key=del_key):
-                            delete_p(p['id'], date_key)
+                        # [重要] 只有在可以編輯時，才顯示刪除按鈕
+                        if can_edit:
+                            del_key = f"dw_{p['id']}"
+                            if cols[4].button("❌", key=del_key):
+                                delete_p(p['id'], date_key)
