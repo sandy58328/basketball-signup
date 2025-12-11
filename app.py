@@ -1,9 +1,5 @@
 import streamlit as st
 import json
-import { Player, AppData, MAX_CAPACITY } from './types';
-import PlayerForm from './components/PlayerForm';
-import PlayerList from './components/PlayerList';
-
 const STORAGE_KEY = 'basketball_data';
 
 export default function App() {
@@ -300,6 +296,7 @@ export default function App() {
   );
 
 }
+
 
 
 
