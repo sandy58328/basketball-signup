@@ -193,7 +193,7 @@ export default function App() {
           </div>
           
           <div className="bg-white p-4 rounded-xl shadow-sm border border-sky-100">
-            <p className="text-xs text-gray-500 uppercase font-semibold">🏀幫忙帶球</p>
+            <p className="text-xs text-gray-500 uppercase font-semibold">"🏀 幫忙帶球", key="carry_ball"
             <div className="flex items-center gap-2 mt-1">
               <span className="text-2xl font-bold text-orange-500">
                 {players.filter(p => p.bringBall).length}
@@ -202,7 +202,7 @@ export default function App() {
           </div>
           
           <div className="bg-white p-4 rounded-xl shadow-sm border border-sky-100">
-            <p className="text-xs text-gray-500 uppercase font-semibold">🚩幫忙佔場</p>
+            <p className="text-xs text-gray-500 uppercase font-semibold">"🚩 幫忙佔場", key="occupy_court"
             <div className="flex items-center gap-2 mt-1">
               <span className="text-2xl font-bold text-green-600">
                 {players.filter(p => p.occupyCourt).length}
@@ -300,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
