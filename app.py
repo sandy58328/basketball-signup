@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS)
+# 2. UI 極簡禪意風格 (CSS) - 精緻按鈕優化版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -102,16 +102,24 @@ st.markdown("""
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
 
-    /* 按鈕樣式 */
+    /* 按鈕樣式優化 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; }
-    .list-btn-col button {
-        border: none !important; background: transparent !important;
-        padding: 0px !important; color: #cbd5e1 !important; 
-    }
-    .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 50%; }
     
-    .list-btn-d button { color: unset !important; opacity: 0.9; }
-    .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 50%; }
+    .list-btn-col button {
+        border: none !important; 
+        background: transparent !important;
+        padding: 0px 4px !important;
+        color: #cbd5e1 !important; 
+        font-size: 14px !important;
+        line-height: 1 !important;
+        height: auto !important;
+        min-height: 0px !important;
+    }
+    
+    .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 4px; }
+    
+    .list-btn-d button { color: unset !important; opacity: 0.8; font-size: 12px !important; } 
+    .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 4px; }
     
     .list-btn-up button { padding: 2px 8px !important; min-height: 24px !important; font-size: 0.7rem !important; border-radius: 12px !important; background: #f1f5f9 !important; color: #475569 !important;}
 
@@ -179,7 +187,7 @@ else:
         with tabs[i]:
             try:
                 dt_obj = datetime.strptime(date_key, "%Y-%m-%d")
-                deadline = (dt_obj - timedelta(days=1)).replace(hour=18, minute=0, second=0)
+                deadline = (dt_obj - timedelta(days=1)).replace(hour=12, minute=0, second=0)
                 is_locked = datetime.now() > deadline
             except: is_locked = False
             can_edit = is_admin or (not is_locked)
@@ -210,7 +218,13 @@ else:
             # === Functions ===
             def update(pid, d, n, im, bb, oc):
                 t = next((p for p in st.session_state.data["sessions"][d] if p['id']==pid), None)
-                if t: t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc}); save_data(st.session_state.data); st.session_state.edit_target=None; st.toast("✅ 已更新"); time.sleep(0.5); st.rerun()
+                if t: 
+                    t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc})
+                    save_data(st.session_state.data)
+                    st.session_state.edit_target=None
+                    st.toast("✅ 資料已更新")
+                    time.sleep(0.5)
+                    st.rerun()
             
             def delete(pid, d):
                 st.session_state.data["sessions"][d] = [p for p in st.session_state.data["sessions"][d] if p['id']!=pid]
@@ -235,36 +249,39 @@ else:
                 if is_locked and not is_admin: st.warning("⛔ 已截止")
                 with st.form(f"f_{date_key}", clear_on_submit=True):
                     name = st.text_input("球員姓名", disabled=not can_edit, placeholder="輸入您的稱呼...")
-                    # [新增] 這裡加了小標題提醒
-                    st.caption("⚠️ 名字請依照社群內名字填寫")
+                    st.caption("⚠️ 名字請務必與群組內一致，不符者將直接刪除")
                     
                     c1, c2, c3 = st.columns(3)
-                    # [修改] 這裡改了勾選文案
                     im = c1.checkbox("⭐晴女 (團員務必勾選)", key=f"m_{date_key}", disabled=not can_edit)
                     bb = c2.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
                     oc = c3.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
-                    tot = st.number_input("總人數 (含自己)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
+                    tot = st.number_input("總人數 (含自己, 上限3人)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
                     
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
                         if name:
-                            ts = time.time()
-                            new = [{"id":str(uuid.uuid4()),"name":name,"count":1,"isMember":im,"bringBall":bb,"occupyCourt":oc,"timestamp":ts}]
-                            for k in range(tot-1): new.append({"id":str(uuid.uuid4()),"name":f"{name} (友{k+1})","count":1,"isMember":False,"bringBall":False,"occupyCourt":False,"timestamp":ts+0.1+(k*0.01)})
-                            st.session_state.data["sessions"][date_key].extend(new)
-                            save_data(st.session_state.data)
-                            st.balloons() 
-                            st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀")
-                            time.sleep(1.5)
-                            st.rerun()
+                            # [關鍵修改] 檢查是否重複報名
+                            current_names = [p['name'] for p in players]
+                            if name in current_names:
+                                st.error(f"❌ {name} 已經在名單中！\n\n為了維護公平性，如需增加人數，請先刪除舊的報名資料，再重新填寫正確人數。")
+                            else:
+                                ts = time.time()
+                                new = [{"id":str(uuid.uuid4()),"name":name,"count":1,"isMember":im,"bringBall":bb,"occupyCourt":oc,"timestamp":ts}]
+                                for k in range(tot-1): new.append({"id":str(uuid.uuid4()),"name":f"{name} (友{k+1})","count":1,"isMember":False,"bringBall":False,"occupyCourt":False,"timestamp":ts+0.1+(k*0.01)})
+                                st.session_state.data["sessions"][date_key].extend(new)
+                                save_data(st.session_state.data)
+                                st.balloons() 
+                                st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀")
+                                time.sleep(1.5)
+                                st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
                 st.info("""
                 **📌 報名規則**
                 * **人數上限**：每場20人，含自己最多報名3位，超過的進入候補名單。
+                * **實名制**：報名名字需跟群組內名字一致，否則一律直接刪除。
+                * **修改限制**：修改時僅能更動屬性(晴女/帶球/佔場)，不能修改名字。
                 * **遞補規則**：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
-                * **修改/刪除**：若需「減少人數」或「修改屬性」，請直接點擊名單上的 ✏️ 或 ❌。
-                * **增加人數**：若需「增加人數」，請重新填寫報名表，以維護公平性。
-                * **截止時間**：開團前一日 18:00 截止報名，後續修改請通知管理員協助。
+                * **截止時間**：開團前一日 12:00 截止報名。
                 * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
@@ -278,11 +295,10 @@ else:
                 for idx, p in enumerate(lst):
                     if st.session_state.edit_target == p['id']:
                         with st.container():
-                            st.markdown(f"<div class='edit-box'>✏️ 編輯中：{p['name']}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='edit-box'>✏️ 編輯中</div>", unsafe_allow_html=True)
                             with st.form(key=f"e_{p['id']}"):
-                                en = st.text_input("名", p['name'])
+                                en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
                                 ec1, ec2, ec3 = st.columns(3)
-                                # [修改] 編輯模式也同步修改標題，保持一致
                                 em = ec1.checkbox("⭐晴女", p.get('isMember'))
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
@@ -324,7 +340,6 @@ else:
                             if b_idx+1 < len(cols):
                                 with cols[b_idx+1]:
                                     st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
-                                    # 紅色叉叉
                                     if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
                                     st.markdown('</div>', unsafe_allow_html=True)
 
