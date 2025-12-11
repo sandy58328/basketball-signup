@@ -134,7 +134,7 @@ export default function App() {
                 <span className="font-bold tracking-wide text-sm bg-white/20 px-2 py-0.5 rounded-full">Sunny Girls Basketball</span>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-2">
-                晴女☀️在場邊等妳🌈
+                晴女在場邊等妳
               </h1>
               <p className="text-sky-100 mt-3 text-base flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-yellow-300" />
@@ -298,4 +298,5 @@ export default function App() {
       </div>
     </div>
   );
+
 }
