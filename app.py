@@ -132,8 +132,9 @@ with st.sidebar:
             current_hidden = st.session_state.data["hidden"]
             current_hidden = [d for d in current_hidden if d in all_session_dates]
             
+            # 【這裡改了】標題改為 Choose Date
             selected_hidden = st.multiselect(
-                "選擇要隱藏的日期：",
+                "Choose Date",
                 options=all_session_dates,
                 default=current_hidden
             )
@@ -354,7 +355,6 @@ else:
                     st.session_state.data["sessions"][d_key] = [
                         p for p in st.session_state.data["sessions"][d_key] if p["id"] != pid
                     ]
-                    # 如果刪除的人正好是編輯中的人，取消編輯狀態
                     if st.session_state.edit_target == pid:
                         st.session_state.edit_target = None
                     save_data(st.session_state.data)
@@ -396,7 +396,7 @@ else:
                         target['bringBall'] = new_ball
                         target['occupyCourt'] = new_court
                         save_data(st.session_state.data)
-                        st.session_state.edit_target = None # 關閉編輯模式
+                        st.session_state.edit_target = None
                         st.rerun()
 
                 st.subheader("✅ 正選名單")
@@ -422,7 +422,7 @@ else:
                                 st.markdown("</div>", unsafe_allow_html=True)
 
                         else:
-                            # 正常顯示模式：調整欄位加入編輯按鈕
+                            # 正常顯示模式
                             cols = st.columns([0.5, 3, 1.5, 0.5, 0.5]) 
                             cols[0].write(f"{idx+1}.")
                             cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
@@ -448,7 +448,6 @@ else:
                     st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
                     
                     for idx, p in enumerate(wait_list):
-                        # 候補名單的編輯邏輯同上
                         if st.session_state.edit_target == p['id']:
                             with st.container():
                                 st.markdown(f"<div class='edit-box'><b>✏️ 編輯中：{p['name']}</b>", unsafe_allow_html=True)
@@ -468,7 +467,6 @@ else:
                                 st.markdown("</div>", unsafe_allow_html=True)
                         else:
                             can_promote = p.get('isMember')
-                            # 調整欄位
                             cols = st.columns([0.5, 3, 1, 1, 0.5, 0.5]) 
 
                             cols[0].write(f"{idx+1}.")
@@ -484,11 +482,8 @@ else:
                                     promote_p(p['id'], date_key, main_list)
                             
                             if can_edit:
-                                # 編輯按鈕
                                 if cols[4].button("✏️", key=f"ew_{p['id']}"):
                                     st.session_state.edit_target = p['id']
                                     st.rerun()
-                                # 刪除按鈕
                                 if cols[5].button("❌", key=f"dw_{p['id']}"):
                                     delete_p(p['id'], date_key)
-                                
