@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極致美化 (CSS)
+# 2. UI 極致美化 (CSS) - 多巴胺柔和配色
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -53,7 +53,7 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; padding-bottom: 4rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
-    /* Header */
+    /* Header: 柔和漸層 + 陰影 */
     .header-box {
         background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
         padding: 1.8rem 1rem; border-radius: 20px; color: #4a5568; 
@@ -68,7 +68,7 @@ st.markdown("""
         display: inline-block; margin-top: 12px; backdrop-filter: blur(8px);
     }
 
-    /* Tabs */
+    /* Tabs: 圓潤膠囊風格 */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 15px; }
     .stTabs [data-baseweb="tab"] {
         height: 42px; background-color: #f8fafc; border-radius: 25px;
@@ -79,7 +79,7 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
     }
 
-    /* Player Card */
+    /* Player Card: 懸浮效果 */
     .player-row {
         background: white; border: 1px solid #f1f5f9; border-radius: 16px;
         padding: 10px 6px 10px 14px; margin-bottom: 10px;
@@ -119,7 +119,7 @@ st.markdown("""
 # ==========================================
 with st.sidebar:
     st.header("⚙️ 場次管理員")
-    # [修正] 明確定義 pwd 與 is_admin 變數，避免 NameError
+    # [修正點] 這裡改回來了！確保 is_admin 在任何地方都能被讀取到
     pwd = st.text_input("密碼", type="password")
     is_admin = (pwd == ADMIN_PASSWORD)
     
@@ -249,6 +249,7 @@ else:
                             st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
+                # [修正點] 這裡是你要的規則文案
                 st.info("""
                 **📌 報名規則**
                 * **人數上限**：每場20人，含自己最多報名3位，超過的進入候補名單。
@@ -288,6 +289,7 @@ else:
                         bg_style = "background-color:#f8fafc;" if is_wait else ""
                         st.markdown(f'<div class="player-row" style="{bg_style}">', unsafe_allow_html=True)
                         
+                        # [修正點] 確保 is_admin 變數可以被正確讀取
                         c_cfg = [6.5, 1, 1] if not (is_admin and is_wait) else [5, 1.5, 1, 1]
                         cols = st.columns(c_cfg)
                         
