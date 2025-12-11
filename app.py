@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components # 引入元件庫
 import json
 import os
 import time
@@ -42,13 +43,12 @@ if 'data' not in st.session_state:
     st.session_state.data = load_data()
 
 # ==========================================
-# 2. 介面樣式 (CSS 美化區)
+# 2. 介面樣式
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="wide")
 
 st.markdown("""
     <style>
-    /* Tabs 樣式 */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
         height: 50px; white-space: pre-wrap; background-color: #f0f9ff;
@@ -57,8 +57,6 @@ st.markdown("""
     .stTabs [aria-selected="true"] {
         background-color: #e0f2fe; border-bottom: 2px solid #0ea5e9; font-weight: bold;
     }
-    
-    /* 標題區塊 */
     .header-box {
         background: linear-gradient(to right, #38bdf8, #3b82f6, #6366f1);
         padding: 2rem; border-radius: 1rem; color: white; margin-bottom: 1rem;
@@ -73,36 +71,9 @@ st.markdown("""
         margin-top: 10px;
         backdrop-filter: blur(5px);
     }
-    
-    /* 按鈕微調 */
     button[kind="secondary"] {
         padding: 0px 10px;
         border-radius: 5px;
-    }
-    
-    /* === 核心修改：把醜醜的網址框變漂亮 === */
-    /* 1. 隱藏 Expander 的邊框和背景，讓它看起來像個乾淨的按鈕 */
-    div[data-testid="stExpander"] {
-        border: none !important;
-        box-shadow: none !important;
-        background-color: transparent !important;
-    }
-    div[data-testid="stExpander"] details {
-        border: none !important;
-    }
-    
-    /* 2. 把 st.code 的灰色背景和邊框拿掉，變成透明 */
-    code {
-        background-color: transparent !important;
-        color: #3b82f6 !important; /* 讓網址變漂亮的藍色 */
-        font-weight: bold;
-        border: none !important;
-    }
-    div[data-testid="stCodeBlock"] {
-        background-color: #f0f9ff !important; /* 很淡的藍底，比較有質感 */
-        border-radius: 10px;
-        padding: 5px;
-        border: 1px dashed #3b82f6; /* 虛線邊框，看起來像優惠券 */
     }
     </style>
 """, unsafe_allow_html=True)
@@ -170,8 +141,8 @@ with st.sidebar:
 # 4. 主頁面邏輯
 # ==========================================
 
-# 排版：左邊標題 (7)，右邊分享按鈕 (2)
-col_header, col_share = st.columns([7, 2])
+# 排版：標題佔 8，按鈕佔 2 (調整比例讓按鈕靠近標題)
+col_header, col_share = st.columns([8, 2])
 
 with col_header:
     st.markdown("""
@@ -185,12 +156,67 @@ with col_header:
     """, unsafe_allow_html=True)
 
 with col_share:
+    # 塞一些空白讓按鈕垂直置中
     st.write("") 
-    st.write("") 
-    # 這裡的 Expander 會被上面的 CSS 美化
-    with st.expander("🔗 分享連結", expanded=False):
-        # 這裡的 code block 也被 CSS 美化成淡藍色虛線框
-        st.code(APP_URL, language="text")
+    st.write("")
+    
+    # 【核心修改】嵌入 HTML/JS 按鈕
+    # 這段代碼會創造一個漂亮的白色按鈕，點擊後觸發 JavaScript 複製功能
+    components.html(
+        f"""
+        <style>
+        .copy-btn {{
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            color: #333;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            font-family: "Source Sans Pro", sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition-duration: 0.4s;
+            width: 100%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }}
+        .copy-btn:hover {{
+            background-color: #f8f9fa;
+            border-color: #d0d0d0;
+        }}
+        .copy-btn:active {{
+            background-color: #e9ecef;
+            transform: translateY(1px);
+        }}
+        </style>
+        
+        <button class="copy-btn" onclick="copyToClipboard()" id="shareBtn">
+            🔗 分享連結
+        </button>
+
+        <script>
+        function copyToClipboard() {{
+            const url = "{APP_URL}";
+            navigator.clipboard.writeText(url).then(function() {{
+                const btn = document.getElementById("shareBtn");
+                btn.innerText = "✅ 已複製！";
+                btn.style.borderColor = "#4CAF50";
+                btn.style.color = "#4CAF50";
+                setTimeout(function() {{
+                    btn.innerText = "🔗 分享連結";
+                    btn.style.borderColor = "#e0e0e0";
+                    btn.style.color = "#333";
+                }}, 2000);
+            }}, function(err) {{
+                console.error('Async: Could not copy text: ', err);
+            }});
+        }}
+        </script>
+        """,
+        height=50 # 設定iframe高度，確保按鈕完整顯示
+    )
 
 # -----------------------------------------------------
 
