@@ -36,10 +36,10 @@ if 'data' not in st.session_state:
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="wide")
 
-# 自定義 CSS 來模擬原本 React 的漂亮介面
+# 自定義 CSS
 st.markdown("""
     <style>
-    .main { background-color: #f0f9ff; } /* bg-sky-50 */
+    .main { background-color: #f0f9ff; }
     .stButton>button { width: 100%; border-radius: 8px; }
     .header-box {
         background: linear-gradient(to right, #38bdf8, #3b82f6, #6366f1);
@@ -118,7 +118,7 @@ total_waitlist = sum(p.get('count', 1) for p in wait_list)
 total_ball = len([p for p in players if p.get('bringBall')])
 total_court = len([p for p in players if p.get('occupyCourt')])
 
-# --- 統計數據欄 (Stats Bar) ---
+# --- 統計數據欄 ---
 c1, c2, c3, c4 = st.columns(4)
 c1.markdown(f'<div class="stat-card"><div style="font-size:0.75rem;color:#6b7280;">總報名人數</div><div style="font-size:1.5rem;font-weight:bold;color:#1f2937;">{total_registered} 人</div></div>', unsafe_allow_html=True)
 c2.markdown(f'<div class="stat-card" style="border-color:#fef2f2;"><div style="font-size:0.75rem;color:#ef4444;">目前候補人數</div><div style="font-size:1.5rem;font-weight:bold;color:#dc2626;">{total_waitlist} 人</div></div>', unsafe_allow_html=True)
@@ -127,7 +127,7 @@ c4.markdown(f'<div class="stat-card"><div style="font-size:0.75rem;color:#6b7280
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- 主佈局：左邊表單，右邊列表 ---
+# --- 主佈局 ---
 left_col, right_col = st.columns([1, 2])
 
 # ================= Left Column: 報名表單 =================
@@ -137,7 +137,9 @@ with left_col:
     with st.form("signup_form", clear_on_submit=True):
         name_input = st.text_input("你的名字 / 暱稱")
         is_member = st.checkbox("我是團員 (Member)")
-        friend_count = st.number_input("攜帶朋友數量 (不含自己)", min_value=0, max_value=5, value=0)
+        
+        # 修改處：這裡設定 max_value=2
+        friend_count = st.number_input("攜帶朋友數量 (不含自己，上限2人)", min_value=0, max_value=2, value=0)
         
         c_ball, c_court = st.columns(2)
         bring_ball = c_ball.checkbox("🏀 幫忙帶球")
@@ -168,23 +170,21 @@ with left_col:
                         "id": str(uuid.uuid4()),
                         "name": friend_name,
                         "count": 1,
-                        "isMember": False, # 朋友預設非團員
-                        "bringBall": False, # 朋友預設不帶球
+                        "isMember": False, 
+                        "bringBall": False, 
                         "occupyCourt": False,
-                        "timestamp": timestamp + 0.1 + (i * 0.01) # 微小延遲確保排序
+                        "timestamp": timestamp + 0.1 + (i * 0.01)
                     })
             
-            # 更新資料
             data["players"].extend(new_entries)
             save_data(data)
             st.success(f"報名成功！已新增 {len(new_entries)} 位。")
             st.rerun()
 
-    # 報名規則說明區塊
     st.info("""
     **🏆 報名規則說明**
     * 上限 **20 人**，超過系統自動轉候補。
-    * 每人可帶朋友，系統會**自動將朋友列為獨立名單**，方便管理。
+    * 每人可帶朋友 **(上限2位)**，朋友將列為獨立名單。
     * 若遇額滿，**候補團員 (⭐)** 優先取代非團員。
     * 🌧️ 若遇雨天，當日 17:00 前通知是否取消。
     """)
@@ -192,14 +192,12 @@ with left_col:
 # ================= Right Column: 名單列表 =================
 with right_col:
     
-    # --- 刪除功能函數 ---
     def delete_player(player_id):
         data["players"] = [p for p in data["players"] if p["id"] != player_id]
         save_data(data)
         st.rerun()
 
-    # --- 優先權偵測警告 ---
-    # 邏輯：候補名單有團員 AND 正選名單有非團員
+    # 優先權偵測
     member_on_waitlist = any(p.get('isMember') for p in wait_list)
     guest_on_mainlist = any(not p.get('isMember') for p in main_list)
     
@@ -218,30 +216,24 @@ with right_col:
     if len(main_list) > 0:
         for idx, p in enumerate(main_list):
             with st.container():
-                c1, c2, c3, c4, c5 = st.columns([0.5, 3, 1.5, 1.5, 1])
+                # 修改處：移除了顯示時間的欄位，調整了寬度比例
+                c1, c2, c3, c4 = st.columns([0.5, 3.5, 2, 1])
                 
-                # 序號
                 c1.write(f"**{idx+1}.**")
                 
-                # 名字 + 標記
                 name_display = p['name']
                 if p.get('isMember'):
-                    name_display += " ⭐" # 團員標記
+                    name_display += " ⭐"
                 c2.write(name_display)
                 
-                # 帶球/佔場標記
                 tags = []
                 if p.get('bringBall'): tags.append("🏀")
                 if p.get('occupyCourt'): tags.append("🚩")
                 c3.write(" ".join(tags))
                 
-                # 報名時間 (只顯示時:分)
-                ts = p.get('timestamp', 0)
-                time_str = datetime.fromtimestamp(ts).strftime('%H:%M')
-                c4.text(time_str)
+                # 修改處：這裡刪除了顯示時間的代碼
                 
-                # 刪除按鈕
-                if c5.button("刪除", key=f"del_{p['id']}"):
+                if c4.button("刪除", key=f"del_{p['id']}"):
                     delete_player(p['id'])
                 st.markdown("---")
     else:
@@ -253,7 +245,7 @@ with right_col:
         st.markdown("---")
         for idx, p in enumerate(wait_list):
             with st.container():
-                c1, c2, c3, c4, c5 = st.columns([0.5, 3, 1.5, 1.5, 1])
+                c1, c2, c3 = st.columns([0.5, 5, 1])
                 c1.write(f"{idx+1}.")
                 
                 name_display = p['name']
@@ -261,6 +253,6 @@ with right_col:
                     name_display += " (團員優先)" 
                 c2.write(name_display)
                 
-                # 刪除按鈕
-                if c5.button("取消", key=f"del_wait_{p['id']}"):
+                if c3.button("取消", key=f"del_wait_{p['id']}"):
                     delete_player(p['id'])
+
