@@ -235,7 +235,7 @@ export default function App() {
                   </li>
                   <li className="flex gap-2">
                     <span className="text-sky-400"> </span>
-                     <span className="flex-1">每人可帶朋友，系統會自動將朋友列為獨立名單，方便管理 </span>
+                     <span className="flex-1">每人可帶朋友，系統會自動將朋友列為獨立名單,方便管理 </span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-sky-400"> </span>
@@ -245,7 +245,7 @@ export default function App() {
                     <span className="text-pink-400"> </span>
                     <span className="flex-1">
                         <CloudRain className="w-4 h-4 inline mr-1" />
-                        若遇雨天，當日 17:00 前通知是否取消。
+                        若遇雨天,當日 17:00 前通知是否取消。
                     </span>
                   </li>
                 </ul>
@@ -300,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
