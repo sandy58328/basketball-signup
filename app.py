@@ -65,10 +65,6 @@ st.markdown("""
         margin-top: 10px;
         backdrop-filter: blur(5px);
     }
-    .priority-alert {
-        background-color: #fefce8; border-left: 5px solid #eab308;
-        padding: 1rem; color: #854d0e; margin-bottom: 1rem;
-    }
     /* 按鈕樣式 */
     button[kind="secondary"] {
         padding: 0px 10px;
@@ -134,12 +130,13 @@ else:
         with tabs[i]:
             current_players = st.session_state.data["sessions"][date_key]
             
-            # 排序邏輯
+            # 排序邏輯：依照 timestamp
             sorted_players = sorted(current_players, key=lambda x: x.get('timestamp', 0))
             main_list = []
             wait_list = []
             current_count = 0
 
+            # 分組：正選 vs 候補
             for p in sorted_players:
                 p_count = p.get('count', 1)
                 if current_count + p_count <= MAX_CAPACITY:
@@ -148,7 +145,7 @@ else:
                 else:
                     wait_list.append(p)
             
-            # 統計
+            # 統計數據
             total_reg = sum(p.get('count', 1) for p in current_players)
             c1, c2, c3 = st.columns(3)
             c1.metric("總人數", f"{total_reg}")
@@ -202,8 +199,9 @@ else:
                 * 雨天 17:00 前通知。
                 """)
 
-            # [右側] 名單
+            # [右側] 名單顯示區
             with col_list:
+                # 刪除功能
                 def delete_p(pid, d_key):
                     st.session_state.data["sessions"][d_key] = [
                         p for p in st.session_state.data["sessions"][d_key] if p["id"] != pid
@@ -211,13 +209,8 @@ else:
                     save_data(st.session_state.data)
                     st.rerun()
 
+                # 遞補功能
                 def promote_p(wait_pid, d_key, target_main_list):
-                    """
-                    邏輯確認：
-                    1. 找到候補的團員 (wait_person)
-                    2. 找到正選的非團員 (target_guest)
-                    3. 交換他們的時間戳記 (Timestamp)
-                    """
                     all_p = st.session_state.data["sessions"][d_key]
                     wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
                     
@@ -240,7 +233,7 @@ else:
                     elif wait_person and not target_guest:
                         st.error("❌ 無法遞補：正選名單全是團員，無路人可替換。")
 
-                # 正選顯示
+                # --- 顯示正選名單 ---
                 st.subheader("✅ 正選名單")
                 if main_list:
                     for idx, p in enumerate(main_list):
@@ -251,32 +244,38 @@ else:
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
                         cols[2].write(" ".join(tag_s))
-                        # 刪除是紅色 X
+                        # 刪除按鈕
                         if cols[3].button("❌", key=f"d_{p['id']}"):
                             delete_p(p['id'], date_key)
                 else:
                     st.write("尚無人報名")
 
-                # 候補顯示 (含遞補按鈕)
+                # --- 顯示候補名單 ---
                 if wait_list:
                     st.divider()
                     st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
                     
                     for idx, p in enumerate(wait_list):
-                        # =========================================================
-                        # [修正] 只要是團員 (isMember)，就顯示按鈕，完全不看正選狀況
-                        # =========================================================
+                        # 邏輯：只要是團員，就具備遞補資格 (顯示按鈕)
                         can_promote = p.get('isMember')
                         
-                        # 欄位寬度分配
+                        # 設定欄位寬度
                         if can_promote:
                             cols = st.columns([0.5, 3.5, 1.5, 0.5]) 
                         else:
                             cols = st.columns([0.5, 5, 0.1, 0.5]) 
 
+                        # 顯示序號與姓名
                         cols[0].write(f"{idx+1}.")
                         cols[1].write(p['name'] + (" (團員)" if p.get('isMember') else ""))
                         
                         if can_promote:
-                            # 遞補按鈕 (向上箭頭)
-                            if cols[2].button("⬆️遞補", key=f"up_{p['id
+                            # 遞補按鈕 (將 key 獨立出來避免語法錯誤)
+                            btn_key = f"up_{p['id']}"
+                            if cols[2].button("⬆️遞補", key=btn_key):
+                                promote_p(p['id'], date_key, main_list)
+                        
+                        # 刪除按鈕
+                        del_key = f"dw_{p['id']}"
+                        if cols[3].button("❌", key=del_key):
+                            delete_p(p['id'], date_key)
