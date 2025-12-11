@@ -217,7 +217,6 @@ else:
                     1. 找到候補的團員 (wait_person)
                     2. 找到正選的非團員 (target_guest)
                     3. 交換他們的時間戳記 (Timestamp)
-                    4. 結果：團員變正選，非團員變候補 (不會刪除)
                     """
                     all_p = st.session_state.data["sessions"][d_key]
                     wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
@@ -238,6 +237,8 @@ else:
                         save_data(st.session_state.data)
                         st.success(f"遞補成功！團員 {wait_person['name']} 已晉升正選，{target_guest['name']} 轉為候補。")
                         st.rerun()
+                    elif wait_person and not target_guest:
+                        st.error("❌ 無法遞補：正選名單全是團員，無路人可替換。")
 
                 # 正選顯示
                 st.subheader("✅ 正選名單")
@@ -261,12 +262,13 @@ else:
                     st.divider()
                     st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
                     
-                    has_guest_in_main = any(not p.get('isMember') for p in main_list)
-
                     for idx, p in enumerate(wait_list):
-                        can_promote = p.get('isMember') and has_guest_in_main
+                        # =========================================================
+                        # [修正] 只要是團員 (isMember)，就顯示按鈕，完全不看正選狀況
+                        # =========================================================
+                        can_promote = p.get('isMember')
                         
-                        # 如果可以遞補，欄位會分給「遞補」和「刪除」
+                        # 欄位寬度分配
                         if can_promote:
                             cols = st.columns([0.5, 3.5, 1.5, 0.5]) 
                         else:
@@ -277,9 +279,4 @@ else:
                         
                         if can_promote:
                             # 遞補按鈕 (向上箭頭)
-                            if cols[2].button("⬆️遞補", key=f"up_{p['id']}"):
-                                promote_p(p['id'], date_key, main_list)
-                        
-                        # 刪除按鈕 (紅色 X)
-                        if cols[3].button("❌", key=f"dw_{p['id']}"):
-                            delete_p(p['id'], date_key)
+                            if cols[2].button("⬆️遞補", key=f"up_{p['id
