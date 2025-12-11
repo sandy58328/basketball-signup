@@ -80,7 +80,7 @@ with st.sidebar:
     st.header("⚙️ 場次管理員")
     pwd_input = st.text_input("輸入管理密碼解鎖功能", type="password")
     
-    # [新增] 判斷是否為管理員
+    # 判斷是否為管理員
     is_admin = (pwd_input == ADMIN_PASSWORD)
     
     if is_admin:
@@ -242,10 +242,13 @@ else:
                         cols = st.columns([0.5, 3, 2, 0.5]) 
                         cols[0].write(f"{idx+1}.")
                         cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
+                        
+                        # 顯示標籤 (正選放中間欄位)
                         tag_s = []
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
                         cols[2].write(" ".join(tag_s))
+                        
                         # 刪除按鈕
                         if cols[3].button("❌", key=f"d_{p['id']}"):
                             delete_p(p['id'], date_key)
@@ -258,23 +261,26 @@ else:
                     st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
                     
                     for idx, p in enumerate(wait_list):
-                        # 邏輯：只要是團員，就具備遞補資格 (顯示按鈕)
                         can_promote = p.get('isMember')
                         
                         # 設定欄位寬度
                         if can_promote and is_admin:
-                            # 只有是團員(可遞補) 且 是管理員(有權限) 才給按鈕空間
                             cols = st.columns([0.5, 3.5, 1.5, 0.5]) 
                         else:
                             cols = st.columns([0.5, 5, 0.1, 0.5]) 
 
-                        # 顯示序號與姓名
+                        # 準備標籤字串 (🏀 🚩)
+                        tag_s = []
+                        if p.get('bringBall'): tag_s.append("🏀")
+                        if p.get('occupyCourt'): tag_s.append("🚩")
+                        tags_str = " " + " ".join(tag_s) if tag_s else ""
+
+                        # 顯示序號與姓名 (包含星星和標籤)
                         cols[0].write(f"{idx+1}.")
-                        cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
+                        cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else "") + tags_str)
                         
-                        # [修改重點] 這裡多加了 if is_admin，只有管理員看得到按鈕
+                        # 只有管理員能看到遞補按鈕
                         if can_promote and is_admin:
-                            # 遞補按鈕 (將 key 獨立出來避免語法錯誤)
                             btn_key = f"up_{p['id']}"
                             if cols[2].button("⬆️遞補", key=btn_key):
                                 promote_p(p['id'], date_key, main_list)
