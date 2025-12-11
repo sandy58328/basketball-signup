@@ -6,15 +6,8 @@ STORAGE_KEY = 'basketball_data';
 # Save data to localStorage
 # Handlers
 # 1. Add the main player (yourself)
-#  Force count to 1 because we are splitting them
-    newPlayers.push({
-      ...playerData,
-      count: 1, 
-      id: crypto.randomUUID(),
-      timestamp: timestamp,
-    });
-
-    // 2. Add friends as separate entries if count > 1
+# Force count to 1 because we are splitting them
+# 2. Add friends as separate entries if count > 1
     if (playerData.count > 1) {
       const friendCount = playerData.count - 1;
       for (let i = 0; i < friendCount; i++) {
@@ -260,6 +253,7 @@ STORAGE_KEY = 'basketball_data';
       </div>
     </div>
   );
+
 
 
 
