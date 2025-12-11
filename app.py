@@ -271,7 +271,7 @@ export default function App() {
                  <div>
                    <h4 className="font-bold text-yellow-800 text-lg">優先權調整建議</h4>
                    <p className="text-yellow-700 text-sm mt-1">
-                     偵測到 <strong>團員 {memberOnWaitlist?.name}</strong> 位於候補名單，而正選名單中有 <strong>非團員 (如 {guestOnMainlist?.name})</strong>
+                     偵測到 <strong>團員 {memberOnWaitlist?.name}</strong> 位於候補名單,而正選名單中有 <strong>非團員 (如 {guestOnMainlist?.name})</strong>
                    </p>
                    <p className="text-yellow-700 text-sm mt-1">
                      建議手動刪除正選名單中的朋友/非團員,讓團員遞補上來
@@ -300,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
