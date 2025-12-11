@@ -17,13 +17,18 @@ FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
 
 def load_data():
-    default_data = {"sessions": {}}
+    # 預設資料結構，新增 "hidden" 欄位來存隱藏的日期
+    default_data = {"sessions": {}, "hidden": []}
     if os.path.exists(FILE_PATH):
         try:
             with open(FILE_PATH, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                # 確保舊資料有 sessions 欄位
                 if "sessions" not in data:
-                    return default_data
+                    data["sessions"] = {}
+                # 確保舊資料有 hidden 欄位 (相容性更新)
+                if "hidden" not in data:
+                    data["hidden"] = []
                 return data
         except:
             return default_data
@@ -85,6 +90,8 @@ with st.sidebar:
     
     if is_admin:
         st.success("🔓 已解鎖 (管理員模式)")
+        
+        # --- 新增場次 ---
         new_date = st.date_input("新增打球日期", min_value=date.today())
         if st.button("➕ 新增場次"):
             date_str = str(new_date)
@@ -97,11 +104,41 @@ with st.sidebar:
                 st.warning("日期已存在")
         
         st.markdown("---")
-        sessions = st.session_state.data["sessions"]
-        if sessions:
-            del_date = st.selectbox("刪除日期", options=sorted(sessions.keys()))
+        
+        # 取得目前所有日期
+        all_session_dates = sorted(st.session_state.data["sessions"].keys())
+        
+        if all_session_dates:
+            # --- [隱藏場次設定] ---
+            st.write("👁️ **設定隱藏場次 (一般人看不到)**")
+            # 讓管理員勾選哪些日期要隱藏
+            current_hidden = st.session_state.data["hidden"]
+            # 過濾掉已經不存在的日期 (避免髒資料)
+            current_hidden = [d for d in current_hidden if d in all_session_dates]
+            
+            selected_hidden = st.multiselect(
+                "選擇要隱藏的日期：",
+                options=all_session_dates,
+                default=current_hidden
+            )
+            
+            # 如果選擇有變動，就存擋
+            if set(selected_hidden) != set(st.session_state.data["hidden"]):
+                st.session_state.data["hidden"] = selected_hidden
+                save_data(st.session_state.data)
+                st.rerun()
+
+            st.markdown("---")
+            
+            # --- 刪除場次 ---
+            del_date = st.selectbox("刪除日期", options=all_session_dates)
             if st.button("確認刪除"):
+                # 刪除資料
                 del st.session_state.data["sessions"][del_date]
+                # 也要從隱藏清單中移除
+                if del_date in st.session_state.data["hidden"]:
+                    st.session_state.data["hidden"].remove(del_date)
+                
                 save_data(st.session_state.data)
                 st.success("已刪除")
                 st.rerun()
@@ -122,14 +159,34 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-all_dates = sorted(st.session_state.data["sessions"].keys())
+# 取得所有日期
+all_dates_raw = sorted(st.session_state.data["sessions"].keys())
+hidden_list = st.session_state.data.get("hidden", [])
 
-if not all_dates:
-    st.info("👋 請版主在左側新增場次！")
+# 過濾顯示邏輯：如果是管理員，顯示所有；如果是一般人，只顯示沒被隱藏的
+if is_admin:
+    display_dates = all_dates_raw
 else:
-    tabs = st.tabs([f"📅 {d}" for d in all_dates])
+    display_dates = [d for d in all_dates_raw if d not in hidden_list]
 
-    for i, date_key in enumerate(all_dates):
+if not display_dates:
+    if is_admin:
+        st.info("👋 目前沒有場次，請在左側新增！")
+    else:
+        st.info("👋 目前沒有開放報名的場次，請稍後再來！")
+else:
+    # 製作 Tabs 標題
+    # 如果是管理員，且該日期是隱藏的，加上 (🔒隱藏) 提示
+    tab_titles = []
+    for d in display_dates:
+        title = f"📅 {d}"
+        if is_admin and d in hidden_list:
+            title += " (🔒隱藏)"
+        tab_titles.append(title)
+
+    tabs = st.tabs(tab_titles)
+
+    for i, date_key in enumerate(display_dates):
         with tabs[i]:
             current_players = st.session_state.data["sessions"][date_key]
             
@@ -164,7 +221,7 @@ else:
                 with st.form(f"form_{date_key}", clear_on_submit=True):
                     name_input = st.text_input("球員姓名")
                     
-                    # [修改重點] 勾選框加上星星符號
+                    # 勾選框加上星星符號
                     is_member = st.checkbox("我是團員 ⭐", key=f"mem_{date_key}")
                     
                     total_count = st.number_input("報名總人數 (含自己, Max 3)", 1, 3, 1, key=f"tot_{date_key}")
@@ -197,12 +254,14 @@ else:
                         else:
                             st.error("需填寫姓名")
 
-                # [修改重點] 規則文字更新
+                # [修改重點] 規則文字潤飾：強調時間順序
                 st.info("""
                 **📌 規則**
-                * 上限 20 人，單次報名上限 3 人含本人，超過轉候補。
-                * 候補團員中⭐團員，可優先依序遞補，而原先正選之非⭐團員，將轉為候補。
-                * 雨天當日 17:00 前通知是否開團。
+                * **排序原則**：正選與候補皆依「填單時間」先後排列。
+                * **人數上限**：上限 20 人，單次報名上限 3 人含本人，超過轉候補。
+                * **優先遞補**：候補名單中之⭐團員，可優先遞補正選名單中之「非團員」。
+                  *(註：遞補時，團員將取得正選席次，而被替換者依原報名時間轉回候補名單首位)*
+                * **雨備**：雨天當日 17:00 前通知是否開團。
                 """)
 
             # [右側] 名單顯示區
@@ -215,7 +274,7 @@ else:
                     save_data(st.session_state.data)
                     st.rerun()
 
-                # 遞補功能
+                # 遞補功能 (修正版：插隊邏輯)
                 def promote_p(wait_pid, d_key, target_main_list):
                     all_p = st.session_state.data["sessions"][d_key]
                     wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
@@ -229,12 +288,15 @@ else:
                             break
                     
                     if wait_person and target_guest:
-                        # 交換時間
-                        t_temp = target_guest['timestamp']
-                        target_guest['timestamp'] = wait_person['timestamp']
-                        wait_person['timestamp'] = t_temp
+                        # [修改重點] 
+                        # 不要直接交換 (Swap)，因為那樣會把路人踢到最後面。
+                        # 而是把團員的時間改成「比該位路人稍微早一點點」。
+                        # 這樣團員會變成第 20 名，路人因為時間沒變，自然被擠成第 21 名 (候補第一)。
+                        
+                        wait_person['timestamp'] = target_guest['timestamp'] - 0.001
+                        
                         save_data(st.session_state.data)
-                        st.success(f"遞補成功！團員 {wait_person['name']} 已晉升正選，{target_guest['name']} 轉為候補。")
+                        st.success(f"遞補成功！團員 {wait_person['name']} 已晉升正選，{target_guest['name']} 轉為候補首位。")
                         st.rerun()
                     elif wait_person and not target_guest:
                         st.error("❌ 無法遞補：正選名單全是團員，無路人可替換。")
