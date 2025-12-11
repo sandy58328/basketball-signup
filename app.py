@@ -10,7 +10,6 @@ from datetime import datetime, date, timedelta
 # 0. 設定區 (管理員密碼 & 分享網址)
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-
 # ⚠️ 請將下方網址改成你實際部署後的網址
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
 
@@ -132,12 +131,12 @@ with st.sidebar:
             current_hidden = st.session_state.data["hidden"]
             current_hidden = [d for d in current_hidden if d in all_session_dates]
             
-            # 【這裡改了】設定 placeholder="Choose Date"
+            # 設定 placeholder="Choose Date"
             selected_hidden = st.multiselect(
-                "Choose Date",   # 上面的標題
+                "Choose Date",
                 options=all_session_dates,
                 default=current_hidden,
-                placeholder="Choose Date"  # 框框裡面的灰字
+                placeholder="Choose Date"
             )
             
             if set(selected_hidden) != set(st.session_state.data["hidden"]):
@@ -273,7 +272,6 @@ else:
             except:
                 is_locked = False
 
-            # 【重要】是否允許編輯 (含修改與刪除)
             can_edit = is_admin or (not is_locked)
             form_disabled = not can_edit
 
@@ -328,13 +326,17 @@ else:
                                 "isMember": is_member, "bringBall": bring_ball,
                                 "occupyCourt": occupy_court, "timestamp": ts
                             })
-                            # 朋友 (拆成獨立資料，方便個別刪除)
+                            # 朋友
                             friends = total_count - 1
                             for f in range(friends):
                                 new_entries.append({
-                                    "id": str(uuid.uuid4()), "name": f"{name_input} (朋友{f+1})",
-                                    "count": 1, "isMember": False, "bringBall": False,
-                                    "occupyCourt": False, "timestamp": ts + 0.1 + (f * 0.01)
+                                    "id": str(uuid.uuid4()), 
+                                    "name": f"{name_input} (朋友{f+1})",
+                                    "count": 1, 
+                                    "isMember": False, 
+                                    "bringBall": False,
+                                    "occupyCourt": False, 
+                                    "timestamp": ts + 0.1 + (f * 0.01)
                                 })
                             st.session_state.data["sessions"][date_key].extend(new_entries)
                             save_data(st.session_state.data)
@@ -476,4 +478,15 @@ else:
                             tag_s = []
                             if p.get('bringBall'): tag_s.append("🏀")
                             if p.get('occupyCourt'): tag_s.append("🚩")
-                            cols[2].write(" ".join(tag_s
+                            cols[2].write(" ".join(tag_s))
+                            
+                            if can_promote and is_admin:
+                                if cols[3].button("⬆️遞補", key=f"up_{p['id']}"):
+                                    promote_p(p['id'], date_key, main_list)
+                            
+                            if can_edit:
+                                if cols[4].button("✏️", key=f"ew_{p['id']}"):
+                                    st.session_state.edit_target = p['id']
+                                    st.rerun()
+                                if cols[5].button("❌", key=f"dw_{p['id']}"):
+                                    delete_p(p['id'], date_key)
