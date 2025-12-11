@@ -239,7 +239,7 @@ export default function App() {
                   </li>
                   <li className="flex gap-2">
                     <span className="text-sky-400"> </span>
-                     <span className="flex-1">若遇額滿,<span className="font-bold text-sky-700 bg-sky-100 px-1 rounded">候補團員 (⭐)</span> 優先取代非團員 </span>
+                     <span className="flex-1">若遇額滿 <span className="font-bold text-sky-700 bg-sky-100 px-1 rounded">候補團員 (⭐)</span> 優先取代非團員 </span>
                   </li>
                   <li className="flex gap-2 text-pink-500 font-medium">
                     <span className="text-pink-400"> </span>
@@ -300,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
