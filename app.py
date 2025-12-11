@@ -4,14 +4,12 @@ import json
 import os
 import time
 import uuid
-import random
 from datetime import datetime, date, timedelta
 
 # ==========================================
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-# ⚠️ 上線後請換成真實網址
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
@@ -42,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 旗艦級美學 (CSS)
+# 2. UI 極簡禪意風格 (CSS)
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -50,92 +48,78 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
     
-    html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; } /* 背景極淡灰，襯托白色卡片 */
-    .block-container { padding-top: 0.5rem !important; padding-bottom: 5rem !important; }
+    html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
+    .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
-    /* Header: 懸浮玻璃質感 */
+    /* Header: 乾淨清爽 */
     .header-box {
         background: white;
-        padding: 1.5rem 1rem; border-radius: 24px; color: #1e293b; 
+        padding: 1.5rem 1rem; border-radius: 20px; 
         text-align: center; margin-bottom: 20px;
-        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08); /* 高級柔光陰影 */
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     }
-    .header-title { font-size: 1.5rem; font-weight: 800; color: #0f172a; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .header-sub { font-size: 0.85rem; color: #64748b; font-weight: 500; }
+    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
+    .header-sub { font-size: 0.9rem; color: #64748b; font-weight: 500; }
     .info-pill {
-        background: #eff6ff; padding: 4px 12px;
-        border-radius: 20px; font-size: 0.75rem; font-weight: 600; color: #3b82f6;
+        background: #f1f5f9; padding: 4px 14px;
+        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569;
         display: inline-block; margin-top: 10px;
     }
 
-    /* Tabs: 極簡線條風 */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; background: transparent; }
+    /* Tabs: 極簡 */
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
-        height: 36px; background-color: transparent; border-radius: 18px;
-        padding: 0 14px; font-size: 0.85rem; border: 1px solid transparent; color: #64748b; font-weight: 600;
+        height: 38px; background-color: transparent; border-radius: 20px;
+        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b; font-weight: 500;
     }
     .stTabs [aria-selected="true"] { 
         background-color: white; color: #3b82f6; border: none; 
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05); /* 微微浮起 */
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
 
-    /* =========================================
-       ✨ 核心美學：無框線列表 (Modern List)
-       ========================================= */
-    .player-row {
+    /* 列表樣式：無框線，純淨 */
+    .row-content {
         background: white;
-        border: none; /* ❌ 去掉框線 */
-        border-radius: 16px;
-        padding: 10px 10px 10px 16px; 
-        margin-bottom: 6px; /* 每個人的間距 */
-        display: flex; align-items: center; /* 垂直置中 */
-        box-shadow: 0 2px 10px rgba(148, 163, 184, 0.08); /* ☁️ 像雲一樣的陰影 */
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        padding: 10px 14px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02); /* 極淡陰影 */
+        display: flex; align-items: center;
+        margin-bottom: 4px; /* 行距 */
+        transition: transform 0.1s;
     }
-    .player-row:hover {
+    /* 讓它看起來像浮起來 */
+    .row-content:hover {
         transform: scale(1.005);
-        box-shadow: 0 5px 15px rgba(148, 163, 184, 0.15);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.04);
     }
 
-    /* 頭像 (Avatar) */
-    .avatar {
-        width: 32px; height: 32px; border-radius: 50%;
-        background: linear-gradient(135deg, #60a5fa, #a78bfa);
-        color: white; font-size: 14px; font-weight: bold;
-        display: flex; align-items: center; justify-content: center;
-        margin-right: 12px; box-shadow: 0 2px 5px rgba(96, 165, 250, 0.3);
-        flex-shrink: 0;
-    }
+    .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.85rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    .list-name { color: #334155; font-weight: 600; font-size: 1rem; flex-grow: 1; }
     
-    /* 名字與序號 */
-    .list-index { font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-right: 8px; width: 15px; text-align:right;}
-    .list-name { font-size: 0.95rem; font-weight: 600; color: #334155; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* Badges (更精緻的膠囊) */
-    .badge { padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; }
+    /* 膠囊標籤 */
+    .badge { padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; }
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
 
-    /* 按鈕區 */
+    /* 按鈕微調 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; }
     .list-btn-col button {
         border: none !important; background: transparent !important;
-        padding: 6px !important; color: #cbd5e1 !important;
+        padding: 0px !important; color: #cbd5e1 !important; 
     }
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 50%; }
     .list-btn-d button:hover { color: #ef4444 !important; background: #fef2f2 !important; border-radius: 50%; }
-    .list-btn-up button { padding: 2px 8px !important; min-height: 24px !important; font-size: 0.7rem !important; border-radius: 12px !important;}
+    .list-btn-up button { padding: 2px 8px !important; min-height: 24px !important; font-size: 0.7rem !important; border-radius: 12px !important; background: #f1f5f9 !important; color: #475569 !important;}
 
-    /* Progress Bar */
-    .progress-wrapper { background: white; padding: 10px 15px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
-    .progress-container { width: 100%; background: #f1f5f9; border-radius: 6px; height: 6px; margin-top: 6px; overflow: hidden; }
-    .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-    .progress-text { font-size: 0.8rem; color: #64748b; display: flex; justify-content: space-between; font-weight: 600; }
-
-    /* Edit Box */
-    .edit-box { border: 2px solid #3b82f6; border-radius: 16px; padding: 12px; background: #fff; margin-bottom: 12px; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15); }
+    /* 進度條 */
+    .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+    .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
+    
+    /* 編輯框 */
+    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -146,6 +130,7 @@ with st.sidebar:
     st.header("⚙️ 場次管理員")
     pwd = st.text_input("密碼", type="password")
     is_admin = (pwd == ADMIN_PASSWORD)
+    
     if is_admin:
         st.success("🔓 已解鎖")
         new_date = st.date_input("新增日期", min_value=date.today())
@@ -187,7 +172,6 @@ dates = all_dates if is_admin else [d for d in all_dates if d not in hidden]
 if not dates:
     st.info("👋 目前沒有開放報名的場次，請稍後再來！")
 else:
-    # 建立 Tabs (極簡風)
     tabs = st.tabs([f"{int(d.split('-')[1])}/{int(d.split('-')[2])}" + ("🔒" if d in hidden else "") for d in dates])
 
     for i, date_key in enumerate(dates):
@@ -206,29 +190,26 @@ else:
                 if curr + p.get('count', 1) <= MAX_CAPACITY: main.append(p); curr += p.get('count', 1)
                 else: wait.append(p)
 
-            # === 進度條 (包在白色卡片裡) ===
+            # === 進度條 ===
             pct = min(100, (len(main) / MAX_CAPACITY) * 100)
             bar_color = "#4ade80" if pct < 50 else "#fbbf24" if pct < 85 else "#f87171"
             
             st.markdown(f"""
-            <div class="progress-wrapper">
-                <div class="progress-text">
-                    <span style="color:#334155;">正選名單</span>
-                    <span style="color:#3b82f6;">{len(main)} / {MAX_CAPACITY}</span>
+            <div style="margin-bottom: 25px; padding: 0 4px;">
+                <div class="progress-info">
+                    <span style="color:#334155;">正選 ({len(main)}/{MAX_CAPACITY})</span>
+                    <span style="color:#94a3b8; font-weight:400;">候補: {len(wait)}</span>
                 </div>
                 <div class="progress-container">
                     <div class="progress-bar" style="width: {pct}%; background: {bar_color};"></div>
                 </div>
-                <div style="text-align:right; font-size:0.7rem; color:#94a3b8; margin-top:6px; font-weight:500;">
-                    候補人數: {len(wait)}
-                </div>
             </div>
             """, unsafe_allow_html=True)
             
-            # === Action Functions ===
+            # === Functions ===
             def update(pid, d, n, im, bb, oc):
                 t = next((p for p in st.session_state.data["sessions"][d] if p['id']==pid), None)
-                if t: t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc}); save_data(st.session_state.data); st.session_state.edit_target=None; st.toast("✅ 資料已更新"); time.sleep(0.5); st.rerun()
+                if t: t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc}); save_data(st.session_state.data); st.session_state.edit_target=None; st.toast("✅ 已更新"); time.sleep(0.5); st.rerun()
             
             def delete(pid, d):
                 st.session_state.data["sessions"][d] = [p for p in st.session_state.data["sessions"][d] if p['id']!=pid]
@@ -282,7 +263,7 @@ else:
                 * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # === 名單顯示 ===
+            # === 名單渲染 (最穩定版) ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
@@ -303,107 +284,49 @@ else:
                                 if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec)
                                 if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
                     else:
-                        # 產生頭像字元
-                        avatar_char = p['name'][0] if p['name'] else "?"
-                        
-                        badges = ""
-                        if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
-                        if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
-                        if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
-                        
-                        # 容器與樣式 (無邊框！)
-                        opacity = "0.7" if is_wait else "1"
-                        st.markdown(f"""
-                        <div class="player-row" style="opacity:{opacity};">
-                            <span class="list-index">{idx+1}.</span>
-                            <div class="avatar">{avatar_char}</div>
-                            <div style="flex-grow:1; min-width:0;">
-                                <div style="display:flex; align-items:center;">
-                                    <span class="list-name">{p['name']}</span>
-                                    {badges}
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # 按鈕邏輯 (透過 columns 來對齊按鈕)
-                        # 注意：這裡我用了一個小技巧，在 markdown 下面接 columns
-                        # 為了讓按鈕跟上面的 div 在同一行，其實 Streamlit 很難做到完美的同一行
-                        # 但因為上面的 div 已經結束了，我們這裡用 columns 只是為了放按鈕
-                        # 在視覺上，我建議把按鈕放在獨立的 column，透過 st.columns 來切分整行
-                        
-                        # 重寫結構：用 columns 包住所有內容
-                        
-                # 重新設計渲染邏輯以確保對齊
-                for idx, p in enumerate(lst):
-                     if st.session_state.edit_target == p['id']:
-                         # (編輯模式代碼略...同上)
-                         with st.container():
-                            st.markdown(f"<div class='edit-box'>✏️ 編輯中：{p['name']}</div>", unsafe_allow_html=True)
-                            with st.form(key=f"e2_{p['id']}"):
-                                en = st.text_input("名", p['name'])
-                                ec1, ec2, ec3 = st.columns(3)
-                                em = ec1.checkbox("⭐晴女", p.get('isMember'))
-                                eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
-                                ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
-                                b1, b2 = st.columns(2)
-                                if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec)
-                                if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
-                     else:
-                        avatar_char = p['name'][0] if p['name'] else "?"
                         badges = ""
                         if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
-                        # 使用 Flex Container 概念的 HTML 結構 (上層)
-                        # 因為 Streamlit 的 Button 不能放進 HTML，所以我們還是得用 Columns
-                        # 這裡調整 Columns 比例來達到無框線列表的感覺
+                        # === 這裡就是穩定顯示的關鍵 ===
+                        # 我們使用 Columns 來排版，不使用複雜的 HTML 包裹，避免報錯
+                        # Col 1: 內容 (白色卡片樣式)
+                        # Col 2,3: 按鈕 (透明)
                         
-                        # 行容器樣式
-                        bg = "background:white;" if not is_wait else "background:#f8fafc;"
-                        st.markdown(f'<div class="player-row" style="{bg}">', unsafe_allow_html=True)
-                        
-                        # 佈局：[序號+頭像+名字+標籤]  [按鈕]
                         c_cfg = [7.5, 1, 1] if not (is_admin and is_wait) else [6, 1.5, 1, 1]
-                        c = st.columns(c_cfg)
+                        cols = st.columns(c_cfg)
                         
-                        # 左側資訊區
-                        with c[0]:
+                        with cols[0]:
+                            # 將內容包在一個 div 裡賦予樣式
                             st.markdown(f"""
-                            <div style="display:flex; align-items:center;">
-                                <span class="list-index">{idx+1}</span>
-                                <div class="avatar">{avatar_char}</div>
-                                <div style="display:flex; flex-direction:column; justify-content:center;">
-                                    <div style="display:flex; align-items:center;">
-                                        <span class="list-name">{p['name']}</span>
-                                        {badges}
-                                    </div>
-                                </div>
+                            <div class="row-content">
+                                <span class="list-index">{idx+1}.</span>
+                                <span class="list-name">{p['name']}</span>
+                                {badges}
                             </div>
                             """, unsafe_allow_html=True)
-
-                        # 右側按鈕區
+                        
+                        # 按鈕區 (獨立於 HTML 結構外，最安全)
                         b_idx = 1
                         if is_admin and is_wait and p.get('isMember'):
-                            with c[b_idx]:
+                            with cols[b_idx]:
                                 st.markdown('<div class="list-btn-up">', unsafe_allow_html=True)
                                 if st.button("⬆️", key=f"up_{p['id']}"): promote(p['id'], date_key)
                                 st.markdown('</div>', unsafe_allow_html=True)
                             b_idx += 1
-                        
+
                         if can_edit:
-                            if b_idx < len(c):
-                                with c[b_idx]:
+                            if b_idx < len(cols):
+                                with cols[b_idx]:
                                     st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
                                     if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
                                     st.markdown('</div>', unsafe_allow_html=True)
-                            if b_idx+1 < len(c):
-                                with c[b_idx+1]:
+                            if b_idx+1 < len(cols):
+                                with cols[b_idx+1]:
                                     st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
                                     if st.button("✕", key=f"bd_{p['id']}"): delete(p['id'], date_key)
                                     st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        st.markdown('</div>', unsafe_allow_html=True) # End player-row
 
             render_list(main)
             
