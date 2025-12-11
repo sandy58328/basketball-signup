@@ -235,11 +235,11 @@ export default function App() {
                   </li>
                   <li className="flex gap-2">
                     <span className="text-sky-400"> </span>
-                     <span className="flex-1">每人可帶朋友，系統會自動將朋友列為獨立名單,方便管理 </span>
+                     <span className="flex-1">每人可帶朋友,系統會自動將朋友列為獨立名單,方便管理 </span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-sky-400"> </span>
-                     <span className="flex-1">若遇額滿，<span className="font-bold text-sky-700 bg-sky-100 px-1 rounded">候補團員 (⭐)</span> 優先取代非團員 </span>
+                     <span className="flex-1">若遇額滿,<span className="font-bold text-sky-700 bg-sky-100 px-1 rounded">候補團員 (⭐)</span> 優先取代非團員 </span>
                   </li>
                   <li className="flex gap-2 text-pink-500 font-medium">
                     <span className="text-pink-400"> </span>
@@ -271,10 +271,10 @@ export default function App() {
                  <div>
                    <h4 className="font-bold text-yellow-800 text-lg">優先權調整建議</h4>
                    <p className="text-yellow-700 text-sm mt-1">
-                     偵測到 <strong>團員 {memberOnWaitlist?.name}</strong> 位於候補名單，而正選名單中有 <strong>非團員 (如 {guestOnMainlist?.name})</strong>。
+                     偵測到 <strong>團員 {memberOnWaitlist?.name}</strong> 位於候補名單，而正選名單中有 <strong>非團員 (如 {guestOnMainlist?.name})</strong>
                    </p>
                    <p className="text-yellow-700 text-sm mt-1">
-                     建議手動刪除正選名單中的朋友/非團員，讓團員遞補上來。
+                     建議手動刪除正選名單中的朋友/非團員，讓團員遞補上來
                    </p>
                    <div className="flex gap-4 mt-2 text-xs font-bold text-yellow-600">
                       <span className="flex items-center gap-1"><ArrowUp className="w-3 h-3"/> 候補團員</span>
@@ -300,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
