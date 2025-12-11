@@ -10,8 +10,7 @@ from datetime import datetime, date
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 
-# ⚠️ 請將下方網址改成你實際部署後的網址 (例如 https://your-app.streamlit.app)
-# 這樣分享到 Line 的功能才會導向正確的地方
+# ⚠️ 請將下方網址改成你實際部署後的網址
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
 
 # ==========================================
@@ -75,22 +74,6 @@ st.markdown("""
         padding: 0px 10px;
         border-radius: 5px;
     }
-    /* 特別把 Line 按鈕變綠色 */
-    a[href*="line.me"] {
-        text-decoration: none;
-        color: white !important;
-        background-color: #06c755;
-        padding: 10px 20px;
-        border-radius: 8px;
-        display: block;
-        text-align: center;
-        margin-bottom: 10px;
-        font-weight: bold;
-    }
-    a[href*="line.me"]:hover {
-        background-color: #05b34c;
-        color: white !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -98,15 +81,9 @@ st.markdown("""
 # 3. 側邊欄：分享 & 管理
 # ==========================================
 with st.sidebar:
-    # --- [新增] 分享連結區塊 ---
+    # --- [簡化後] 分享連結區塊 ---
     st.header("🔗 分享報名連結")
-    
-    # 1. Line 分享按鈕 (使用 HTML 語法製作連結)
-    line_share_url = f"https://social-plugins.line.me/lineit/share?url={APP_URL}"
-    st.markdown(f'<a href="{line_share_url}" target="_blank">💚 分享到 Line 群組</a>', unsafe_allow_html=True)
-    
-    # 2. 複製連結 (st.code 自帶複製功能)
-    st.caption("或是複製下方連結：")
+    st.caption("點擊下方框框右側按鈕即可複製")
     st.code(APP_URL, language="text")
     
     st.markdown("---")
@@ -138,7 +115,7 @@ with st.sidebar:
         
         if all_session_dates:
             # 隱藏場次設定
-            st.write("👁️ **設定隱藏場次 (一般人看不到)**")
+            st.write("👁️ **設定隱藏場次**")
             current_hidden = st.session_state.data["hidden"]
             current_hidden = [d for d in current_hidden if d in all_session_dates]
             
