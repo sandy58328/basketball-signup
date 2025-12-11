@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-const STORAGE_KEY = 'basketball_data';
+STORAGE_KEY = 'basketball_data';
 
 export default function App() {
   const [gameDate, setGameDate] = useState<string>(() => {
@@ -296,6 +296,7 @@ export default function App() {
   );
 
 }
+
 
 
 
