@@ -9,28 +9,7 @@ STORAGE_KEY = 'basketball_data';
 # Force count to 1 because we are splitting them
 # 2. Add friends as separate entries if count > 1
 # Logic to split Main List vs Waitlist
-sortedPlayers.forEach(player => {
-    // Since we split entries, player.count is always 1, but we keep the logic generic just in case
-    if (currentCount + player.count <= MAX_CAPACITY) {
-      mainList.push(player);
-      currentCount += player.count;
-    } else {
-      waitList.push(player);
-    }
-  });
-
-  const totalRegistered = players.reduce((sum, p) => sum + p.count, 0);
-  const totalWaitlist = waitList.reduce((sum, p) => sum + p.count, 0);
-
-  // Priority Detection Logic
-  // Check if there is a MEMBER on the waitlist AND a GUEST (non-member) on the main list
-  const memberOnWaitlist = waitList.find(p => p.isMember);
-  const guestOnMainlist = mainList.slice().reverse().find(p => !p.isMember); // Find the last guest added (usually distinct friends)
-  
-  const showPriorityAlert = memberOnWaitlist && guestOnMainlist;
-
-  return (
-    <div className="min-h-screen pb-12 bg-sky-50">
+  <div className="min-h-screen pb-12 bg-sky-50">
       {/* Header / Banner */}
       <div className="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-white shadow-lg">
         <div className="max-w-5xl mx-auto px-4 py-10">
@@ -205,6 +184,7 @@ sortedPlayers.forEach(player => {
       </div>
     </div>
   );
+
 
 
 
