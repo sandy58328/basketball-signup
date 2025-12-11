@@ -234,7 +234,7 @@ export default function App() {
                     <span className="flex-1">上限 20 人,超過系統自動轉候補 </span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-sky-400">•</span>
+                    <span className="text-sky-400"> </span>
                      <span className="flex-1">每人可帶朋友，系統會自動將朋友列為獨立名單，方便管理。</span>
                   </li>
                   <li className="flex gap-2">
@@ -300,5 +300,6 @@ export default function App() {
   );
 
 }
+
 
 
