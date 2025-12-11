@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 經典質感風格 (CSS) - V3.13 字體回歸版
+# 2. UI 經典質感風格 (CSS) - V3.14 穩定修復版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -78,29 +78,31 @@ st.markdown("""
         background-color: white; color: #3b82f6; border: none; 
         box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
-    div[data-baseweb="tab-highlight"] { display: none !important; }
+    div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* [回歸] 列表卡片樣式：舒適的間距 */
+    /* 列表卡片樣式 */
     .player-row {
         background: white;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
-        padding: 10px 8px 10px 14px; /* 回復原本舒適的 Padding */
+        padding: 10px 8px 10px 14px;
         margin-bottom: 8px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
-        display: flex; align-items: center; /* 確保垂直置中 */
+        display: flex; 
+        align-items: center; /* 垂直置中 */
+        height: 100%;
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
-    /* [重點修正] 名字字體改回妳喜歡的大小與粗度 */
+    /* 名字樣式 */
     .list-name { 
         color: #334155; 
         font-weight: 700; 
-        font-size: 1.15rem; /* 這就是妳喜歡的那個大小！ */
+        font-size: 1.15rem; /* 妳喜歡的大小 */
         letter-spacing: 0.5px;
         flex-grow: 1;
         line-height: 1.2;
@@ -120,7 +122,7 @@ st.markdown("""
         background: transparent !important;
         padding: 0px !important;
         color: #cbd5e1 !important; 
-        font-size: 14px !important; /* 圖示稍微大回一點點，比較好按 */
+        font-size: 14px !important;
         line-height: 1 !important;
         height: 32px !important;
         width: 32px !important;
@@ -300,7 +302,7 @@ else:
                 * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # === 名單渲染 ===
+            # === 名單渲染 (簡化 HTML 結構) ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
@@ -326,18 +328,15 @@ else:
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
-                        # [佈局] 名字(7.2) | 按鈕區(2.8) - 保持緊湊但有呼吸感
-                        c_cfg = [7.2, 0.6, 0.6, 1.6] if not (is_admin and is_wait) else [6.0, 1.2, 0.6, 0.6, 1.6]
+                        c_cfg = [7.5, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
                         cols = st.columns(c_cfg, gap="small")
                         
                         with cols[0]:
                             st.markdown(f"""
                             <div class="player-row">
-                                <span style="display:flex; align-items:center; width:100%;">
-                                    <span class="list-index">{idx+1}.</span>
-                                    <span class="list-name">{p['name']}</span>
-                                    {badges}
-                                </span>
+                                <span class="list-index">{idx+1}.</span>
+                                <span class="list-name">{p['name']}</span>
+                                {badges}
                             </div>
                             """, unsafe_allow_html=True)
                         
@@ -350,15 +349,16 @@ else:
                             b_idx += 1
 
                         if can_edit:
-                            with cols[b_idx]:
-                                st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
-                                if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
-                                st.markdown('</div>', unsafe_allow_html=True)
-                            
-                            with cols[b_idx+1]:
-                                st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
-                                if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
-                                st.markdown('</div>', unsafe_allow_html=True)
+                            if b_idx < len(cols):
+                                with cols[b_idx]:
+                                    st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
+                                    if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
+                                    st.markdown('</div>', unsafe_allow_html=True)
+                            if b_idx+1 < len(cols):
+                                with cols[b_idx+1]:
+                                    st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
+                                    if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
+                                    st.markdown('</div>', unsafe_allow_html=True)
 
             render_list(main)
             
