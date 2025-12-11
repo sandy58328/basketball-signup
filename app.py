@@ -40,13 +40,13 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 超級優化樣式 (CSS)
+# 2. UI 美化樣式 (CSS) - 3D 卡片 + 彩色標籤
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
 st.markdown("""
     <style>
-    /* 1. 基礎設定 & 字體 */
+    /* 1. 字體與基礎設定 */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
     
     html, body, [class*="css"] {
@@ -59,9 +59,9 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
-    /* 2. Header 精緻化 */
+    /* 2. Header 樣式 */
     .header-box {
-        background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); /* 比較溫柔的晴天漸層 */
+        background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
         padding: 1.5rem; 
         border-radius: 16px; 
         color: #4a5568; 
@@ -88,7 +88,7 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
 
-    /* 3. Tabs 優化 (更圓潤) */
+    /* 3. Tabs 樣式 */
     .stTabs [data-baseweb="tab-list"] { gap: 6px; margin-bottom: 15px; }
     .stTabs [data-baseweb="tab"] {
         height: 40px; background-color: #f7fafc; border-radius: 20px;
@@ -98,12 +98,12 @@ st.markdown("""
         background-color: #3b82f6; color: white; border: none; box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3);
     }
 
-    /* 4. 名單卡片 (Card) - 加上陰影與懸浮效果 */
+    /* 4. 名單卡片 (Card) */
     .player-row {
         background: white;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
-        padding: 8px 4px 8px 12px; /* 上 右 下 左 */
+        padding: 8px 4px 8px 12px; 
         margin-bottom: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         transition: all 0.2s ease;
@@ -114,7 +114,7 @@ st.markdown("""
         border-color: #e2e8f0;
     }
 
-    /* 5. 膠囊標籤 (Badges) - 這就是好看的關鍵！ */
+    /* 5. 膠囊標籤 (Badges) */
     .badge {
         padding: 2px 8px;
         border-radius: 6px;
@@ -128,7 +128,7 @@ st.markdown("""
     .badge-ball { background-color: #ffedd5; color: #c2410c; border: 1px solid #fdba74; } /* 橘 */
     .badge-court { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; } /* 藍 */
 
-    /* 6. 按鈕區與排版 */
+    /* 6. 按鈕與排版 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; }
     .list-text { font-size: 1rem; font-weight: 600; color: #334155; }
     
@@ -141,7 +141,11 @@ st.markdown("""
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 50%; }
     .list-btn-d button:hover { color: #ef4444 !important; background: #fef2f2 !important; border-radius: 50%; }
     
-    /* 進度條樣式 */
+    .list-btn-up button {
+        padding: 4px 8px !important; min-height: 28px !important; font-size: 0.8rem !important;
+    }
+    
+    /* 進度條 */
     .progress-container {
         width: 100%; background-color: #f1f5f9; border-radius: 10px; height: 8px; margin-top: 5px; overflow: hidden;
     }
@@ -247,7 +251,7 @@ else:
                     curr_count += p.get('count', 1)
                 else: wait.append(p)
 
-            # === [新功能] 視覺化進度條與統計 ===
+            # === 進度條與統計 ===
             total_reg = sum(p.get('count', 1) for p in players)
             pct = min(100, (len(main) / MAX_CAPACITY) * 100)
             
@@ -293,9 +297,10 @@ else:
                     st.success("遞補成功"); time.sleep(0.5); st.rerun()
                 else: st.error("無法遞補")
 
-            # === 報名表單 ===
+            # === 報名表單 & 規則 (這裡改回來了！) ===
             with st.expander("📝 點擊報名 / 查看規則", expanded=not is_locked):
                 if is_locked and not is_admin: st.warning("⛔ 報名已於前一日 18:00 截止")
+                
                 with st.form(f"f_{date_key}", clear_on_submit=True):
                     f_name = st.text_input("球員姓名", disabled=not can_edit, placeholder="請輸入姓名")
                     col_f1, col_f2, col_f3 = st.columns(3)
@@ -315,15 +320,17 @@ else:
                             st.rerun()
                         else: st.error("需填寫姓名")
                 
+                # --- [修正點] 恢復詳細規則，並融入你的邏輯 ---
                 st.info("""
-                **📌 規則**
-                * **加人/減人**：減人請直接刪除❌；加人請重新報名。
-                * **資料修改**：點擊名單旁的✏️可修改屬性。
-                * **遞補規則**：候補⭐晴女可優先遞補正選「非晴女」。
-                * **截止時間**：開團前一日 18:00。
+                **📌 報名規則**
+                * **修改/刪除**：若需「減少人數」或「修改屬性」，請直接點擊名單上的 ✏️ 或 ❌。
+                * **增加人數**：若需「增加人數」，請**重新填寫報名表**，以維護公平性。
+                * **遞補規則**：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
+                * **截止時間**：開團前一日 18:00 截止報名。
+                * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # === 名單顯示 (使用卡片與 Badges) ===
+            # === 名單顯示 (卡片 + 膠囊) ===
             if main:
                 for idx, p in enumerate(main):
                     if st.session_state.edit_target == p['id']:
@@ -339,17 +346,14 @@ else:
                                 if b1.form_submit_button("💾 儲存", type="primary"): update_p(p['id'], date_key, en, em, eb, ec)
                                 if b2.form_submit_button("取消"): st.session_state.edit_target = None; st.rerun()
                     else:
-                        # 產生膠囊標籤 HTML
                         badge_html = ""
                         if p.get('isMember'): badge_html += "<span class='badge badge-sunny'>晴女</span>"
                         if p.get('bringBall'): badge_html += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badge_html += "<span class='badge badge-court'>佔場</span>"
 
-                        # 卡片容器開始
                         st.markdown(f'<div class="player-row">', unsafe_allow_html=True)
                         
                         r1, r2, r3 = st.columns([6.5, 1, 1])
-                        # 文字 + Badges
                         r1.markdown(f"<span class='list-text'>{idx+1}. {p['name']}</span> {badge_html}", unsafe_allow_html=True)
                         
                         if can_edit:
@@ -361,8 +365,7 @@ else:
                                 st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
                                 if st.button("❌", key=f"bd_{p['id']}"): delete_p(p['id'], date_key)
                                 st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        st.markdown('</div>', unsafe_allow_html=True) # 卡片容器結束
+                        st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.caption("😴 目前尚無人報名，快來搶頭香！")
 
@@ -388,7 +391,7 @@ else:
                         if p.get('bringBall'): badge_html += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badge_html += "<span class='badge badge-court'>佔場</span>"
 
-                        st.markdown(f'<div class="player-row" style="background-color:#f8fafc;">', unsafe_allow_html=True) # 候補稍微灰一點
+                        st.markdown(f'<div class="player-row" style="background-color:#f8fafc;">', unsafe_allow_html=True)
                         
                         cols_cfg = [5, 1.5, 1, 1] if is_admin else [6.5, 1, 1]
                         cols = st.columns(cols_cfg)
