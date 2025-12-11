@@ -10,7 +10,7 @@ from datetime import datetime, date, timedelta
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-# ⚠️ 上線後請換成真實網址
+# (APP_URL 設定已保留，但前台不會顯示按鈕)
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 經典質感風格 (CSS) - V3.14 穩定修復版
+# 2. UI 極簡禪意風格 (CSS) - V3.16 無分享鈕版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -98,11 +98,11 @@ st.markdown("""
 
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
-    /* 名字樣式 */
+    /* 名字樣式 (保持 V3.13 妳喜歡的大小) */
     .list-name { 
         color: #334155; 
         font-weight: 700; 
-        font-size: 1.15rem; /* 妳喜歡的大小 */
+        font-size: 1.15rem; 
         letter-spacing: 0.5px;
         flex-grow: 1;
         line-height: 1.2;
@@ -185,9 +185,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-components.html(
-    f"""<body style="margin:0;display:flex;justify-content:center;"><button style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:12px;cursor:pointer;color:#64748b;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 2px 5px rgba(0,0,0,0.02);transition:all 0.2s;" onclick="navigator.clipboard.writeText('{APP_URL}').then(()=>{{document.getElementById('t').innerText='已複製!'}});this.style.transform='scale(0.95)'">🔗 <span id="t">分享報名連結</span></button></body>""", height=40
-)
+# [已移除] 分享連結按鈕區塊
 
 # ==========================================
 # 4. 主畫面邏輯
@@ -302,7 +300,7 @@ else:
                 * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # === 名單渲染 (簡化 HTML 結構) ===
+            # === 名單渲染 ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
@@ -328,15 +326,17 @@ else:
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
-                        c_cfg = [7.5, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
+                        c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
                         cols = st.columns(c_cfg, gap="small")
                         
                         with cols[0]:
                             st.markdown(f"""
                             <div class="player-row">
-                                <span class="list-index">{idx+1}.</span>
-                                <span class="list-name">{p['name']}</span>
-                                {badges}
+                                <span style="display:flex; align-items:center; width:100%;">
+                                    <span class="list-index">{idx+1}.</span>
+                                    <span class="list-name">{p['name']}</span>
+                                    {badges}
+                                </span>
                             </div>
                             """, unsafe_allow_html=True)
                         
