@@ -17,10 +17,7 @@ newPlayers.push({
           id: crypto.randomUUID(),
           timestamp: timestamp + 1 + i, // Slight delay to maintain order
         });
-      }
-    }
-
-    setPlayers(prev => [...prev, ...newPlayers]);
+        setPlayers(prev => [...prev, ...newPlayers]);
   };
 
   const handleUpdatePlayer = (id: string, updatedData: Omit<Player, 'id' | 'timestamp'>) => {
@@ -250,6 +247,7 @@ newPlayers.push({
       </div>
     </div>
   );
+
 
 
 
