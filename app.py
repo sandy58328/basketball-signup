@@ -9,13 +9,7 @@ STORAGE_KEY = 'basketball_data';
 # Force count to 1 because we are splitting them
 # 2. Add friends as separate entries if count > 1
 # Logic to split Main List vs Waitlist
-  const sortedPlayers = [...players].sort((a, b) => a.timestamp - b.timestamp);
-  
-  const mainList: Player[] = [];
-  const waitList: Player[] = [];
-  let currentCount = 0;
-
-  sortedPlayers.forEach(player => {
+sortedPlayers.forEach(player => {
     // Since we split entries, player.count is always 1, but we keep the logic generic just in case
     if (currentCount + player.count <= MAX_CAPACITY) {
       mainList.push(player);
@@ -211,6 +205,7 @@ STORAGE_KEY = 'basketball_data';
       </div>
     </div>
   );
+
 
 
 
