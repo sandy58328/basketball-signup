@@ -42,12 +42,13 @@ if 'data' not in st.session_state:
     st.session_state.data = load_data()
 
 # ==========================================
-# 2. 介面樣式
+# 2. 介面樣式 (CSS 美化區)
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="wide")
 
 st.markdown("""
     <style>
+    /* Tabs 樣式 */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
         height: 50px; white-space: pre-wrap; background-color: #f0f9ff;
@@ -56,6 +57,8 @@ st.markdown("""
     .stTabs [aria-selected="true"] {
         background-color: #e0f2fe; border-bottom: 2px solid #0ea5e9; font-weight: bold;
     }
+    
+    /* 標題區塊 */
     .header-box {
         background: linear-gradient(to right, #38bdf8, #3b82f6, #6366f1);
         padding: 2rem; border-radius: 1rem; color: white; margin-bottom: 1rem;
@@ -70,9 +73,36 @@ st.markdown("""
         margin-top: 10px;
         backdrop-filter: blur(5px);
     }
+    
+    /* 按鈕微調 */
     button[kind="secondary"] {
         padding: 0px 10px;
         border-radius: 5px;
+    }
+    
+    /* === 核心修改：把醜醜的網址框變漂亮 === */
+    /* 1. 隱藏 Expander 的邊框和背景，讓它看起來像個乾淨的按鈕 */
+    div[data-testid="stExpander"] {
+        border: none !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
+    }
+    div[data-testid="stExpander"] details {
+        border: none !important;
+    }
+    
+    /* 2. 把 st.code 的灰色背景和邊框拿掉，變成透明 */
+    code {
+        background-color: transparent !important;
+        color: #3b82f6 !important; /* 讓網址變漂亮的藍色 */
+        font-weight: bold;
+        border: none !important;
+    }
+    div[data-testid="stCodeBlock"] {
+        background-color: #f0f9ff !important; /* 很淡的藍底，比較有質感 */
+        border-radius: 10px;
+        padding: 5px;
+        border: 1px dashed #3b82f6; /* 虛線邊框，看起來像優惠券 */
     }
     </style>
 """, unsafe_allow_html=True)
@@ -140,12 +170,10 @@ with st.sidebar:
 # 4. 主頁面邏輯
 # ==========================================
 
-# [修改重點] 使用分欄佈局，確保分享按鈕一定會出現
-# 比例 7:2 -> 左邊大區塊放標題，右邊小區塊放分享按鈕
+# 排版：左邊標題 (7)，右邊分享按鈕 (2)
 col_header, col_share = st.columns([7, 2])
 
 with col_header:
-    # 標題區塊
     st.markdown("""
         <div class="header-box">
             <h1 style="margin:0; font-size: 2.2rem; font-weight: 800; letter-spacing: 1px;">晴女☀️在場邊等妳🌈</h1>
@@ -157,11 +185,11 @@ with col_header:
     """, unsafe_allow_html=True)
 
 with col_share:
-    # 分享按鈕區塊 (放在右側，垂直置中不太容易，所以會偏上，但一定看得到)
-    st.write("") # 塞一點空白讓它往下移一點點
     st.write("") 
-    with st.expander("🔗 分享", expanded=False):
-        st.caption("複製連結：")
+    st.write("") 
+    # 這裡的 Expander 會被上面的 CSS 美化
+    with st.expander("🔗 分享連結", expanded=False):
+        # 這裡的 code block 也被 CSS 美化成淡藍色虛線框
         st.code(APP_URL, language="text")
 
 # -----------------------------------------------------
