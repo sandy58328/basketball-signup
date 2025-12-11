@@ -69,9 +69,10 @@ st.markdown("""
         background-color: #fefce8; border-left: 5px solid #eab308;
         padding: 1rem; color: #854d0e; margin-bottom: 1rem;
     }
-    /* 特別加強按鈕樣式 */
+    /* 按鈕樣式 */
     button[kind="secondary"] {
         padding: 0px 10px;
+        border-radius: 5px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -145,7 +146,6 @@ else:
                     main_list.append(p)
                     current_count += p_count
                 else:
-                    # 修正重點：這裡原本斷掉了，現在修好了
                     wait_list.append(p)
             
             # 統計
@@ -212,7 +212,13 @@ else:
                     st.rerun()
 
                 def promote_p(wait_pid, d_key, target_main_list):
-                    # 篡位邏輯
+                    """
+                    邏輯確認：
+                    1. 找到候補的團員 (wait_person)
+                    2. 找到正選的非團員 (target_guest)
+                    3. 交換他們的時間戳記 (Timestamp)
+                    4. 結果：團員變正選，非團員變候補 (不會刪除)
+                    """
                     all_p = st.session_state.data["sessions"][d_key]
                     wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
                     
@@ -230,21 +236,22 @@ else:
                         target_guest['timestamp'] = wait_person['timestamp']
                         wait_person['timestamp'] = t_temp
                         save_data(st.session_state.data)
-                        st.success(f"遞補成功！{wait_person['name']} 已取代 {target_guest['name']}")
+                        st.success(f"遞補成功！團員 {wait_person['name']} 已晉升正選，{target_guest['name']} 轉為候補。")
                         st.rerun()
 
                 # 正選顯示
                 st.subheader("✅ 正選名單")
                 if main_list:
                     for idx, p in enumerate(main_list):
-                        cols = st.columns([0.5, 3, 2, 1])
+                        cols = st.columns([0.5, 3, 2, 0.5]) 
                         cols[0].write(f"{idx+1}.")
                         cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
                         tag_s = []
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
                         cols[2].write(" ".join(tag_s))
-                        if cols[3].button("刪", key=f"d_{p['id']}"):
+                        # 刪除是紅色 X
+                        if cols[3].button("❌", key=f"d_{p['id']}"):
                             delete_p(p['id'], date_key)
                 else:
                     st.write("尚無人報名")
@@ -254,26 +261,25 @@ else:
                     st.divider()
                     st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
                     
-                    # 判斷正選裡有沒有「非團員」可被取代
                     has_guest_in_main = any(not p.get('isMember') for p in main_list)
 
                     for idx, p in enumerate(wait_list):
-                        # 判斷是否顯示遞補按鈕：此人是團員 AND 正選有軟柿子
                         can_promote = p.get('isMember') and has_guest_in_main
                         
+                        # 如果可以遞補，欄位會分給「遞補」和「刪除」
                         if can_promote:
-                            cols = st.columns([0.5, 4, 1.5, 1]) # 4欄
+                            cols = st.columns([0.5, 3.5, 1.5, 0.5]) 
                         else:
-                            cols = st.columns([0.5, 5, 0.1, 1]) # 4欄
+                            cols = st.columns([0.5, 5, 0.1, 0.5]) 
 
                         cols[0].write(f"{idx+1}.")
                         cols[1].write(p['name'] + (" (團員)" if p.get('isMember') else ""))
                         
-                        # 遞補按鈕欄位
                         if can_promote:
+                            # 遞補按鈕 (向上箭頭)
                             if cols[2].button("⬆️遞補", key=f"up_{p['id']}"):
                                 promote_p(p['id'], date_key, main_list)
                         
-                        # 刪除按鈕欄位
+                        # 刪除按鈕 (紅色 X)
                         if cols[3].button("❌", key=f"dw_{p['id']}"):
                             delete_p(p['id'], date_key)
