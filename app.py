@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極致美化 (CSS) - 多巴胺柔和配色
+# 2. UI 極致美化 (CSS) - 緊湊版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -53,64 +53,65 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; padding-bottom: 4rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
-    /* Header: 柔和漸層 + 陰影 */
+    /* Header */
     .header-box {
         background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
-        padding: 1.8rem 1rem; border-radius: 20px; color: #4a5568; 
-        text-align: center; margin-bottom: 20px;
-        box-shadow: 0 8px 20px rgba(161, 196, 253, 0.3);
+        padding: 1.5rem 1rem; border-radius: 16px; color: #4a5568; 
+        text-align: center; margin-bottom: 15px;
+        box-shadow: 0 4px 15px rgba(161, 196, 253, 0.3);
     }
-    .header-title { font-size: 1.6rem; font-weight: 800; color: #2d3748; letter-spacing: 1px; margin-bottom: 4px; }
-    .header-sub { font-size: 0.9rem; color: #5a6b84; font-weight: 500; opacity: 0.9; }
+    .header-title { font-size: 1.5rem; font-weight: 800; color: #2d3748; letter-spacing: 1px; margin-bottom: 4px; }
+    .header-sub { font-size: 0.85rem; color: #5a6b84; font-weight: 500; opacity: 0.9; }
     .info-pill {
-        background: rgba(255, 255, 255, 0.65); padding: 5px 16px;
-        border-radius: 30px; font-size: 0.85rem; font-weight: 600; color: #2b6cb0;
-        display: inline-block; margin-top: 12px; backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.65); padding: 4px 12px;
+        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #2b6cb0;
+        display: inline-block; margin-top: 10px; backdrop-filter: blur(8px);
     }
 
-    /* Tabs: 圓潤膠囊風格 */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 15px; }
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] { gap: 6px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
-        height: 42px; background-color: #f8fafc; border-radius: 25px;
-        padding: 0 16px; font-size: 0.9rem; border: 1px solid #edf2f7; color: #64748b;
+        height: 38px; background-color: #f8fafc; border-radius: 20px;
+        padding: 0 12px; font-size: 0.85rem; border: 1px solid #edf2f7; color: #64748b;
     }
     .stTabs [aria-selected="true"] { 
         background-color: #3b82f6; color: white; border: none; 
-        box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
     }
 
-    /* Player Card: 懸浮效果 */
+    /* Player Card (緊湊化調整) */
     .player-row {
-        background: white; border: 1px solid #f1f5f9; border-radius: 16px;
-        padding: 10px 6px 10px 14px; margin-bottom: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: transform 0.2s, box-shadow 0.2s;
+        background: white; border: 1px solid #f1f5f9; border-radius: 12px;
+        padding: 6px 4px 6px 12px; /* 上下縮減為 6px */
+        margin-bottom: 5px; /* 卡片間距縮減為 5px */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02); transition: transform 0.2s, box-shadow 0.2s;
     }
-    .player-row:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.06); }
+    .player-row:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 
     /* Badges */
-    .badge { padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; }
+    .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; }
     .badge-sunny { background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
     .badge-ball { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
     .badge-court { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
 
     /* Buttons & Layout */
     [data-testid="stHorizontalBlock"] { align-items: center !important; }
-    .list-text { font-size: 1rem; font-weight: 600; color: #334155; }
+    .list-text { font-size: 0.95rem; font-weight: 600; color: #334155; }
     .list-btn-col button {
         border: none !important; background: transparent !important;
-        padding: 8px !important; color: #cbd5e1 !important; line-height: 1 !important;
+        padding: 6px !important; color: #cbd5e1 !important; line-height: 1 !important;
     }
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 50%; }
     .list-btn-d button:hover { color: #ef4444 !important; background: #fef2f2 !important; border-radius: 50%; }
-    .list-btn-up button { padding: 4px 10px !important; min-height: 30px !important; font-size: 0.8rem !important; }
+    .list-btn-up button { padding: 2px 8px !important; min-height: 26px !important; font-size: 0.75rem !important; }
 
     /* Progress Bar */
-    .progress-container { width: 100%; background: #f1f5f9; border-radius: 10px; height: 10px; margin-top: 6px; overflow: hidden; }
-    .progress-bar { height: 100%; border-radius: 10px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-    .progress-text { font-size: 0.85rem; color: #64748b; margin-bottom: 4px; display: flex; justify-content: space-between; font-weight: 500; }
+    .progress-container { width: 100%; background: #f1f5f9; border-radius: 8px; height: 8px; margin-top: 6px; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 8px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+    .progress-text { font-size: 0.8rem; color: #64748b; margin-bottom: 4px; display: flex; justify-content: space-between; font-weight: 500; }
 
     /* Edit Box */
-    .edit-box { border: 2px solid #3b82f6; border-radius: 16px; padding: 15px; background: #fff; margin-bottom: 15px; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15); }
+    .edit-box { border: 2px solid #3b82f6; border-radius: 12px; padding: 12px; background: #fff; margin-bottom: 12px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -119,7 +120,6 @@ st.markdown("""
 # ==========================================
 with st.sidebar:
     st.header("⚙️ 場次管理員")
-    # [修正點] 這裡改回來了！確保 is_admin 在任何地方都能被讀取到
     pwd = st.text_input("密碼", type="password")
     is_admin = (pwd == ADMIN_PASSWORD)
     
@@ -151,7 +151,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 components.html(
-    f"""<body style="margin:0;display:flex;justify-content:center;"><button style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:8px 20px;font-size:13px;cursor:pointer;color:#64748b;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:all 0.2s;" onclick="navigator.clipboard.writeText('{APP_URL}').then(()=>{{document.getElementById('t').innerText='已複製!'}});this.style.transform='scale(0.95)'">🔗 <span id="t">分享報名連結</span></button></body>""", height=45
+    f"""<body style="margin:0;display:flex;justify-content:center;"><button style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:12px;cursor:pointer;color:#64748b;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:all 0.2s;" onclick="navigator.clipboard.writeText('{APP_URL}').then(()=>{{document.getElementById('t').innerText='已複製!'}});this.style.transform='scale(0.95)'">🔗 <span id="t">分享報名連結</span></button></body>""", height=40
 )
 
 # ==========================================
@@ -190,7 +190,7 @@ else:
             bar_color = "#4ade80" if pct < 50 else "#fbbf24" if pct < 85 else "#f87171"
             
             st.markdown(f"""
-            <div style="margin-bottom: 25px;">
+            <div style="margin-bottom: 20px;">
                 <div class="progress-text">
                     <span style="color:#334155;"><b>正選名單</b></span>
                     <span>{len(main)} / {MAX_CAPACITY}</span>
@@ -198,7 +198,7 @@ else:
                 <div class="progress-container">
                     <div class="progress-bar" style="width: {pct}%; background: {bar_color};"></div>
                 </div>
-                <div style="text-align:right; font-size:0.8rem; color:#94a3b8; margin-top:4px;">候補等待: {len(wait)} 人</div>
+                <div style="text-align:right; font-size:0.75rem; color:#94a3b8; margin-top:4px;">候補等待: {len(wait)} 人</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -249,7 +249,6 @@ else:
                             st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [修正點] 這裡是你要的規則文案
                 st.info("""
                 **📌 報名規則**
                 * **人數上限**：每場20人，含自己最多報名3位，超過的進入候補名單。
@@ -289,7 +288,6 @@ else:
                         bg_style = "background-color:#f8fafc;" if is_wait else ""
                         st.markdown(f'<div class="player-row" style="{bg_style}">', unsafe_allow_html=True)
                         
-                        # [修正點] 確保 is_admin 變數可以被正確讀取
                         c_cfg = [6.5, 1, 1] if not (is_admin and is_wait) else [5, 1.5, 1, 1]
                         cols = st.columns(c_cfg)
                         
@@ -323,3 +321,4 @@ else:
                 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
                 st.subheader(f"⏳ 候補名單")
                 render_list(wait, is_wait=True)
+                
