@@ -239,11 +239,12 @@ else:
                 st.subheader("✅ 正選名單")
                 if main_list:
                     for idx, p in enumerate(main_list):
+                        # [對齊重點] 這裡的比例是 0.5 : 3 : 2 : 0.5 (總和6)
                         cols = st.columns([0.5, 3, 2, 0.5]) 
                         cols[0].write(f"{idx+1}.")
                         cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
                         
-                        # 顯示標籤 (正選放中間欄位)
+                        # 標籤欄位 (獨立)
                         tag_s = []
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
@@ -263,29 +264,31 @@ else:
                     for idx, p in enumerate(wait_list):
                         can_promote = p.get('isMember')
                         
-                        # 設定欄位寬度
-                        if can_promote and is_admin:
-                            cols = st.columns([0.5, 3.5, 1.5, 0.5]) 
-                        else:
-                            cols = st.columns([0.5, 5, 0.1, 0.5]) 
+                        # [對齊重點] 
+                        # 為了跟正選對齊 (0.5 + 3 + 2 + 0.5)，
+                        # 候補這邊拆成 (0.5 + 3 + 1 + 1 + 0.5)。
+                        # 這樣 "姓名" 跟 "標籤" 的起始位置會是一樣的。
+                        cols = st.columns([0.5, 3, 1, 1, 0.5]) 
 
-                        # 準備標籤字串 (🏀 🚩)
+                        # 1. 序號
+                        cols[0].write(f"{idx+1}.")
+                        
+                        # 2. 姓名 (只含星星)
+                        cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
+                        
+                        # 3. 標籤 (獨立欄位，跟正選對齊)
                         tag_s = []
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
-                        tags_str = " " + " ".join(tag_s) if tag_s else ""
-
-                        # 顯示序號與姓名 (包含星星和標籤)
-                        cols[0].write(f"{idx+1}.")
-                        cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else "") + tags_str)
+                        cols[2].write(" ".join(tag_s))
                         
-                        # 只有管理員能看到遞補按鈕
+                        # 4. 遞補按鈕 (只有管理員看得到)
                         if can_promote and is_admin:
                             btn_key = f"up_{p['id']}"
-                            if cols[2].button("⬆️遞補", key=btn_key):
+                            if cols[3].button("⬆️遞補", key=btn_key):
                                 promote_p(p['id'], date_key, main_list)
                         
-                        # 刪除按鈕
+                        # 5. 刪除按鈕
                         del_key = f"dw_{p['id']}"
-                        if cols[3].button("❌", key=del_key):
+                        if cols[4].button("❌", key=del_key):
                             delete_p(p['id'], date_key)
