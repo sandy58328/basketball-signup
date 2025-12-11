@@ -1,6 +1,5 @@
 import streamlit as st
 import json
-import { MapPin, Clock, Calendar, Trophy, CloudSun, Sparkles, CloudRain, Hourglass, AlertTriangle, ArrowDown, ArrowUp } from 'lucide-react';
 import { Player, AppData, MAX_CAPACITY } from './types';
 import PlayerForm from './components/PlayerForm';
 import PlayerList from './components/PlayerList';
@@ -301,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
