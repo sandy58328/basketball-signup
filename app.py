@@ -41,13 +41,13 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 經典質感風格 (CSS) - V3.11 極限緊緻版
+# 2. UI 經典質感風格 (CSS) - V3.13 字體回歸版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
     .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
@@ -81,60 +81,60 @@ st.markdown("""
     div[data-baseweb="tab-highlight"] { display: none !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* 列表卡片樣式 (保持 V3.10 的好看樣子) */
+    /* [回歸] 列表卡片樣式：舒適的間距 */
     .player-row {
         background: white;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
-        padding: 8px 6px 8px 12px;
-        margin-bottom: 8px; /* 卡片間距 */
+        padding: 10px 8px 10px 14px; /* 回復原本舒適的 Padding */
+        margin-bottom: 8px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
+        display: flex; align-items: center; /* 確保垂直置中 */
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
-    .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.85rem; margin-right: 10px; min-width: 20px; text-align: right;}
+    .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    
+    /* [重點修正] 名字字體改回妳喜歡的大小與粗度 */
     .list-name { 
         color: #334155; 
         font-weight: 700; 
-        font-size: 1.05rem; 
+        font-size: 1.15rem; /* 這就是妳喜歡的那個大小！ */
         letter-spacing: 0.5px;
         flex-grow: 1;
         line-height: 1.2;
     }
     
-    .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.65rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; }
+    .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
 
-    /* [重點修改] 強制將水平欄位間距歸零 */
-    [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
-    
-    /* 讓欄位 padding 變極小，讓按鈕可以靠得更近 */
-    [data-testid="column"] { padding: 0px 1px !important; } 
-
     /* 按鈕樣式 */
+    [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
+    [data-testid="column"] { padding: 0px 2px !important; } 
+    
     .list-btn-col button {
         border: none !important; 
         background: transparent !important;
         padding: 0px !important;
         color: #cbd5e1 !important; 
-        font-size: 13px !important;
+        font-size: 14px !important; /* 圖示稍微大回一點點，比較好按 */
         line-height: 1 !important;
-        height: 30px !important;
-        width: 100% !important; /* 讓按鈕佔滿它那小小的欄位 */
+        height: 32px !important;
+        width: 32px !important;
         display: flex; justify-content: center; align-items: center;
         margin: 0 !important;
     }
     
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 6px; }
     
-    .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 11px !important; }
+    .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 12px !important; }
     .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 6px; }
     
     .list-btn-up button { 
-        padding: 0px 8px !important; height: 24px !important; font-size: 0.7rem !important; 
+        padding: 0px 8px !important; height: 26px !important; font-size: 0.75rem !important; 
         border-radius: 6px !important; background: #e0f2fe !important; color: #0284c7 !important;
         font-weight: 600 !important; width: auto !important;
     }
@@ -326,18 +326,18 @@ else:
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
-                        # [重點修改] 極致壓縮比例
-                        # 名字卡片給 8.2 (最大化)，按鈕給 0.5 (僅容納圖示)
-                        c_cfg = [8.2, 0.5, 0.5, 0.8] if not (is_admin and is_wait) else [6.8, 1.2, 0.5, 0.5, 1.0]
-                        
+                        # [佈局] 名字(7.2) | 按鈕區(2.8) - 保持緊湊但有呼吸感
+                        c_cfg = [7.2, 0.6, 0.6, 1.6] if not (is_admin and is_wait) else [6.0, 1.2, 0.6, 0.6, 1.6]
                         cols = st.columns(c_cfg, gap="small")
                         
                         with cols[0]:
                             st.markdown(f"""
-                            <div class="row-content">
-                                <span class="list-index">{idx+1}.</span>
-                                <span class="list-name">{p['name']}</span>
-                                {badges}
+                            <div class="player-row">
+                                <span style="display:flex; align-items:center; width:100%;">
+                                    <span class="list-index">{idx+1}.</span>
+                                    <span class="list-name">{p['name']}</span>
+                                    {badges}
+                                </span>
                             </div>
                             """, unsafe_allow_html=True)
                         
@@ -350,17 +350,15 @@ else:
                             b_idx += 1
 
                         if can_edit:
-                            if b_idx < len(cols):
-                                with cols[b_idx]:
-                                    st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
-                                    if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
-                                    st.markdown('</div>', unsafe_allow_html=True)
-                            if b_idx+1 < len(cols):
-                                with cols[b_idx+1]:
-                                    st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
-                                    # 紅色叉叉
-                                    if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
-                                    st.markdown('</div>', unsafe_allow_html=True)
+                            with cols[b_idx]:
+                                st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
+                                if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
+                                st.markdown('</div>', unsafe_allow_html=True)
+                            
+                            with cols[b_idx+1]:
+                                st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
+                                if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
+                                st.markdown('</div>', unsafe_allow_html=True)
 
             render_list(main)
             
