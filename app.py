@@ -80,8 +80,11 @@ with st.sidebar:
     st.header("⚙️ 場次管理員")
     pwd_input = st.text_input("輸入管理密碼解鎖功能", type="password")
     
-    if pwd_input == ADMIN_PASSWORD:
-        st.success("🔓 已解鎖")
+    # [新增] 判斷是否為管理員
+    is_admin = (pwd_input == ADMIN_PASSWORD)
+    
+    if is_admin:
+        st.success("🔓 已解鎖 (管理員模式)")
         new_date = st.date_input("新增打球日期", min_value=date.today())
         if st.button("➕ 新增場次"):
             date_str = str(new_date)
@@ -194,7 +197,7 @@ else:
                 st.info("""
                 **📌 規則**
                 * 上限 20 人，單次報名上限 3 人含本人，超過轉候補。
-                * 候補團員 中⭐團員，可優先遞補。
+                * 候補團員中⭐團員，可優先依序遞補，而原先正選非團員，將轉為候補。
                 * 雨天當日 17:00 前通知是否開團。
                 """)
 
@@ -259,17 +262,18 @@ else:
                         can_promote = p.get('isMember')
                         
                         # 設定欄位寬度
-                        if can_promote:
+                        if can_promote and is_admin:
+                            # 只有是團員(可遞補) 且 是管理員(有權限) 才給按鈕空間
                             cols = st.columns([0.5, 3.5, 1.5, 0.5]) 
                         else:
                             cols = st.columns([0.5, 5, 0.1, 0.5]) 
 
                         # 顯示序號與姓名
                         cols[0].write(f"{idx+1}.")
-                        # [修改處] 這裡把 (團員) 改成了 ⭐
                         cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
                         
-                        if can_promote:
+                        # [修改重點] 這裡多加了 if is_admin，只有管理員看得到按鈕
+                        if can_promote and is_admin:
                             # 遞補按鈕 (將 key 獨立出來避免語法錯誤)
                             btn_key = f"up_{p['id']}"
                             if cols[2].button("⬆️遞補", key=btn_key):
