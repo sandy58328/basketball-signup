@@ -3,14 +3,14 @@ import json
 STORAGE_KEY = 'basketball_data';
 
 # Load data from localStorage
- // Save data to localStorage
- // Handlers
+# Save data to localStorage
+# Handlers
   const handleAddPlayer = (playerData: Omit<Player, 'id' | 'timestamp'>) => {
     const timestamp = Date.now();
     const newPlayers: Player[] = [];
 
-    // 1. Add the main player (yourself)
-    // Force count to 1 because we are splitting them
+# 1. Add the main player (yourself)
+#  Force count to 1 because we are splitting them
     newPlayers.push({
       ...playerData,
       count: 1, 
@@ -264,6 +264,7 @@ STORAGE_KEY = 'basketball_data';
       </div>
     </div>
   );
+
 
 
 
