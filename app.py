@@ -74,15 +74,13 @@ st.markdown("""
         padding: 0px 10px;
         border-radius: 5px;
     }
-    /* 調整 Popover 按鈕樣式 */
-    div[data-testid="stPopover"] button {
-        border: none;
-        background: transparent;
-        font-size: 1.2rem;
-        padding: 5px;
-    }
-    div[data-testid="stPopover"] button:hover {
-        background: #f0f2f6;
+    /* 讓 Expander 看起來像一個乾淨的小按鈕 */
+    div[data-testid="stExpander"] details summary {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 5px 10px;
+        width: fit-content;
+        float: right; /* 靠右 */
     }
     </style>
 """, unsafe_allow_html=True)
@@ -150,15 +148,16 @@ with st.sidebar:
 # 4. 主頁面邏輯
 # ==========================================
 
-# 分享圖示
-col_spacer, col_share = st.columns([15, 1])
+# [介面修正] 使用兩欄佈局：左邊佔位，右邊放分享小按鈕
+# 這裡用 st.expander 替代 popover，保證所有版本都看得到
+col_space, col_share = st.columns([10, 1])
 with col_share:
-    with st.popover("🔗", help="點擊複製報名連結"):
-        st.caption("複製下方連結分享：")
+    # 這就是那個右上角的小圖示
+    with st.expander("🔗", expanded=False):
         st.code(APP_URL, language="text")
 
 st.markdown("""
-    <div class="header-box" style="margin-top: -10px;">
+    <div class="header-box">
         <h1 style="margin:0; font-size: 2.5rem; font-weight: 800; letter-spacing: 1px;">晴女☀️在場邊等妳🌈</h1>
         <p style="margin:5px 0 15px 0; font-size: 0.9rem; opacity: 0.9; letter-spacing: 1px;">✨ 希望永遠是晴天 ✨</p>
         <div class="info-tag">
@@ -270,9 +269,7 @@ else:
                     save_data(st.session_state.data)
                     st.rerun()
 
-                # ===============================================
-                # [強力版] 遞補邏輯：加大時間差距，保證順序變更
-                # ===============================================
+                # 遞補邏輯：插隊 (Cut in) 強力版
                 def promote_p(wait_pid, d_key, target_main_list):
                     all_p = st.session_state.data["sessions"][d_key]
                     wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
@@ -286,21 +283,18 @@ else:
                             break
                     
                     if wait_person and target_guest:
-                        # 取得目前第20名 (或正選最後一位) 的時間
                         cutoff_person = target_main_list[-1]
                         cutoff_time = cutoff_person.get('timestamp', 0)
                         
-                        # 【邏輯修正：強力插隊】
-                        # 1. 晴女的時間 = 對方時間 - 1秒 (保證排在對方原本位置的前面)
+                        # 1. 晴女時間 = 對方時間 - 1秒
                         wait_person['timestamp'] = target_guest['timestamp'] - 1.0
                         
-                        # 2. 非晴女的時間 = 第20名時間 + 1秒 (保證掉到第20名後面，變候補第一)
+                        # 2. 非晴女時間 = 第20名時間 + 1秒
                         target_guest['timestamp'] = cutoff_time + 1.0
                         
                         save_data(st.session_state.data)
                         st.success(f"遞補成功！晴女 {wait_person['name']} 已晉升正選，{target_guest['name']} 轉為候補首位。")
                         
-                        # 強制稍微延遲一下再重整，讓資料寫入更保險
                         time.sleep(0.5)
                         st.rerun()
 
@@ -349,4 +343,3 @@ else:
                         del_key = f"dw_{p['id']}"
                         if cols[4].button("❌", key=del_key):
                             delete_p(p['id'], date_key)
-                            
