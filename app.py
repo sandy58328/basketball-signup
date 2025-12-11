@@ -6,12 +6,16 @@ import uuid
 from datetime import datetime, date
 
 # ==========================================
-# 0. 管理員設定
+# 0. 設定區 (管理員密碼 & 分享網址)
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 
+# ⚠️ 請將下方網址改成你實際部署後的網址 (例如 https://your-app.streamlit.app)
+# 這樣分享到 Line 的功能才會導向正確的地方
+APP_URL = "https://sunny-girls-basketball.streamlit.app"
+
 # ==========================================
-# 1. 設定與資料處理
+# 1. 資料處理函式
 # ==========================================
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
@@ -71,13 +75,43 @@ st.markdown("""
         padding: 0px 10px;
         border-radius: 5px;
     }
+    /* 特別把 Line 按鈕變綠色 */
+    a[href*="line.me"] {
+        text-decoration: none;
+        color: white !important;
+        background-color: #06c755;
+        padding: 10px 20px;
+        border-radius: 8px;
+        display: block;
+        text-align: center;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+    a[href*="line.me"]:hover {
+        background-color: #05b34c;
+        color: white !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. 側邊欄：場次管理
+# 3. 側邊欄：分享 & 管理
 # ==========================================
 with st.sidebar:
+    # --- [新增] 分享連結區塊 ---
+    st.header("🔗 分享報名連結")
+    
+    # 1. Line 分享按鈕 (使用 HTML 語法製作連結)
+    line_share_url = f"https://social-plugins.line.me/lineit/share?url={APP_URL}"
+    st.markdown(f'<a href="{line_share_url}" target="_blank">💚 分享到 Line 群組</a>', unsafe_allow_html=True)
+    
+    # 2. 複製連結 (st.code 自帶複製功能)
+    st.caption("或是複製下方連結：")
+    st.code(APP_URL, language="text")
+    
+    st.markdown("---")
+
+    # --- 管理員區塊 ---
     st.header("⚙️ 場次管理員")
     pwd_input = st.text_input("輸入管理密碼解鎖功能", type="password")
     
@@ -204,7 +238,6 @@ else:
                 with st.form(f"form_{date_key}", clear_on_submit=True):
                     name_input = st.text_input("球員姓名")
                     
-                    # [修改重點] 勾選框文字改為「⭐我是晴女」
                     is_member = st.checkbox("⭐我是晴女", key=f"mem_{date_key}")
                     
                     total_count = st.number_input("報名總人數 (含自己, Max 3)", 1, 3, 1, key=f"tot_{date_key}")
@@ -235,7 +268,6 @@ else:
                         else:
                             st.error("需填寫姓名")
 
-                # [修改重點] 規則文字更新
                 st.info("""
                 **📌 規則**
                 * **人數上限**：上限 20 人，超過轉候補，每人報名上限 3 人含本人。
