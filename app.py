@@ -17,16 +17,13 @@ FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
 
 def load_data():
-    # 預設資料結構，新增 "hidden" 欄位來存隱藏的日期
     default_data = {"sessions": {}, "hidden": []}
     if os.path.exists(FILE_PATH):
         try:
             with open(FILE_PATH, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # 確保舊資料有 sessions 欄位
                 if "sessions" not in data:
                     data["sessions"] = {}
-                # 確保舊資料有 hidden 欄位 (相容性更新)
                 if "hidden" not in data:
                     data["hidden"] = []
                 return data
@@ -70,7 +67,6 @@ st.markdown("""
         margin-top: 10px;
         backdrop-filter: blur(5px);
     }
-    /* 按鈕樣式 */
     button[kind="secondary"] {
         padding: 0px 10px;
         border-radius: 5px;
@@ -85,13 +81,12 @@ with st.sidebar:
     st.header("⚙️ 場次管理員")
     pwd_input = st.text_input("輸入管理密碼解鎖功能", type="password")
     
-    # 判斷是否為管理員
     is_admin = (pwd_input == ADMIN_PASSWORD)
     
     if is_admin:
         st.success("🔓 已解鎖 (管理員模式)")
         
-        # --- 新增場次 ---
+        # 新增場次
         new_date = st.date_input("新增打球日期", min_value=date.today())
         if st.button("➕ 新增場次"):
             date_str = str(new_date)
@@ -105,15 +100,12 @@ with st.sidebar:
         
         st.markdown("---")
         
-        # 取得目前所有日期
         all_session_dates = sorted(st.session_state.data["sessions"].keys())
         
         if all_session_dates:
-            # --- [隱藏場次設定] ---
+            # 隱藏場次設定
             st.write("👁️ **設定隱藏場次 (一般人看不到)**")
-            # 讓管理員勾選哪些日期要隱藏
             current_hidden = st.session_state.data["hidden"]
-            # 過濾掉已經不存在的日期 (避免髒資料)
             current_hidden = [d for d in current_hidden if d in all_session_dates]
             
             selected_hidden = st.multiselect(
@@ -122,7 +114,6 @@ with st.sidebar:
                 default=current_hidden
             )
             
-            # 如果選擇有變動，就存擋
             if set(selected_hidden) != set(st.session_state.data["hidden"]):
                 st.session_state.data["hidden"] = selected_hidden
                 save_data(st.session_state.data)
@@ -130,15 +121,12 @@ with st.sidebar:
 
             st.markdown("---")
             
-            # --- 刪除場次 ---
+            # 刪除場次
             del_date = st.selectbox("刪除日期", options=all_session_dates)
             if st.button("確認刪除"):
-                # 刪除資料
                 del st.session_state.data["sessions"][del_date]
-                # 也要從隱藏清單中移除
                 if del_date in st.session_state.data["hidden"]:
                     st.session_state.data["hidden"].remove(del_date)
-                
                 save_data(st.session_state.data)
                 st.success("已刪除")
                 st.rerun()
@@ -159,11 +147,9 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# 取得所有日期
 all_dates_raw = sorted(st.session_state.data["sessions"].keys())
 hidden_list = st.session_state.data.get("hidden", [])
 
-# 過濾顯示邏輯：如果是管理員，顯示所有；如果是一般人，只顯示沒被隱藏的
 if is_admin:
     display_dates = all_dates_raw
 else:
@@ -175,8 +161,6 @@ if not display_dates:
     else:
         st.info("👋 目前沒有開放報名的場次，請稍後再來！")
 else:
-    # 製作 Tabs 標題
-    # 如果是管理員，且該日期是隱藏的，加上 (🔒隱藏) 提示
     tab_titles = []
     for d in display_dates:
         title = f"📅 {d}"
@@ -190,13 +174,13 @@ else:
         with tabs[i]:
             current_players = st.session_state.data["sessions"][date_key]
             
-            # 排序邏輯：依照 timestamp
+            # 依照時間排序
             sorted_players = sorted(current_players, key=lambda x: x.get('timestamp', 0))
             main_list = []
             wait_list = []
             current_count = 0
 
-            # 分組：正選 vs 候補
+            # 分組
             for p in sorted_players:
                 p_count = p.get('count', 1)
                 if current_count + p_count <= MAX_CAPACITY:
@@ -205,7 +189,7 @@ else:
                 else:
                     wait_list.append(p)
             
-            # 統計數據
+            # 統計
             total_reg = sum(p.get('count', 1) for p in current_players)
             c1, c2, c3 = st.columns(3)
             c1.metric("總人數", f"{total_reg}")
@@ -215,15 +199,11 @@ else:
 
             col_form, col_list = st.columns([1, 2])
 
-            # [左側] 報名表單
             with col_form:
                 st.subheader("📝 我要報名")
                 with st.form(f"form_{date_key}", clear_on_submit=True):
                     name_input = st.text_input("球員姓名")
-                    
-                    # 勾選框加上星星符號
                     is_member = st.checkbox("我是團員 ⭐", key=f"mem_{date_key}")
-                    
                     total_count = st.number_input("報名總人數 (含自己, Max 3)", 1, 3, 1, key=f"tot_{date_key}")
                     
                     c_b, c_c = st.columns(2)
@@ -234,13 +214,11 @@ else:
                         if name_input:
                             ts = time.time()
                             new_entries = []
-                            # 主報名者
                             new_entries.append({
                                 "id": str(uuid.uuid4()), "name": name_input, "count": 1,
                                 "isMember": is_member, "bringBall": bring_ball,
                                 "occupyCourt": occupy_court, "timestamp": ts
                             })
-                            # 朋友
                             friends = total_count - 1
                             for f in range(friends):
                                 new_entries.append({
@@ -254,19 +232,16 @@ else:
                         else:
                             st.error("需填寫姓名")
 
-                # [修改重點] 規則文字潤飾：強調時間順序
                 st.info("""
                 **📌 規則**
                 * **排序原則**：正選與候補皆依「填單時間」先後排列。
                 * **人數上限**：上限 20 人，單次報名上限 3 人含本人，超過轉候補。
                 * **優先遞補**：候補名單中之⭐團員，可優先遞補正選名單中之「非團員」。
-                  *(註：遞補時，團員將取得正選席次，而被替換者依原報名時間轉回候補名單首位)*
+                  *(註：遞補時，團員將取得正選席次，而被替換者將轉為候補第一位)*
                 * **雨備**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # [右側] 名單顯示區
             with col_list:
-                # 刪除功能
                 def delete_p(pid, d_key):
                     st.session_state.data["sessions"][d_key] = [
                         p for p in st.session_state.data["sessions"][d_key] if p["id"] != pid
@@ -274,26 +249,38 @@ else:
                     save_data(st.session_state.data)
                     st.rerun()
 
-                # 遞補功能 (修正版：插隊邏輯)
+                # ======================================================
+                # [修正重點] 遞補邏輯：團員拿位置，非團員變候補第一
+                # ======================================================
                 def promote_p(wait_pid, d_key, target_main_list):
                     all_p = st.session_state.data["sessions"][d_key]
+                    
+                    # 1. 找到發起遞補的候補團員
                     wait_person = next((p for p in all_p if p['id'] == wait_pid), None)
                     
-                    # 找正選最後一個非團員
+                    # 2. 找到正選名單中「最後一個」(時間最晚的) 非團員
                     target_guest = None
+                    # target_main_list 是已經照時間排好的正選名單，反過來找就是找最後一個
                     for p in reversed(target_main_list):
                         if not p.get('isMember'):
                             target_id = p['id']
                             target_guest = next((op for op in all_p if op['id'] == target_id), None)
                             break
                     
+                    # 3. 執行遞補
                     if wait_person and target_guest:
-                        # [修改重點] 
-                        # 不要直接交換 (Swap)，因為那樣會把路人踢到最後面。
-                        # 而是把團員的時間改成「比該位路人稍微早一點點」。
-                        # 這樣團員會變成第 20 名，路人因為時間沒變，自然被擠成第 21 名 (候補第一)。
+                        # 取得目前正選最後一名 (第20名) 的時間戳記
+                        # 如果正選剛好滿20人，最後一名的時間就是分界線
+                        # 我們要讓被踢下來的非團員，排在第21名 (分界線 + 0.01秒)
+                        cutoff_person = target_main_list[-1]
+                        cutoff_time = cutoff_person.get('timestamp', 0)
                         
-                        wait_person['timestamp'] = target_guest['timestamp'] - 0.001
+                        # A. 候補團員取得該非團員原本的時間 (成功插隊進入正選)
+                        wait_person['timestamp'] = target_guest['timestamp']
+                        
+                        # B. 該非團員的時間變成「第20名時間 + 0.01秒」
+                        # 這樣他會變成候補的第一順位，而不會掉到候補的最後面
+                        target_guest['timestamp'] = cutoff_time + 0.001
                         
                         save_data(st.session_state.data)
                         st.success(f"遞補成功！團員 {wait_person['name']} 已晉升正選，{target_guest['name']} 轉為候補首位。")
@@ -301,28 +288,23 @@ else:
                     elif wait_person and not target_guest:
                         st.error("❌ 無法遞補：正選名單全是團員，無路人可替換。")
 
-                # --- 顯示正選名單 ---
                 st.subheader("✅ 正選名單")
                 if main_list:
                     for idx, p in enumerate(main_list):
-                        # [對齊] 0.5 : 3 : 2 : 0.5
                         cols = st.columns([0.5, 3, 2, 0.5]) 
                         cols[0].write(f"{idx+1}.")
                         cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
                         
-                        # 標籤欄位
                         tag_s = []
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
                         cols[2].write(" ".join(tag_s))
                         
-                        # 刪除按鈕
                         if cols[3].button("❌", key=f"d_{p['id']}"):
                             delete_p(p['id'], date_key)
                 else:
                     st.write("尚無人報名")
 
-                # --- 顯示候補名單 ---
                 if wait_list:
                     st.divider()
                     st.subheader(f"⏳ 候補名單 ({len(wait_list)})")
@@ -330,28 +312,21 @@ else:
                     for idx, p in enumerate(wait_list):
                         can_promote = p.get('isMember')
                         
-                        # [對齊] 0.5 : 3 : 1 : 1 : 0.5
                         cols = st.columns([0.5, 3, 1, 1, 0.5]) 
 
-                        # 1. 序號
                         cols[0].write(f"{idx+1}.")
-                        
-                        # 2. 姓名 (只含星星)
                         cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
                         
-                        # 3. 標籤 (獨立欄位)
                         tag_s = []
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
                         cols[2].write(" ".join(tag_s))
                         
-                        # 4. 遞補按鈕 (只有管理員看得到)
                         if can_promote and is_admin:
                             btn_key = f"up_{p['id']}"
                             if cols[3].button("⬆️遞補", key=btn_key):
                                 promote_p(p['id'], date_key, main_list)
                         
-                        # 5. 刪除按鈕
                         del_key = f"dw_{p['id']}"
                         if cols[4].button("❌", key=del_key):
                             delete_p(p['id'], date_key)
