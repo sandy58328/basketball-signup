@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import streamlit as st
+import json
 import { MapPin, Clock, Calendar, Trophy, CloudSun, Sparkles, CloudRain, Hourglass, AlertTriangle, ArrowDown, ArrowUp } from 'lucide-react';
 import { Player, AppData, MAX_CAPACITY } from './types';
 import PlayerForm from './components/PlayerForm';
@@ -300,6 +301,7 @@ export default function App() {
   );
 
 }
+
 
 
 
