@@ -3,29 +3,8 @@ import json
 STORAGE_KEY = 'basketball_data';
 
 # Load data from localStorage
-  useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY);
-    if (savedData) {
-      try {
-        const parsed: AppData = JSON.parse(savedData);
-        if (parsed.gameDate) setGameDate(parsed.gameDate);
-        if (parsed.players) setPlayers(parsed.players);
-      } catch (e) {
-        console.error("Failed to parse saved data", e);
-      }
-    }
-  }, []);
-
-  // Save data to localStorage
-  useEffect(() => {
-    const dataToSave: AppData = {
-      gameDate,
-      players,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-  }, [gameDate, players]);
-
-  // Handlers
+ // Save data to localStorage
+ // Handlers
   const handleAddPlayer = (playerData: Omit<Player, 'id' | 'timestamp'>) => {
     const timestamp = Date.now();
     const newPlayers: Player[] = [];
@@ -285,6 +264,7 @@ STORAGE_KEY = 'basketball_data';
       </div>
     </div>
   );
+
 
 
 
