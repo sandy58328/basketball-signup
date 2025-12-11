@@ -10,6 +10,7 @@ from datetime import datetime, date, timedelta
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
+# ⚠️ 上線後請換成真實網址
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
@@ -40,115 +41,104 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡大字風格 (CSS)
+# 2. UI 經典質感風格 (CSS)
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
     
-    html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #ffffff; }
-    .block-container { padding-top: 0.5rem !important; padding-bottom: 5rem !important; }
+    html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
+    .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
     /* Header */
     .header-box {
-        background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-        padding: 1.5rem 1rem; border-radius: 0 0 24px 24px; 
-        text-align: center; margin-bottom: 25px;
-        border-bottom: 1px solid #e2e8f0;
+        background: white;
+        padding: 1.5rem 1rem; border-radius: 20px; 
+        text-align: center; margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     }
-    .header-title { font-size: 1.7rem; font-weight: 900; color: #0f172a; letter-spacing: 1px; margin-bottom: 5px; }
+    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b; font-weight: 500; }
     .info-pill {
-        background: #e0f2fe; padding: 4px 14px;
-        border-radius: 30px; font-size: 0.8rem; font-weight: 700; color: #0284c7;
+        background: #f1f5f9; padding: 4px 14px;
+        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569;
         display: inline-block; margin-top: 10px;
     }
 
     /* Tabs (無紅線) */
-    .stTabs [data-baseweb="tab-list"] { gap: 4px; margin-bottom: 5px; justify-content: center; }
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
-        height: 36px; background-color: transparent; border-radius: 18px;
-        padding: 0 14px; font-size: 0.95rem; border: none; color: #94a3b8; font-weight: 600;
+        height: 38px; background-color: transparent; border-radius: 20px;
+        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b; font-weight: 500;
     }
     .stTabs [aria-selected="true"] { 
-        background-color: #f1f5f9; color: #0f172a; border: none; font-weight: 800;
+        background-color: white; color: #3b82f6; border: none; 
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
     div[data-baseweb="tab-highlight"] { display: none !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* =========================================================
-       🔥 核心修改：大字體 + 緊湊排列
-       ========================================================= */
-    
-    /* 每一行的底線容器 */
-    .list-row-wrapper {
-        border-bottom: 1px solid #f1f5f9;
-        padding: 10px 0; /* 增加一點舒適的間距 */
-        transition: background 0.2s;
+    /* [回歸] 白色卡片樣式：這是妳覺得最好看的樣子 */
+    .player-row {
+        background: white;
+        border: 1px solid #f1f5f9;
+        border-radius: 12px;
+        padding: 8px 6px 8px 12px; /* 內距微調 */
+        margin-bottom: 8px; /* 卡片之間的距離 */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03); /* 柔和陰影 */
+        transition: transform 0.1s;
     }
-    .list-row-wrapper:hover { background: #f8fafc; }
+    .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
-    /* 序號 */
-    .list-index { 
-        color: #cbd5e1; font-weight: 900; font-size: 1rem; 
-        margin-right: 10px; width: 25px; text-align: right; display: inline-block;
-    }
-
-    /* 名字 (主角！) */
+    .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.85rem; margin-right: 10px; min-width: 20px; text-align: right;}
     .list-name { 
-        color: #1e293b; 
-        font-weight: 700; /* 加粗 */
-        font-size: 1.2rem; /* 放大！ */
+        color: #334155; 
+        font-weight: 700; 
+        font-size: 1.05rem; /* 字體大小剛剛好 */
         letter-spacing: 0.5px;
-        margin-right: 8px;
     }
     
-    /* 標籤 */
-    .badge { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; margin-right: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
+    .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.65rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; }
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
 
-    /* 強制欄位緊貼 */
-    [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
-    [data-testid="column"] { padding: 0 !important; }
-
-    /* 按鈕樣式：完全透明化，只剩圖示 */
+    /* 按鈕樣式 */
+    [data-testid="stHorizontalBlock"] { align-items: center !important; }
     .list-btn-col button {
         border: none !important; 
         background: transparent !important;
-        padding: 0 !important;
-        color: #cbd5e1 !important; /* 平常是淺灰 */
-        font-size: 14px !important;
+        padding: 0px !important;
+        color: #cbd5e1 !important; 
+        font-size: 13px !important;
         line-height: 1 !important;
         height: 30px !important;
         width: 30px !important;
         display: flex; justify-content: center; align-items: center;
         margin: 0 !important;
-        box-shadow: none !important;
     }
     
-    /* 滑鼠移過去才有顏色 */
-    .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 50%; }
-    .list-btn-d button { color: #fca5a5 !important; opacity: 0.8; } /* 預設淡紅 */
-    .list-btn-d button:hover { color: #ef4444 !important; opacity: 1; background: #fef2f2 !important; border-radius: 50%; }
+    .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 6px; }
+    
+    /* 紅色叉叉 */
+    .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 11px !important; }
+    .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 6px; }
     
     .list-btn-up button { 
-        padding: 0px 8px !important; height: 24px !important; width: auto !important;
-        font-size: 0.7rem !important; border-radius: 12px !important; 
-        background: #f0f9ff !important; color: #0284c7 !important;
-        font-weight: 700 !important; margin-right: 5px !important;
+        padding: 0px 8px !important; height: 24px !important; font-size: 0.7rem !important; 
+        border-radius: 6px !important; background: #e0f2fe !important; color: #0284c7 !important;
+        font-weight: 600 !important; width: auto !important;
     }
 
     /* Progress Bar */
-    .progress-container { width: 100%; background: #f1f5f9; border-radius: 4px; height: 8px; margin-top: 8px; overflow: hidden; }
-    .progress-bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-    .progress-info { display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b; margin-bottom: 4px; font-weight: 600; }
+    .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+    .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
     
-    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 15px; background: #fff; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -304,14 +294,13 @@ else:
                 * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # === 名單渲染 ===
+            # === 名單渲染 (白色卡片風) ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
                         st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
                     return
 
-                # 使用 div 包裹整個列表，創造底線效果
                 for idx, p in enumerate(lst):
                     if st.session_state.edit_target == p['id']:
                         with st.container():
@@ -331,13 +320,13 @@ else:
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
-                        st.markdown('<div class="list-row-wrapper">', unsafe_allow_html=True)
+                        # === 白色卡片容器 ===
+                        st.markdown(f'<div class="player-row">', unsafe_allow_html=True)
                         
-                        # [佈局] 名字區 (超大) | 按鈕區 (極小且緊湊)
-                        c_cfg = [8, 0.5, 0.5, 1.0] if not (is_admin and is_wait) else [7, 1.2, 0.5, 0.5, 0.8]
-                        cols = st.columns(c_cfg)
+                        # [佈局] 名字(7.5) | 按鈕(2.5) - 這樣按鈕會被包在卡片右側
+                        c_cfg = [7.5, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
+                        cols = st.columns(c_cfg, gap="small")
                         
-                        # Column 1: 序號 + 名字 + 標籤
                         with cols[0]:
                             st.markdown(f"""
                             <div style="display:flex; align-items:center;">
@@ -363,6 +352,7 @@ else:
                             
                             with cols[b_idx+1]:
                                 st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
+                                # 紅色叉叉
                                 if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
                                 st.markdown('</div>', unsafe_allow_html=True)
                         
