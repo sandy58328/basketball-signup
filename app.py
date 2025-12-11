@@ -10,6 +10,7 @@ from datetime import datetime, date, timedelta
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
+# ⚠️ 上線後請換成真實網址
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
@@ -52,7 +53,7 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
-    /* Header: 乾淨清爽 */
+    /* Header: 乾淨清爽白色懸浮 */
     .header-box {
         background: white;
         padding: 1.5rem 1rem; border-radius: 20px; 
@@ -150,11 +151,12 @@ with st.sidebar:
                del st.session_state.data["sessions"][del_d]
                save_data(st.session_state.data); st.rerun()
 
+# --- [修改點] 標題換回中文版 ---
 st.markdown("""
     <div class="header-box">
-        <div class="header-title">☀️ Sunny Girls</div>
-        <div class="header-sub">Keep Playing, Keep Shining.</div>
-        <div class="info-pill">🏀 朱崙公園 19:00</div>
+        <div class="header-title">晴女☀️在場邊等妳🌈</div>
+        <div class="header-sub">✨ Keep Playing, Keep Shining ✨</div>
+        <div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕒 19:00</div>
     </div>
 """, unsafe_allow_html=True)
 
@@ -289,16 +291,10 @@ else:
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
-                        # === 這裡就是穩定顯示的關鍵 ===
-                        # 我們使用 Columns 來排版，不使用複雜的 HTML 包裹，避免報錯
-                        # Col 1: 內容 (白色卡片樣式)
-                        # Col 2,3: 按鈕 (透明)
-                        
                         c_cfg = [7.5, 1, 1] if not (is_admin and is_wait) else [6, 1.5, 1, 1]
                         cols = st.columns(c_cfg)
                         
                         with cols[0]:
-                            # 將內容包在一個 div 裡賦予樣式
                             st.markdown(f"""
                             <div class="row-content">
                                 <span class="list-index">{idx+1}.</span>
@@ -307,7 +303,6 @@ else:
                             </div>
                             """, unsafe_allow_html=True)
                         
-                        # 按鈕區 (獨立於 HTML 結構外，最安全)
                         b_idx = 1
                         if is_admin and is_wait and p.get('isMember'):
                             with cols[b_idx]:
