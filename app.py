@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.3 緊湊修復版
+# 2. UI 極簡禪意風格 (CSS) - V3.4 精修版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -68,7 +68,7 @@ st.markdown("""
         display: inline-block; margin-top: 10px;
     }
 
-    /* Tabs */
+    /* Tabs 完美去線條 */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
         height: 38px; background-color: transparent; border-radius: 20px;
@@ -78,11 +78,14 @@ st.markdown("""
         background-color: white; color: #3b82f6; border: none; 
         box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
+    /* 強制隱藏紅線 */
+    div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
+    div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* 列表內容樣式 */
+    /* 列表內容樣式 (更緊湊) */
     .row-content {
         background: white;
-        padding: 8px 12px; /* 更緊湊的高度 */
+        padding: 8px 10px; /* [修改] 上下 padding 縮小，解決名字下方空白過大 */
         border-radius: 10px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.02);
         display: flex; align-items: center;
@@ -92,41 +95,46 @@ st.markdown("""
     .row-content:hover { transform: scale(1.005); box-shadow: 0 4px 10px rgba(0,0,0,0.04); }
 
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.85rem; margin-right: 8px; min-width: 18px; text-align: right;}
-    .list-name { color: #334155; font-weight: 700; font-size: 1.05rem; flex-grow: 1; letter-spacing: 0.3px; }
+    .list-name { 
+        color: #334155; 
+        font-weight: 700; 
+        font-size: 1.05rem; /* 名字維持大一點 */
+        flex-grow: 1; 
+        letter-spacing: 0.3px;
+        line-height: 1.2; /* 控制行高，減少留白 */
+    }
     
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.65rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; }
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
 
-    /* [關鍵] 強制讓列內容垂直置中 */
-    [data-testid="stHorizontalBlock"] { align-items: center !important; }
+    /* [修改] 強制對齊 */
+    [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
     
-    /* 按鈕容器樣式 */
+    /* [修改] 按鈕微縮化 */
     .list-btn-col button {
         border: none !important; 
         background: transparent !important;
         padding: 0px !important;
-        color: #94a3b8 !important; /* 預設淺灰 */
-        font-size: 14px !important;
+        color: #cbd5e1 !important; 
+        font-size: 11px !important; /* [修改] 字體變小，圖示變精緻 */
         line-height: 1 !important;
-        height: 32px !important;
-        width: 32px !important;
+        height: 28px !important; /* 高度縮小 */
+        width: 28px !important;
         display: flex; justify-content: center; align-items: center;
         margin: 0 !important;
     }
     
-    .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 8px; }
+    .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 6px; }
     
-    .list-btn-d button { color: unset !important; opacity: 0.8; font-size: 12px !important; }
-    .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 8px; }
+    .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 10px !important; }
+    .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 6px; }
     
-    /* 遞補按鈕特別樣式 */
     .list-btn-up button { 
-        padding: 0px 8px !important; 
-        height: 26px !important; 
-        width: auto !important;
-        font-size: 0.75rem !important; 
+        padding: 0px 6px !important; 
+        height: 24px !important; 
+        font-size: 0.7rem !important; 
         border-radius: 6px !important; 
         background: #e0f2fe !important; 
         color: #0284c7 !important;
@@ -197,6 +205,7 @@ else:
         with tabs[i]:
             try:
                 dt_obj = datetime.strptime(date_key, "%Y-%m-%d")
+                # [修改] 截止時間改為 12:00
                 deadline = (dt_obj - timedelta(days=1)).replace(hour=12, minute=0, second=0)
                 is_locked = datetime.now() > deadline
             except: is_locked = False
@@ -284,17 +293,18 @@ else:
                                 st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
+                # [修改] 更新規則：中午 12:00
                 st.info("""
                 **📌 報名規則**
                 * **人數上限**：每場20人，含自己最多報名3位，超過的進入候補名單。
                 * **實名制**：報名名字需跟群組內名字一致，否則一律直接刪除。
                 * **修改限制**：修改時僅能更動屬性(晴女/帶球/佔場)，不能修改名字。
                 * **遞補規則**：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
-                * **截止時間**：開團前一日 12:00 截止報名。
+                * **截止時間**：開團前一日 中午12:00 截止報名。
                 * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # === 名單渲染 (修復版) ===
+            # === 名單渲染 ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
@@ -320,21 +330,11 @@ else:
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
-                        # [佈局修復] 
-                        # 使用「空白欄位 (Spacer)」來把按鈕往左邊擠
-                        # 管理員模式：[名(5.5), 遞補(1.2), 編(0.8), 刪(0.8), 空(0.5)]
-                        # 一般模式：  [名(5.5), 編(0.8), 刪(0.8), 空(1.7)]
-                        
-                        show_promote = (is_admin and is_wait and p.get('isMember'))
-                        
-                        if show_promote:
-                            c_cfg = [5.5, 1.2, 0.8, 0.8, 0.5]
-                        else:
-                            c_cfg = [5.5, 0.8, 0.8, 1.7]
-                            
+                        # [修改] 極致緊湊比例：名字給 7.2，按鈕 0.5+0.5，最後留空擠壓
+                        # 這樣圖示會很靠近名字
+                        c_cfg = [7.2, 0.5, 0.5, 1.8] if not (is_admin and is_wait) else [6, 1.2, 0.5, 0.5, 1.8]
                         cols = st.columns(c_cfg)
                         
-                        # 名稱區
                         with cols[0]:
                             st.markdown(f"""
                             <div class="row-content">
@@ -344,26 +344,26 @@ else:
                             </div>
                             """, unsafe_allow_html=True)
                         
-                        # 按鈕區 (動態對應)
-                        btn_idx = 1
-                        
-                        if show_promote:
-                            with cols[btn_idx]:
+                        b_idx = 1
+                        if is_admin and is_wait and p.get('isMember'):
+                            with cols[b_idx]:
                                 st.markdown('<div class="list-btn-up">', unsafe_allow_html=True)
                                 if st.button("⬆️", key=f"up_{p['id']}"): promote(p['id'], date_key)
                                 st.markdown('</div>', unsafe_allow_html=True)
-                            btn_idx += 1
+                            b_idx += 1
 
                         if can_edit:
-                            with cols[btn_idx]:
-                                st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
-                                if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
-                                st.markdown('</div>', unsafe_allow_html=True)
-                            
-                            with cols[btn_idx+1]:
-                                st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
-                                if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
-                                st.markdown('</div>', unsafe_allow_html=True)
+                            if b_idx < len(cols):
+                                with cols[b_idx]:
+                                    st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
+                                    if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
+                                    st.markdown('</div>', unsafe_allow_html=True)
+                            if b_idx+1 < len(cols):
+                                with cols[b_idx+1]:
+                                    st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
+                                    # 紅色叉叉
+                                    if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
+                                    st.markdown('</div>', unsafe_allow_html=True)
 
             render_list(main)
             
