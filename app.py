@@ -11,7 +11,7 @@ from datetime import datetime, date, timedelta
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 # ⚠️ 上線後請換成真實網址
-APP_URL = "https://sunny-girls-basketball.streamlit.app"
+APP_URL = "https://basketball-app-8uphy7gcfou6nxmfz54ezn.streamlit.app/#a0a5de55"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
 
@@ -333,3 +333,4 @@ else:
                 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
                 st.subheader(f"⏳ 候補名單")
                 render_list(wait, is_wait=True)
+
