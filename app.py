@@ -286,7 +286,6 @@ STORAGE_KEY = 'basketball_data';
     </div>
   );
 
-}
 
 
 
