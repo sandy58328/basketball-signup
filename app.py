@@ -274,7 +274,7 @@ export default function App() {
                      偵測到 <strong>團員 {memberOnWaitlist?.name}</strong> 位於候補名單，而正選名單中有 <strong>非團員 (如 {guestOnMainlist?.name})</strong>
                    </p>
                    <p className="text-yellow-700 text-sm mt-1">
-                     建議手動刪除正選名單中的朋友/非團員，讓團員遞補上來
+                     建議手動刪除正選名單中的朋友/非團員,讓團員遞補上來
                    </p>
                    <div className="flex gap-4 mt-2 text-xs font-bold text-yellow-600">
                       <span className="flex items-center gap-1"><ArrowUp className="w-3 h-3"/> 候補團員</span>
@@ -300,6 +300,7 @@ export default function App() {
   );
 
 }
+
 
 
 
