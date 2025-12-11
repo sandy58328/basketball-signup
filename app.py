@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - 精緻按鈕優化版
+# 2. UI 極簡禪意風格 (CSS) - 完美細節優化
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -68,21 +68,25 @@ st.markdown("""
         display: inline-block; margin-top: 10px;
     }
 
-    /* Tabs */
+    /* Tabs 優化：移除底部紅線 */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
         height: 38px; background-color: transparent; border-radius: 20px;
-        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b; font-weight: 500;
+        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #94a3b8; font-weight: 500;
     }
     .stTabs [aria-selected="true"] { 
         background-color: white; color: #3b82f6; border: none; 
         box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
+    /* 隱藏預設的紅色底線 */
+    div[data-baseweb="tab-highlight"] {
+        background-color: transparent !important;
+    }
 
     /* 列表樣式 */
     .row-content {
         background: white;
-        padding: 10px 14px;
+        padding: 12px 14px; /* 稍微增加一點高度讓名字舒服 */
         border-radius: 12px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         display: flex; align-items: center;
@@ -94,34 +98,57 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.04);
     }
 
+    /* 序號 */
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.85rem; margin-right: 12px; min-width: 20px; text-align: right;}
-    .list-name { color: #334155; font-weight: 600; font-size: 1rem; flex-grow: 1; }
     
+    /* [修改] 名字放大 */
+    .list-name { 
+        color: #334155; 
+        font-weight: 700; /* 加粗 */
+        font-size: 1.1rem; /* 放大字體 */
+        flex-grow: 1; 
+        letter-spacing: 0.5px;
+    }
+    
+    /* 膠囊標籤 */
     .badge { padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; }
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
 
-    /* 按鈕樣式優化 */
+    /* [修改] 按鈕樣式再優化 (更小、更精緻) */
     [data-testid="stHorizontalBlock"] { align-items: center !important; }
     
     .list-btn-col button {
         border: none !important; 
         background: transparent !important;
-        padding: 0px 4px !important;
+        padding: 0px !important;
         color: #cbd5e1 !important; 
-        font-size: 14px !important;
+        font-size: 13px !important; /* 字體再縮小一點點，看起來更細緻 */
         line-height: 1 !important;
         height: auto !important;
-        min-height: 0px !important;
+        min-height: 30px !important; /* 確保有點擊範圍 */
+        width: 30px !important;
+        display: flex; justify-content: center; align-items: center;
     }
     
-    .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 4px; }
+    /* 編輯按鈕：滑鼠移過去變藍 */
+    .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 50%; }
     
-    .list-btn-d button { color: unset !important; opacity: 0.8; font-size: 12px !important; } 
-    .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 4px; }
+    /* 刪除按鈕：讓紅色叉叉更精緻 */
+    .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 11px !important; } 
+    .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 50%; }
     
-    .list-btn-up button { padding: 2px 8px !important; min-height: 24px !important; font-size: 0.7rem !important; border-radius: 12px !important; background: #f1f5f9 !important; color: #475569 !important;}
+    /* 遞補按鈕 */
+    .list-btn-up button { 
+        padding: 2px 8px !important; 
+        min-height: 24px !important; 
+        font-size: 0.7rem !important; 
+        border-radius: 12px !important; 
+        background: #f1f5f9 !important; 
+        color: #475569 !important;
+        width: auto !important;
+    }
 
     /* Progress Bar */
     .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
@@ -259,7 +286,6 @@ else:
                     
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
                         if name:
-                            # [關鍵修改] 檢查是否重複報名
                             current_names = [p['name'] for p in players]
                             if name in current_names:
                                 st.error(f"❌ {name} 已經在名單中！\n\n為了維護公平性，如需增加人數，請先刪除舊的報名資料，再重新填寫正確人數。")
@@ -311,6 +337,7 @@ else:
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
+                        # [修改] 調整欄位比例，讓按鈕更緊湊
                         c_cfg = [7.5, 1, 1] if not (is_admin and is_wait) else [6, 1.5, 1, 1]
                         cols = st.columns(c_cfg)
                         
@@ -340,6 +367,7 @@ else:
                             if b_idx+1 < len(cols):
                                 with cols[b_idx+1]:
                                     st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
+                                    # 紅色叉叉
                                     if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
                                     st.markdown('</div>', unsafe_allow_html=True)
 
