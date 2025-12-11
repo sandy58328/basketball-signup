@@ -163,7 +163,10 @@ else:
                 st.subheader("📝 我要報名")
                 with st.form(f"form_{date_key}", clear_on_submit=True):
                     name_input = st.text_input("球員姓名")
-                    is_member = st.checkbox("我是團員", key=f"mem_{date_key}")
+                    
+                    # [修改重點] 勾選框加上星星符號
+                    is_member = st.checkbox("我是團員 ⭐", key=f"mem_{date_key}")
+                    
                     total_count = st.number_input("報名總人數 (含自己, Max 3)", 1, 3, 1, key=f"tot_{date_key}")
                     
                     c_b, c_c = st.columns(2)
@@ -194,10 +197,11 @@ else:
                         else:
                             st.error("需填寫姓名")
 
+                # [修改重點] 規則文字更新
                 st.info("""
                 **📌 規則**
                 * 上限 20 人，單次報名上限 3 人含本人，超過轉候補。
-                * 候補團員中⭐團員，可優先依序遞補，而原先正選非團員，將轉為候補。
+                * 候補團員中⭐團員，可優先依序遞補，而原先正選之非⭐團員，將轉為候補。
                 * 雨天當日 17:00 前通知是否開團。
                 """)
 
@@ -239,12 +243,12 @@ else:
                 st.subheader("✅ 正選名單")
                 if main_list:
                     for idx, p in enumerate(main_list):
-                        # [對齊重點] 這裡的比例是 0.5 : 3 : 2 : 0.5 (總和6)
+                        # [對齊] 0.5 : 3 : 2 : 0.5
                         cols = st.columns([0.5, 3, 2, 0.5]) 
                         cols[0].write(f"{idx+1}.")
                         cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
                         
-                        # 標籤欄位 (獨立)
+                        # 標籤欄位
                         tag_s = []
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
@@ -264,10 +268,7 @@ else:
                     for idx, p in enumerate(wait_list):
                         can_promote = p.get('isMember')
                         
-                        # [對齊重點] 
-                        # 為了跟正選對齊 (0.5 + 3 + 2 + 0.5)，
-                        # 候補這邊拆成 (0.5 + 3 + 1 + 1 + 0.5)。
-                        # 這樣 "姓名" 跟 "標籤" 的起始位置會是一樣的。
+                        # [對齊] 0.5 : 3 : 1 : 1 : 0.5
                         cols = st.columns([0.5, 3, 1, 1, 0.5]) 
 
                         # 1. 序號
@@ -276,7 +277,7 @@ else:
                         # 2. 姓名 (只含星星)
                         cols[1].write(p['name'] + (" ⭐" if p.get('isMember') else ""))
                         
-                        # 3. 標籤 (獨立欄位，跟正選對齊)
+                        # 3. 標籤 (獨立欄位)
                         tag_s = []
                         if p.get('bringBall'): tag_s.append("🏀")
                         if p.get('occupyCourt'): tag_s.append("🚩")
