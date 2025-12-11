@@ -13,7 +13,7 @@ FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20  # 每場上限
 
 def load_data():
-    """從 JSON 讀取資料，結構改變為支援多場次"""
+    """從 JSON 讀取資料"""
     default_data = {"sessions": {}}
     if os.path.exists(FILE_PATH):
         try:
@@ -38,7 +38,7 @@ if 'data' not in st.session_state:
 # ==========================================
 # 2. 介面樣式 (CSS)
 # ==========================================
-st.set_page_config(page_title="Sunny Girls Basketball", page_icon="🏀", layout="wide")
+st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="wide")
 
 st.markdown("""
     <style>
@@ -52,7 +52,17 @@ st.markdown("""
     }
     .header-box {
         background: linear-gradient(to right, #38bdf8, #3b82f6, #6366f1);
-        padding: 1.5rem; border-radius: 1rem; color: white; margin-bottom: 1rem;
+        padding: 2rem; border-radius: 1rem; color: white; margin-bottom: 1rem;
+        text-align: center;
+    }
+    .info-tag {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+        margin-top: 10px;
+        backdrop-filter: blur(5px);
     }
     .priority-alert {
         background-color: #fefce8; border-left: 5px solid #eab308;
@@ -99,11 +109,14 @@ with st.sidebar:
 # 4. 主頁面邏輯
 # ==========================================
 
-# 標題區
+# --- 標題區 (這裡改回你要的樣子了！) ---
 st.markdown(f"""
     <div class="header-box">
-        <h1 style="margin:0; font-size: 2rem;">🏀 Sunny Girls Basketball</h1>
-        <p style="margin:5px 0 0 0; opacity:0.9;">晴女☀️在場邊等妳🌈 | 台北市朱崙公園籃球場 | 19:00 開打</p>
+        <h1 style="margin:0; font-size: 2.5rem; font-weight: 800; letter-spacing: 1px;">晴女☀️在場邊等妳🌈</h1>
+        <p style="margin:5px 0 15px 0; font-size: 0.9rem; opacity: 0.9; letter-spacing: 1px;">✨ 希望永遠是晴天 ✨</p>
+        <div class="info-tag">
+            📍 地點：朱崙公園 &nbsp;&nbsp;|&nbsp;&nbsp; 🕒 時間：19:00開打
+        </div>
     </div>
 """, unsafe_allow_html=True)
 
@@ -121,7 +134,7 @@ else:
         with tabs[i]:
             current_players = st.session_state.data["sessions"][date_key]
             
-            # --- 邏輯處理 (排序、候補計算) ---
+            # --- 邏輯處理 ---
             sorted_players = sorted(current_players, key=lambda x: x.get('timestamp', 0))
             main_list = []
             wait_list = []
@@ -151,11 +164,10 @@ else:
             with col_form:
                 st.subheader("📝 我要報名")
                 with st.form(f"form_{date_key}", clear_on_submit=True):
-                    # 修改文字：讓使用者知道這格是填「第一位球員」
                     name_input = st.text_input("第一位球員姓名 (或是幫朋友報名)")
                     is_member = st.checkbox("這位是團員嗎？", key=f"mem_{date_key}")
                     
-                    # 邏輯設定：朋友最多 +2 (總共 3 人)
+                    # 朋友上限維持 2 (總共3人)
                     friend_count = st.number_input(
                         "額外攜帶朋友 (上限2人)", 
                         min_value=0, max_value=2, value=0, 
@@ -170,7 +182,7 @@ else:
                         if name_input:
                             ts = time.time()
                             new_entries = []
-                            # 1. 第一位球員 (主報名者)
+                            # 1. 第一位
                             new_entries.append({
                                 "id": str(uuid.uuid4()), 
                                 "name": name_input, 
@@ -180,14 +192,13 @@ else:
                                 "occupyCourt": occupy_court, 
                                 "timestamp": ts
                             })
-                            
-                            # 2. 額外朋友 (最多 2 位)
+                            # 2. 朋友
                             for f_i in range(friend_count):
                                 new_entries.append({
                                     "id": str(uuid.uuid4()), 
                                     "name": f"{name_input} (朋友{f_i+1})", 
                                     "count": 1,
-                                    "isMember": False, # 朋友預設非團員
+                                    "isMember": False,
                                     "bringBall": False, 
                                     "occupyCourt": False, 
                                     "timestamp": ts + 0.1 + (f_i * 0.01)
@@ -195,7 +206,7 @@ else:
                             
                             st.session_state.data["sessions"][date_key].extend(new_entries)
                             save_data(st.session_state.data)
-                            st.success(f"報名成功！總共新增 {len(new_entries)} 位。")
+                            st.success(f"報名成功！")
                             st.rerun()
                         else:
                             st.error("請輸入名字")
@@ -208,7 +219,6 @@ else:
 
             # [右側] 名單顯示
             with col_list:
-                # 刪除功能
                 def delete_p(pid, d_key):
                     st.session_state.data["sessions"][d_key] = [
                         p for p in st.session_state.data["sessions"][d_key] if p["id"] != pid
