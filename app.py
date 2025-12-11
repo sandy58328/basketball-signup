@@ -231,7 +231,7 @@ export default function App() {
                 <ul className="space-y-3 text-sky-800/80">
                   <li className="flex gap-2">
                     <span className="text-sky-400"> </span>
-                    <span className="flex-1">上限 20 人，超過系統自動轉候補。</span>
+                    <span className="flex-1">上限 20 人,超過系統自動轉候補 </span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-sky-400">•</span>
@@ -300,4 +300,5 @@ export default function App() {
   );
 
 }
+
 
