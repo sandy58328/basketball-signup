@@ -53,7 +53,7 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
-    /* Header: 乾淨清爽白色懸浮 */
+    /* Header */
     .header-box {
         background: white;
         padding: 1.5rem 1rem; border-radius: 20px; 
@@ -68,7 +68,7 @@ st.markdown("""
         display: inline-block; margin-top: 10px;
     }
 
-    /* Tabs: 極簡 */
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
         height: 38px; background-color: transparent; border-radius: 20px;
@@ -79,17 +79,16 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
 
-    /* 列表樣式：無框線，純淨 */
+    /* 列表樣式 */
     .row-content {
         background: white;
         padding: 10px 14px;
         border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02); /* 極淡陰影 */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         display: flex; align-items: center;
-        margin-bottom: 4px; /* 行距 */
+        margin-bottom: 4px;
         transition: transform 0.1s;
     }
-    /* 讓它看起來像浮起來 */
     .row-content:hover {
         transform: scale(1.005);
         box-shadow: 0 4px 10px rgba(0,0,0,0.04);
@@ -98,28 +97,31 @@ st.markdown("""
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.85rem; margin-right: 12px; min-width: 20px; text-align: right;}
     .list-name { color: #334155; font-weight: 600; font-size: 1rem; flex-grow: 1; }
     
-    /* 膠囊標籤 */
     .badge { padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; }
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
 
-    /* 按鈕微調 */
+    /* 按鈕樣式 (重點修改：讓❌不被變色) */
     [data-testid="stHorizontalBlock"] { align-items: center !important; }
     .list-btn-col button {
         border: none !important; background: transparent !important;
         padding: 0px !important; color: #cbd5e1 !important; 
     }
+    /* 編輯按鈕：預設灰，滑鼠移過去變藍 */
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 50%; }
-    .list-btn-d button:hover { color: #ef4444 !important; background: #fef2f2 !important; border-radius: 50%; }
+    
+    /* 刪除按鈕：強制讓它顯示原本的顏色 (或是紅色) */
+    .list-btn-d button { color: unset !important; opacity: 0.8; }
+    .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 50%; }
+    
     .list-btn-up button { padding: 2px 8px !important; min-height: 24px !important; font-size: 0.7rem !important; border-radius: 12px !important; background: #f1f5f9 !important; color: #475569 !important;}
 
-    /* 進度條 */
+    /* Progress Bar */
     .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
     .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
     
-    /* 編輯框 */
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
@@ -151,7 +153,6 @@ with st.sidebar:
                del st.session_state.data["sessions"][del_d]
                save_data(st.session_state.data); st.rerun()
 
-# --- [修改點] 標題換回中文版 ---
 st.markdown("""
     <div class="header-box">
         <div class="header-title">晴女☀️在場邊等妳🌈</div>
@@ -265,7 +266,7 @@ else:
                 * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
-            # === 名單渲染 (最穩定版) ===
+            # === 名單渲染 ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
@@ -320,7 +321,8 @@ else:
                             if b_idx+1 < len(cols):
                                 with cols[b_idx+1]:
                                     st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
-                                    if st.button("✕", key=f"bd_{p['id']}"): delete(p['id'], date_key)
+                                    # 這裡改成了 Emoji ❌
+                                    if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
                                     st.markdown('</div>', unsafe_allow_html=True)
 
             render_list(main)
