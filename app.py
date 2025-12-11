@@ -8,8 +8,7 @@ STORAGE_KEY = 'basketball_data';
 # 1. Add the main player (yourself)
 # Force count to 1 because we are splitting them
 # 2. Add friends as separate entries if count > 1
-newPlayers.push({
- const handleUpdatePlayer = (id: string, updatedData: Omit<Player, 'id' | 'timestamp'>) => {
+const handleUpdatePlayer = (id: string, updatedData: Omit<Player, 'id' | 'timestamp'>) => {
     // When updating, we keep the count logic simple (editing a single entry)
     // If they want to add more friends later, they should add a new entry or we keep it simple here.
     // For this specific requirement, we assume editing applies to that specific row.
@@ -236,6 +235,7 @@ newPlayers.push({
       </div>
     </div>
   );
+
 
 
 
