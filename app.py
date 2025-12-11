@@ -74,14 +74,6 @@ st.markdown("""
         padding: 0px 10px;
         border-radius: 5px;
     }
-    /* 讓 Expander 看起來像一個乾淨的小按鈕 */
-    div[data-testid="stExpander"] details summary {
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 5px 10px;
-        width: fit-content;
-        float: right; /* 靠右 */
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -148,23 +140,31 @@ with st.sidebar:
 # 4. 主頁面邏輯
 # ==========================================
 
-# [介面修正] 使用兩欄佈局：左邊佔位，右邊放分享小按鈕
-# 這裡用 st.expander 替代 popover，保證所有版本都看得到
-col_space, col_share = st.columns([10, 1])
+# [修改重點] 使用分欄佈局，確保分享按鈕一定會出現
+# 比例 7:2 -> 左邊大區塊放標題，右邊小區塊放分享按鈕
+col_header, col_share = st.columns([7, 2])
+
+with col_header:
+    # 標題區塊
+    st.markdown("""
+        <div class="header-box">
+            <h1 style="margin:0; font-size: 2.2rem; font-weight: 800; letter-spacing: 1px;">晴女☀️在場邊等妳🌈</h1>
+            <p style="margin:5px 0 15px 0; font-size: 0.9rem; opacity: 0.9; letter-spacing: 1px;">✨ 希望永遠是晴天 ✨</p>
+            <div class="info-tag">
+                📍 地點：朱崙公園 &nbsp;&nbsp;|&nbsp;&nbsp; 🕒 時間：19:00開打
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
 with col_share:
-    # 這就是那個右上角的小圖示
-    with st.expander("🔗", expanded=False):
+    # 分享按鈕區塊 (放在右側，垂直置中不太容易，所以會偏上，但一定看得到)
+    st.write("") # 塞一點空白讓它往下移一點點
+    st.write("") 
+    with st.expander("🔗 分享", expanded=False):
+        st.caption("複製連結：")
         st.code(APP_URL, language="text")
 
-st.markdown("""
-    <div class="header-box">
-        <h1 style="margin:0; font-size: 2.5rem; font-weight: 800; letter-spacing: 1px;">晴女☀️在場邊等妳🌈</h1>
-        <p style="margin:5px 0 15px 0; font-size: 0.9rem; opacity: 0.9; letter-spacing: 1px;">✨ 希望永遠是晴天 ✨</p>
-        <div class="info-tag">
-            📍 地點：朱崙公園 &nbsp;&nbsp;|&nbsp;&nbsp; 🕒 時間：19:00開打
-        </div>
-    </div>
-""", unsafe_allow_html=True)
+# -----------------------------------------------------
 
 all_dates_raw = sorted(st.session_state.data["sessions"].keys())
 hidden_list = st.session_state.data.get("hidden", [])
