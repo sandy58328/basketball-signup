@@ -41,9 +41,9 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.25 最終版
+# 2. UI 極簡禪意風格 (CSS) - V3.26 最終正名完美版
 # ==========================================
-st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
+st.set_page_config(page_title="晴女籃球報名", page_icon="🌸", layout="centered") 
 
 st.markdown("""
     <style>
@@ -51,7 +51,7 @@ st.markdown("""
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
     
-    /* [V3.25 Fix] 修正頂部被切的問題 */
+    /* [V3.26 Fix] 修正頂部被切的問題，確保 3.5rem 留白 */
     .block-container { 
         padding-top: 3.5rem !important; 
         padding-bottom: 5rem !important; 
@@ -66,7 +66,8 @@ st.markdown("""
         text-align: center; margin-bottom: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     }
-    .header-title { font-size: 1.8rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
+    /* [V3.26 Fix] 標題名稱改回 晴女 */
+    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b; font-weight: 500; }
     .info-pill {
         background: #f1f5f9; padding: 4px 14px;
@@ -118,6 +119,7 @@ st.markdown("""
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
+    /* 最美加油團標籤 */
     .badge-visit { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
     /* 按鈕樣式 */
@@ -187,9 +189,10 @@ with st.sidebar:
                del st.session_state.data["sessions"][del_d]
                save_data(st.session_state.data); st.rerun()
 
+# [修改回晴女標題]
 st.markdown("""
     <div class="header-box">
-        <div class="header-title">最美加油團 🌸</div>
+        <div class="header-title">晴女☀️在場邊等妳🌈</div>
         <div class="header-sub">✨ Keep Playing, Keep Shining ✨</div>
         <div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕒 19:00</div>
     </div>
@@ -291,7 +294,7 @@ else:
                     bb = c2.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
                     oc = c3.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
                     
-                    is_visit = st.checkbox("🤕 不打球 (僅場邊/帶人)", key=f"v_{date_key}", disabled=not can_edit)
+                    is_visit = st.checkbox("🤕 不打球 (最美加油團)", key=f"v_{date_key}", disabled=not can_edit)
                     
                     tot = st.number_input("本次報名人數 (含自己, 上限3人)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
                     
@@ -341,13 +344,17 @@ else:
                                 st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
+                # [V3.26 Fix] 重新整理並補齊所有規則
                 st.info("""
                 **📌 報名規則**
-                * **人數上限**：每場20人。每人最多報名3位（含自己）。**朋友不能單獨報名**，需由團員帶入。
+                * **人數上限**：每場20人。每人最多報名3位（含自己），超過的進入候補名單。
+                * **朋友報名**：朋友不能單獨報名，需由團員帶入。
+                * **傷兵/觀戰**：若不打球但要帶朋友，請勾選「🤕 不打球 (最美加油團)」。本人不佔名額，但朋友會佔名額。
+                * **遞補規則**：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
                 * **實名制**：報名名字需跟群組內名字一致，否則一律直接刪除。
-                * **傷兵/觀戰**：若不打球但要帶朋友，請勾選「🤕 不打球」。本人不佔名額，但朋友會佔名額。
-                * **修改限制**：修改時僅能更動屬性，不能修改名字。
+                * **修改限制**：修改時僅能更動屬性(晴女/帶球/佔場/觀戰)，不能修改名字。
                 * **截止時間**：開團前一日 中午12:00 截止報名。
+                * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
             # === 名單渲染 ===
@@ -367,13 +374,15 @@ else:
                                 em = ec1.checkbox("⭐晴女", p.get('isMember'))
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
-                                ev = st.checkbox("🤕 不打球 (僅場邊/帶人)", p.get('count') == 0)
+                                # 編輯時也用新名稱
+                                ev = st.checkbox("🤕 不打球 (最美加油團)", p.get('count') == 0)
                                 
                                 b1, b2 = st.columns(2)
                                 if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
                                 if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
                     else:
                         badges = ""
+                        # 觀戰標籤
                         if p.get('count') == 0: badges += "<span class='badge badge-visit'>🤕觀戰</span>"
                         if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
