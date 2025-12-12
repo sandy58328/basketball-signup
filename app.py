@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.45 最終定案版
+# 2. UI 極簡禪意風格 (CSS) - V3.46 極致匿名版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -56,8 +56,12 @@ st.markdown("""
         padding-bottom: 5rem !important; 
     }
     
-    #MainMenu, footer { visibility: hidden; }
-
+    /* [V3.46 Upgrade] 極致隱藏系統標記 */
+    #MainMenu {visibility: hidden;} /* 隱藏右上角漢堡選單 */
+    footer {visibility: hidden;}    /* 隱藏下方 'Made with Streamlit' */
+    header {visibility: hidden;}    /* 隱藏上方系統彩條與頭像 */
+    .stDeployButton {display:none;} /* 隱藏開發者的 Deploy 按鈕 */
+    
     /* Header */
     .header-box {
         background: white;
@@ -369,7 +373,7 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [V3.45] 規則文字更新
+                # [V3.46 最終規則文字]
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
