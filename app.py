@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.46 極致匿名版
+# 2. UI 極簡禪意風格 (CSS) - V3.47 強力隱藏版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -50,17 +50,33 @@ st.markdown("""
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
     
-    /* 頂部留白 */
+    /* 修正頂部被切的問題 */
     .block-container { 
         padding-top: 3.5rem !important; 
         padding-bottom: 5rem !important; 
     }
     
-    /* [V3.46 Upgrade] 極致隱藏系統標記 */
-    #MainMenu {visibility: hidden;} /* 隱藏右上角漢堡選單 */
-    footer {visibility: hidden;}    /* 隱藏下方 'Made with Streamlit' */
-    header {visibility: hidden;}    /* 隱藏上方系統彩條與頭像 */
-    .stDeployButton {display:none;} /* 隱藏開發者的 Deploy 按鈕 */
+    /* [V3.47 Upgrade] 核彈級隱藏系統標記 */
+    /* 1. 隱藏上方 Header (彩條、漢堡選單、Running圖示) */
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+    /* 2. 隱藏右上角漢堡選單 (雙重保險) */
+    #MainMenu {
+        display: none !important;
+    }
+    /* 3. 隱藏下方 Footer (Made with Streamlit) */
+    footer {
+        display: none !important;
+    }
+    /* 4. 隱藏開發者 Deploy 按鈕 */
+    .stDeployButton {
+        display: none !important;
+    }
+    /* 5. 隱藏頂部裝飾彩條 */
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
     
     /* Header */
     .header-box {
@@ -77,7 +93,7 @@ st.markdown("""
         display: inline-block; margin-top: 10px;
     }
 
-    /* Tabs */
+    /* Tabs (無紅線) */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
         height: 38px; background-color: transparent; border-radius: 20px;
@@ -373,7 +389,7 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [V3.46 最終規則文字]
+                # 規則區塊
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
@@ -426,7 +442,7 @@ else:
                                 if is_friend:
                                     em = ec1.checkbox("⭐晴女", False, disabled=True)
                                 else:
-                                    em = ec1.checkbox("⭐晴女", p.get('isMember'))
+                                    em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True) # 鎖定本尊晴女身分
                                     
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
