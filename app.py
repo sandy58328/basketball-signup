@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.37 規則完美補完版
+# 2. UI 極簡禪意風格 (CSS) - V3.38 最終定稿版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -153,7 +153,7 @@ st.markdown("""
     
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     
-    /* [V3.37 Upgrade] 大師級規則區塊 */
+    /* 大師級規則區塊 */
     .rules-box {
         background-color: white;
         border-radius: 16px;
@@ -189,6 +189,13 @@ st.markdown("""
     .rules-content b {
         color: #475569;
         font-weight: 700;
+    }
+    .rules-footer {
+        margin-top: 15px;
+        font-size: 0.85rem;
+        color: #94a3b8;
+        text-align: right;
+        font-weight: 500;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -359,7 +366,7 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [V3.37 Upgrade] 大師級規則美化
+                # [V3.38 Final Polish] 規則區塊更新
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
@@ -377,8 +384,9 @@ else:
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🔵</span>
-                        <div class="rules-content"><b>行政與時間</b>：截止於前一日 12:00。雨備於當日 17:00 通知。僅能修改屬性，不可改名。</div>
+                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。雨備於當日 17:00 通知。僅能修改屬性，不可改名。</div>
                     </div>
+                    <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                 </div>
                 """, unsafe_allow_html=True)
 
