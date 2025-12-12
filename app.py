@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.33 完美計數版
+# 2. UI 極簡禪意風格 (CSS) - V3.34 規則重整版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -97,13 +97,13 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
         display: flex; 
-        align-items: center;
+        align-items: center; /* 垂直置中 */
         width: 100%;
         line-height: 1.5;
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
-    /* 序號樣式：若是花朵圖示，顏色可以淡一點 */
+    /* 序號 */
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     .list-index-flower { color: #f472b6; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
@@ -121,7 +121,7 @@ st.markdown("""
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
-    .badge-visit { background: #fdf2f8; color: #db2777; border: 1px solid #fce7f3; } /* 觀戰改粉色系 */
+    .badge-visit { background: #fdf2f8; color: #db2777; border: 1px solid #fce7f3; }
 
     /* 按鈕樣式 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
@@ -256,7 +256,6 @@ else:
             def update(pid, d, n, im, bb, oc, iv):
                 t = next((p for p in st.session_state.data["sessions"][d] if p['id']==pid), None)
                 if t: 
-                    # 觀戰 count=0，否則 1
                     new_count = 0 if iv else 1
                     t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
                     save_data(st.session_state.data)
@@ -295,7 +294,7 @@ else:
                     bb = c2.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
                     oc = c3.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
                     
-                    # [修改] 新圖示：📣
+                    # 觀戰按鈕
                     is_visit = st.checkbox("📣 不打球 (最美加油團)", key=f"v_{date_key}", disabled=not can_edit)
                     
                     tot = st.number_input("本次報名人數 (含自己, 上限3人)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
@@ -309,10 +308,8 @@ else:
                             
                             # 1. 檢查新報名
                             if current_count == 0:
-                                # [邏輯] 報名加油團(is_visit=True) 必須是晴女
                                 if is_visit and not im:
                                     error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
-                                # [邏輯] 一般報名，如果沒勾晴女，擋下 (防非團員佔位)
                                 elif not im:
                                     error_message = "❌ 報名或帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
                                 else:
@@ -366,30 +363,29 @@ else:
                                 st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [修改] 規則說明更新
+                # [修改] 規則重新整理，分區塊更易讀
                 st.info("""
-                **📌 報名規則**
-                * **人數上限**：每場20人。每人最多報名3位（含自己），超過的進入候補名單。
-                * **身份驗證**：**必須是 ⭐晴女 團員才能報名**。朋友不能單獨報名，需由團員帶入。
-                * **最美加油團**：若不打球但要帶朋友，請勾選「📣 不打球 (最美加油團)」。**必須是晴女才能勾選**，本人不佔名額，但朋友會佔打球名額。
-                * **遞補規則**：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
-                * **實名制**：報名名字需跟群組內名字一致，否則一律直接刪除。
-                * **修改限制**：修改時僅能更動屬性，不能修改名字。
-                * **截止時間**：開團前一日 中午12:00 截止報名。
+                **📌 報名須知**
+                * **🔴 資格與規範**：採實名制 (同群組名)。僅限 **⭐晴女** 報名，朋友需由團員帶入 (每人上限3位)。
+                * **🟡 📣最美加油團**：團員若「不打球但帶朋友」，請勾選此項。本人不佔名額，但朋友會佔打球名額。
+                * **🟢 優先與遞補**：正選 20 人。候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
+                * **🔵 行政與時間**：
+                    * 截止：開團前一日 12:00。
+                    * 雨備：當日 17:00 通知。
+                    * 修改：僅能改屬性，不可改名。
                 """)
 
-            # === 名單渲染 (智慧計數邏輯) ===
+            # === 名單渲染 ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
                         st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
                     return
 
-                # [智慧計數器]
+                # 計數器
                 display_counter = 0
 
                 for idx, p in enumerate(lst):
-                    # 決定顯示的序號：如果是觀戰(count=0)顯示🌸，否則顯示數字
                     if p.get('count', 1) > 0:
                         display_counter += 1
                         index_str = f"{display_counter}."
@@ -414,7 +410,6 @@ else:
                                 if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
                     else:
                         badges = ""
-                        # [修改] 標籤改為 📣
                         if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
                         if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
