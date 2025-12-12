@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.43 源頭嚴控版
+# 2. UI 極簡禪意風格 (CSS) - V3.44 規則潤飾版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -290,7 +290,6 @@ else:
             def update(pid, d, n, im, bb, oc, iv):
                 t = next((p for p in st.session_state.data["sessions"][d] if p['id']==pid), None)
                 if t: 
-                    # 編輯時 im 使用介面傳入的值 (但介面已鎖定，所以等於沒變)
                     new_count = 0 if iv else 1
                     t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
                     save_data(st.session_state.data)
@@ -339,24 +338,14 @@ else:
                             is_ok = False
                             error_message = None
                             
-                            # [V3.43 源頭嚴控] 
-                            # 1. 第一次報名(current_count==0)：無論如何都必須是晴女
                             if current_count == 0:
-                                if not im:
-                                    error_message = "❌ 第一次報名必須是「⭐晴女」本人！朋友不能單獨報名。請確認並勾選「⭐晴女」。"
-                                else:
-                                    is_ok = True
-                            
-                            # 2. 加報朋友(current_count>0)：
+                                if ev and not im: error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
+                                elif not im and tot > 1: error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
+                                else: is_ok = True
                             elif current_count > 0:
-                                # 如果又勾了晴女 (邏輯矛盾，同一人不能報兩次晴女)
-                                if im:
-                                    error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
-                                # 總數檢查
-                                elif current_count + tot > 3:
-                                    error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
-                                else:
-                                    is_ok = True
+                                if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
+                                elif current_count + tot > 3: error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
+                                else: is_ok = True
                             
                             if error_message: st.error(error_message)
                             elif is_ok:
@@ -380,6 +369,7 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
+                # [V3.44] 規則文字潤飾更新
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
@@ -397,7 +387,7 @@ else:
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🔵</span>
-                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。雨備於當日 17:00 通知。僅能修改屬性，不可改名。</div>
+                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。雨備於當日 17:00 通知。<b>姓名欄位鎖定，僅能調整勾選項目。</b></div>
                     </div>
                     <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                 </div>
@@ -428,8 +418,11 @@ else:
                                 en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
                                 ec1, ec2, ec3 = st.columns(3)
                                 
-                                # [V3.43 簡化修改] 晴女勾選框一律鎖定，不給改
-                                em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
+                                is_friend = "(友" in p['name']
+                                if is_friend:
+                                    em = ec1.checkbox("⭐晴女", False, disabled=True)
+                                else:
+                                    em = ec1.checkbox("⭐晴女", p.get('isMember'))
                                     
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
