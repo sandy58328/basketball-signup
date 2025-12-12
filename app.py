@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.38 最終定稿版
+# 2. UI 極簡禪意風格 (CSS) - V3.39 規則完善版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -366,13 +366,13 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [V3.38 Final Polish] 規則區塊更新
+                # [V3.39 Upgrade] 規則內容更新：加入事後補報說明
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
                     <div class="rules-row">
                         <span class="rules-icon">🔴</span>
-                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入，含自己上限3位)。</div>
+                        <div class="rules-content"><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名。朋友需由團員帶入 (不可單獨報)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🟡</span>
