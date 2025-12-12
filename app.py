@@ -10,8 +10,7 @@ from datetime import datetime, date, timedelta
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-# ⚠️ 上線後請換成真實網址
-APP_URL = "https://sunny-girls-basketball.streamlit.app"
+APP_URL = "https://sunny-girls-basketball.streamlit.app" # 保留變數以防萬一，但介面不顯示
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
 
@@ -41,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.34 規則重整版
+# 2. UI 極簡禪意風格 (CSS) - V3.35 視覺統一版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -51,7 +50,7 @@ st.markdown("""
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
     
-    /* 修正頂部被切的問題 */
+    /* 頂部留白 */
     .block-container { 
         padding-top: 3.5rem !important; 
         padding-bottom: 5rem !important; 
@@ -97,13 +96,12 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
         display: flex; 
-        align-items: center; /* 垂直置中 */
+        align-items: center;
         width: 100%;
         line-height: 1.5;
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
-    /* 序號 */
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     .list-index-flower { color: #f472b6; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
@@ -139,12 +137,9 @@ st.markdown("""
         display: flex; justify-content: center; align-items: center;
         margin: 0 !important;
     }
-    
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 6px; }
-    
     .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 12px !important; }
     .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 6px; }
-    
     .list-btn-up button { 
         padding: 0px 8px !important; height: 26px !important; font-size: 0.75rem !important; 
         border-radius: 6px !important; background: #e0f2fe !important; color: #0284c7 !important;
@@ -158,8 +153,37 @@ st.markdown("""
     
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     
-    /* 修正 st.code */
-    .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
+    /* [新增] 規則區塊樣式 (取代原本的 st.info 藍色框) */
+    .rules-box {
+        background-color: white;
+        border-radius: 12px;
+        padding: 16px 20px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        margin-top: 10px;
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+    .rules-title {
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 10px;
+        font-size: 1rem;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 5px;
+        display: block;
+    }
+    .rules-item {
+        margin-bottom: 6px;
+        display: flex; 
+        align-items: flex-start;
+    }
+    .rules-icon {
+        margin-right: 8px;
+        min-width: 20px;
+        font-weight: bold;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -198,11 +222,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# 分享區塊
-c_s1, c_s2, c_s3 = st.columns([1, 6, 1])
-with c_s2:
-    st.caption("👇 點擊右側按鈕複製連結")
-    st.code(APP_URL, language=None)
+# [已刪除] 分享連結按鈕區塊完全移除
 
 # ==========================================
 # 4. 主畫面邏輯
@@ -294,7 +314,6 @@ else:
                     bb = c2.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
                     oc = c3.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
                     
-                    # 觀戰按鈕
                     is_visit = st.checkbox("📣 不打球 (最美加油團)", key=f"v_{date_key}", disabled=not can_edit)
                     
                     tot = st.number_input("本次報名人數 (含自己, 上限3人)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
@@ -363,17 +382,16 @@ else:
                                 st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [修改] 規則重新整理，分區塊更易讀
-                st.info("""
-                **📌 報名須知**
-                * **🔴 資格與規範**：採實名制 (同群組名)。僅限 **⭐晴女** 報名，朋友需由團員帶入 (每人上限3位)。
-                * **🟡 📣最美加油團**：團員若「不打球但帶朋友」，請勾選此項。本人不佔名額，但朋友會佔打球名額。
-                * **🟢 優先與遞補**：正選 20 人。候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
-                * **🔵 行政與時間**：
-                    * 截止：開團前一日 12:00。
-                    * 雨備：當日 17:00 通知。
-                    * 修改：僅能改屬性，不可改名。
-                """)
+                # [修改] 使用自訂的白色規則卡片 (HTML)
+                st.markdown("""
+                <div class="rules-box">
+                    <span class="rules-title">📌 報名須知</span>
+                    <div class="rules-item"><div class="rules-icon">🔴</div><div><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名，朋友需由團員帶入 (每人上限3位)。</div></div>
+                    <div class="rules-item"><div class="rules-icon">🟡</div><div><b>📣最美加油團</b>：團員若「不打球但帶朋友」，請勾選此項。本人不佔名額，但朋友會佔打球名額。</div></div>
+                    <div class="rules-item"><div class="rules-icon">🟢</div><div><b>優先與遞補</b>：正選 20 人。候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。</div></div>
+                    <div class="rules-item"><div class="rules-icon">🔵</div><div><b>行政與時間</b>：截止時間為開團前一日 12:00。雨備於當日 17:00 通知。</div></div>
+                </div>
+                """, unsafe_allow_html=True)
 
             # === 名單渲染 ===
             def render_list(lst, is_wait=False):
