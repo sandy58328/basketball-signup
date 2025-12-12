@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.28 最終身份核實版
+# 2. UI 極簡禪意風格 (CSS) - V3.29 結構修復版
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="🌸", layout="centered") 
 
@@ -80,53 +80,4 @@ st.markdown("""
         height: 38px; background-color: transparent; border-radius: 20px;
         padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b; font-weight: 500;
     }
-    .stTabs [aria-selected="true"] { 
-        background-color: white; color: #3b82f6; border: none; 
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
-    }
-    div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
-    div[data-baseweb="tab-border"] { display: none !important; }
-
-    /* 列表卡片樣式 */
-    .player-row {
-        background: white;
-        border: 1px solid #f1f5f9;
-        border-radius: 12px;
-        padding: 10px 8px 10px 14px;
-        margin-bottom: 8px; 
-        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-        transition: transform 0.1s;
-        display: flex; 
-        align-items: center;
-        width: 100%;
-        line-height: 1.5;
-    }
-    .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-
-    .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
-    
-    /* 名字樣式 */
-    .list-name { 
-        color: #334155; 
-        font-weight: 700; 
-        font-size: 1.15rem; 
-        letter-spacing: 0.5px;
-        flex-grow: 1;
-        line-height: 1.2;
-    }
-    
-    .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
-    .badge-sunny { background: #fffbeb; color: #d97706; }
-    .badge-ball { background: #fff7ed; color: #c2410c; }
-    .badge-court { background: #eff6ff; color: #1d4ed8; }
-    .badge-visit { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-
-    /* 按鈕樣式 */
-    [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
-    [data-testid="column"] { padding: 0px 2px !important; } 
-    
-    .list-btn-col button {
-        border: none !important; 
-        background: transparent !important;
-        padding: 0px !important;
-        color: #cbd5e1 !important
+    .stTabs
