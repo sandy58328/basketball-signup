@@ -12,7 +12,8 @@ from datetime import datetime, date, timedelta
 ADMIN_PASSWORD = "sunny"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
-APP_URL = "https://sunny-girls-basketball.streamlit.app"
+APP_URL = "https://sunny-girls-basketball.streamlit.app" 
+
 # ==========================================
 # 1. 資料處理
 # ==========================================
@@ -39,9 +40,10 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.49 邏輯防護版
+# 2. UI 極簡禪意風格 (CSS) - V3.50 正名回歸版
 # ==========================================
-st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
+# [V3.50 Fix] 標題改回「晴女籃球報名」，圖示改回 ☀️
+st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
 st.markdown("""
     <style>
@@ -272,40 +274,30 @@ else:
                     time.sleep(0.5)
                     st.rerun()
             
-            # [V3.49 Fix] 連坐刪除邏輯
             def delete(pid, d):
-                # 先找到要刪除的那個人
                 target = next((p for p in st.session_state.data["sessions"][d] if p['id'] == pid), None)
                 if target:
                     target_name = target['name']
-                    # 如果他是朋友，只刪除他自己
                     if "(友" in target_name:
                         st.session_state.data["sessions"][d] = [p for p in st.session_state.data["sessions"][d] if p['id'] != pid]
                     else:
-                        # 如果他是本尊，刪除他自己 + 所有掛在他名下的朋友
                         st.session_state.data["sessions"][d] = [
                             p for p in st.session_state.data["sessions"][d] 
                             if p['id'] != pid and not p['name'].startswith(f"{target_name} (友")
                         ]
-                    
                     if st.session_state.edit_target == pid: st.session_state.edit_target = None
                     save_data(st.session_state.data); st.toast("🗑️ 已刪除"); time.sleep(0.5); st.rerun()
             
-            # [V3.49 Fix] 精準遞補邏輯 (確保候補第一)
             def promote(wid, d):
                 all_p = st.session_state.data["sessions"][d]
                 w = next((p for p in all_p if p['id']==wid), None)
-                # 找正選中最後一個非會員
                 tg = next((p for p in reversed(main) if not p.get('isMember') and next((x for x in all_p if x['id']==p['id']), None)), None) 
                 tg_ref = next((p for p in all_p if p['id']==tg['id']), None) if tg else None
 
                 if w and tg_ref:
-                   # 確保被擠掉的人 (tg_ref) 排在候補第一位
-                   # 邏輯：他的新時間 = 最後一位正選的時間 + 0.0001 (比其他候補都早)
-                   last_main_ts = main[-1]['timestamp']
-                   w['timestamp'] = tg_ref['timestamp'] - 1.0 # 晴女順利插隊到被擠掉的人之前
-                   tg_ref['timestamp'] = last_main_ts + 0.0001 # 被擠掉的人變成候補第一
-                   
+                   cutoff = main[-1]['timestamp']
+                   w['timestamp'] = tg_ref['timestamp'] - 1.0
+                   tg_ref['timestamp'] = cutoff + 1.0
                    save_data(st.session_state.data); st.balloons(); st.toast("🎉 遞補成功！"); time.sleep(1); st.rerun()
                 else: st.error("無可遞補對象")
 
@@ -468,4 +460,3 @@ else:
                 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
                 st.subheader(f"⏳ 候補名單")
                 render_list(wait, is_wait=True)
-
