@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.48 最終修復版
+# 2. UI 極簡禪意風格 (CSS) - V3.49 邏輯防護版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -273,21 +273,40 @@ else:
                     time.sleep(0.5)
                     st.rerun()
             
+            # [V3.49 Fix] 連坐刪除邏輯
             def delete(pid, d):
-                st.session_state.data["sessions"][d] = [p for p in st.session_state.data["sessions"][d] if p['id']!=pid]
-                if st.session_state.edit_target == pid: st.session_state.edit_target = None
-                save_data(st.session_state.data); st.toast("🗑️ 已刪除"); time.sleep(0.5); st.rerun()
+                # 先找到要刪除的那個人
+                target = next((p for p in st.session_state.data["sessions"][d] if p['id'] == pid), None)
+                if target:
+                    target_name = target['name']
+                    # 如果他是朋友，只刪除他自己
+                    if "(友" in target_name:
+                        st.session_state.data["sessions"][d] = [p for p in st.session_state.data["sessions"][d] if p['id'] != pid]
+                    else:
+                        # 如果他是本尊，刪除他自己 + 所有掛在他名下的朋友
+                        st.session_state.data["sessions"][d] = [
+                            p for p in st.session_state.data["sessions"][d] 
+                            if p['id'] != pid and not p['name'].startswith(f"{target_name} (友")
+                        ]
+                    
+                    if st.session_state.edit_target == pid: st.session_state.edit_target = None
+                    save_data(st.session_state.data); st.toast("🗑️ 已刪除"); time.sleep(0.5); st.rerun()
             
+            # [V3.49 Fix] 精準遞補邏輯 (確保候補第一)
             def promote(wid, d):
                 all_p = st.session_state.data["sessions"][d]
                 w = next((p for p in all_p if p['id']==wid), None)
+                # 找正選中最後一個非會員
                 tg = next((p for p in reversed(main) if not p.get('isMember') and next((x for x in all_p if x['id']==p['id']), None)), None) 
                 tg_ref = next((p for p in all_p if p['id']==tg['id']), None) if tg else None
 
                 if w and tg_ref:
-                   cutoff = main[-1]['timestamp']
-                   w['timestamp'] = tg_ref['timestamp'] - 1.0
-                   tg_ref['timestamp'] = cutoff + 1.0
+                   # 確保被擠掉的人 (tg_ref) 排在候補第一位
+                   # 邏輯：他的新時間 = 最後一位正選的時間 + 0.0001 (比其他候補都早)
+                   last_main_ts = main[-1]['timestamp']
+                   w['timestamp'] = tg_ref['timestamp'] - 1.0 # 晴女順利插隊到被擠掉的人之前
+                   tg_ref['timestamp'] = last_main_ts + 0.0001 # 被擠掉的人變成候補第一
+                   
                    save_data(st.session_state.data); st.balloons(); st.toast("🎉 遞補成功！"); time.sleep(1); st.rerun()
                 else: st.error("無可遞補對象")
 
@@ -313,24 +332,15 @@ else:
                             is_ok = False
                             error_message = None
                             
-                            # 1. 第一次報名：必須是晴女
                             if current_count == 0:
-                                if not im:
-                                    error_message = "❌ 第一次報名必須是「⭐晴女」本人！朋友不能單獨報名。請確認並勾選「⭐晴女」。"
-                                else:
-                                    is_ok = True
-                            
-                            # 2. 加報朋友：
+                                if ev and not im: error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
+                                elif not im and tot > 1: error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
+                                else: is_ok = True
                             elif current_count > 0:
-                                if im:
-                                    error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
-                                # 朋友不能報名加油團 (邏輯：加油團不佔名額，但朋友應該要打球)
-                                elif ev: 
-                                    error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用。"
-                                elif current_count + tot > 3:
-                                    error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
-                                else:
-                                    is_ok = True
+                                if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
+                                elif ev: error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用。"
+                                elif current_count + tot > 3: error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
+                                else: is_ok = True
                             
                             if error_message: st.error(error_message)
                             elif is_ok:
@@ -371,7 +381,7 @@ else:
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🔵</span>
-                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。雨備於當日 17:00 通知。僅能修改勾選項目。</div>
+                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00、雨備於當日 17:00 通知。僅能修改勾選項目。</div>
                     </div>
                     <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                 </div>
