@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.44 規則潤飾版
+# 2. UI 極簡禪意風格 (CSS) - V3.45 最終定案版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -369,7 +369,7 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [V3.44] 規則文字潤飾更新
+                # [V3.45] 規則文字更新
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
@@ -387,7 +387,7 @@ else:
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🔵</span>
-                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。雨備於當日 17:00 通知。<b>姓名欄位鎖定，僅能調整勾選項目。</b></div>
+                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00、雨備於當日 17:00 通知。僅能修改勾選項目。</div>
                     </div>
                     <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                 </div>
