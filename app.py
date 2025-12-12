@@ -40,10 +40,9 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.50 正名回歸版
+# 2. UI 極簡禪意風格 (CSS) - V3.49 邏輯完美版
 # ==========================================
-# [V3.50 Fix] 標題改回「晴女籃球報名」，圖示改回 ☀️
-st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
+st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
 st.markdown("""
     <style>
@@ -323,10 +322,15 @@ else:
                             is_ok = False
                             error_message = None
                             
+                            # [V3.49 Fix] 最嚴格的源頭防呆
+                            # 1. 第一次報名：無論幾人，都必須勾選晴女 (不能是加油團)
                             if current_count == 0:
-                                if ev and not im: error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
-                                elif not im and tot > 1: error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
-                                else: is_ok = True
+                                if not im:
+                                    error_message = "❌ 身份驗證失敗！第一次報名必須是「⭐晴女」團員本人。朋友不能單獨報名。"
+                                else:
+                                    is_ok = True
+                            
+                            # 2. 加報朋友：
                             elif current_count > 0:
                                 if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif ev: error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用。"
@@ -407,7 +411,7 @@ else:
                                 if is_friend:
                                     em = ec1.checkbox("⭐晴女", False, disabled=True)
                                 else:
-                                    em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
+                                    em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True) # 本尊鎖定
                                     
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
