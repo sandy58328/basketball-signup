@@ -22,7 +22,9 @@ def load_data():
     if os.path.exists(FILE_PATH):
         try:
             with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+                content = f.read()
+                if not content: return default_data
+                data = json.loads(content)
                 if "sessions" not in data: data["sessions"] = {}
                 if "hidden" not in data: data["hidden"] = []
                 return data
@@ -40,7 +42,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.42 權限分流版
+# 2. UI 極簡禪意風格 (CSS) - V3.43 列表救援版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -50,7 +52,6 @@ st.markdown("""
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
     
-    /* 頂部留白 */
     .block-container { 
         padding-top: 3.5rem !important; 
         padding-bottom: 5rem !important; 
@@ -86,33 +87,28 @@ st.markdown("""
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* 列表卡片樣式 */
+    /* [V3.43 Fix] 列表卡片樣式修正 - 移除 height: 100% 避免塌陷 */
     .player-row {
         background: white;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
-        padding: 10px 8px 10px 14px;
+        padding: 8px 10px;
         margin-bottom: 8px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
         display: flex; 
         align-items: center;
         width: 100%;
-        line-height: 1.5;
+        min-height: 40px; /* 強制最小高度，避免消失 */
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     .list-index-flower { color: #f472b6; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
-    /* 名字樣式 */
     .list-name { 
-        color: #334155; 
-        font-weight: 700; 
-        font-size: 1.15rem; 
-        letter-spacing: 0.5px;
-        flex-grow: 1;
-        line-height: 1.2;
+        color: #334155; font-weight: 700; font-size: 1.15rem; 
+        letter-spacing: 0.5px; flex-grow: 1; line-height: 1.2;
     }
     
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
@@ -126,16 +122,10 @@ st.markdown("""
     [data-testid="column"] { padding: 0px 2px !important; } 
     
     .list-btn-col button {
-        border: none !important; 
-        background: transparent !important;
-        padding: 0px !important;
-        color: #cbd5e1 !important; 
-        font-size: 14px !important;
-        line-height: 1 !important;
-        height: 32px !important;
-        width: 32px !important;
-        display: flex; justify-content: center; align-items: center;
-        margin: 0 !important;
+        border: none !important; background: transparent !important; padding: 0px !important;
+        color: #cbd5e1 !important; font-size: 14px !important;
+        line-height: 1 !important; height: 32px !important; width: 32px !important;
+        display: flex; justify-content: center; align-items: center; margin: 0 !important;
     }
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 6px; }
     .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 12px !important; }
@@ -153,52 +143,21 @@ st.markdown("""
     
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     
-    /* 大師級規則區塊 */
+    /* 規則區塊 */
     .rules-box {
-        background-color: white;
-        border-radius: 16px;
-        padding: 20px;
-        border: 1px solid #f1f5f9;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-        margin-top: 15px;
+        background-color: white; border-radius: 16px; padding: 20px;
+        border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px;
     }
     .rules-header {
-        font-size: 1rem;
-        font-weight: 800;
-        color: #334155;
-        margin-bottom: 15px;
-        border-bottom: 2px solid #f1f5f9;
-        padding-bottom: 8px;
-        letter-spacing: 1px;
+        font-size: 1rem; font-weight: 800; color: #334155; margin-bottom: 15px;
+        border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; letter-spacing: 1px;
     }
-    .rules-row {
-        display: flex;
-        align-items: flex-start;
-        margin-bottom: 12px;
-    }
-    .rules-icon {
-        font-size: 1.1rem;
-        margin-right: 12px;
-        line-height: 1.4;
-    }
-    .rules-content {
-        font-size: 0.9rem;
-        color: #64748b;
-        line-height: 1.5;
-    }
-    .rules-content b {
-        color: #475569;
-        font-weight: 700;
-    }
-    .rules-footer {
-        margin-top: 15px;
-        font-size: 0.85rem;
-        color: #94a3b8;
-        text-align: right;
-        font-weight: 500;
-    }
+    .rules-row { display: flex; align-items: flex-start; margin-bottom: 12px; }
+    .rules-icon { font-size: 1.1rem; margin-right: 12px; line-height: 1.4; }
+    .rules-content { font-size: 0.9rem; color: #64748b; line-height: 1.5; }
+    .rules-content b { color: #475569; font-weight: 700; }
+    .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8; text-align: right; font-weight: 500; }
     
-    /* 修正 st.code */
     .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -339,16 +298,9 @@ else:
                             error_message = None
                             
                             if current_count == 0:
-                                # [修改] 1人報名且不帶人，允許不勾晴女 (視為單人補報或特殊狀況)
-                                # 但若帶人(tot>1)，則嚴格要求必須是晴女
-                                if tot > 1 and not im:
-                                    error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
-                                # 加油團必須是晴女
-                                elif ev and not im:
-                                    error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
-                                else:
-                                    is_ok = True
-                            
+                                if ev and not im: error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
+                                elif not im and tot > 1: error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
+                                else: is_ok = True
                             elif current_count > 0:
                                 if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif current_count + tot > 3: error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
@@ -382,7 +334,7 @@ else:
                     <div class="rules-header">📌 報名須知</div>
                     <div class="rules-row">
                         <span class="rules-icon">🔴</span>
-                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
+                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名。朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🟡</span>
@@ -433,4 +385,52 @@ else:
                                     
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
-                                ev = st.checkbox
+                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0)
+                                b1, b2 = st.columns(2)
+                                if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
+                                if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
+                    else:
+                        badges = ""
+                        if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
+                        if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
+                        if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
+                        if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
+
+                        c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
+                        cols = st.columns(c_cfg, gap="small")
+                        
+                        with cols[0]:
+                            st.markdown(f"""
+                            <div class="player-row">
+                                <span class="{idx_class}">{index_str}</span>
+                                <span class="list-name">{p['name']}</span>
+                                {badges}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        b_idx = 1
+                        if is_admin and is_wait and p.get('isMember'):
+                            with cols[b_idx]:
+                                st.markdown('<div class="list-btn-up">', unsafe_allow_html=True)
+                                if st.button("⬆️", key=f"up_{p['id']}"): promote(p['id'], date_key)
+                                st.markdown('</div>', unsafe_allow_html=True)
+                            b_idx += 1
+
+                        if can_edit:
+                            if b_idx < len(cols):
+                                with cols[b_idx]:
+                                    st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
+                                    if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
+                                    st.markdown('</div>', unsafe_allow_html=True)
+                            if b_idx+1 < len(cols):
+                                with cols[b_idx+1]:
+                                    st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
+                                    if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
+                                    st.markdown('</div>', unsafe_allow_html=True)
+
+            render_list(main)
+            
+            if wait:
+                st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+                st.subheader(f"⏳ 候補名單")
+                render_list(wait, is_wait=True)
