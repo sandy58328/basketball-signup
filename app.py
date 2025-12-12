@@ -12,6 +12,7 @@ from datetime import datetime, date, timedelta
 ADMIN_PASSWORD = "sunny"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
+APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
 # 1. 資料處理
@@ -39,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.36 最終完成體
+# 2. UI 極簡禪意風格 (CSS) - V3.37 規則完美補完版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -152,21 +153,42 @@ st.markdown("""
     
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     
-    /* [新增] 柔和規則樣式 */
-    .rules-container {
-        font-size: 0.85rem;
-        color: #64748b;
-        background: rgba(255, 255, 255, 0.5);
-        border-left: 3px solid #e2e8f0;
-        padding: 10px 15px;
-        margin-top: 10px;
-        line-height: 1.7;
+    /* [V3.37 Upgrade] 大師級規則區塊 */
+    .rules-box {
+        background-color: white;
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        margin-top: 15px;
     }
-    .rules-title {
-        font-weight: 700;
+    .rules-header {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 8px;
+        letter-spacing: 1px;
+    }
+    .rules-row {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+    .rules-icon {
+        font-size: 1.1rem;
+        margin-right: 12px;
+        line-height: 1.4;
+    }
+    .rules-content {
+        font-size: 0.9rem;
+        color: #64748b;
+        line-height: 1.5;
+    }
+    .rules-content b {
         color: #475569;
-        margin-bottom: 5px;
-        display: block;
+        font-weight: 700;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -337,19 +359,31 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [修改] 柔和的規則顯示 (無框線、無色塊)
+                # [V3.37 Upgrade] 大師級規則美化
                 st.markdown("""
-                <div class="rules-container">
-                    <span class="rules-title">📌 報名須知</span>
-                    <div>🔴 <b>資格</b>：實名制。僅限 <b>⭐晴女</b> 報名，朋友需由團員帶入 (每人上限3位)。</div>
-                    <div>🟡 <b>📣最美加油團</b>：團員若「不打球但帶朋友」，請勾選此項。本人不佔名額。</div>
-                    <div>🟢 <b>遞補</b>：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。</div>
-                    <div>🔵 <b>行政</b>：開團前一日 12:00 截止。雨備 17:00 通知。僅能修改屬性。</div>
+                <div class="rules-box">
+                    <div class="rules-header">📌 報名須知</div>
+                    <div class="rules-row">
+                        <span class="rules-icon">🔴</span>
+                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入，含自己上限3位)。</div>
+                    </div>
+                    <div class="rules-row">
+                        <span class="rules-icon">🟡</span>
+                        <div class="rules-content"><b>📣最美加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div>
+                    </div>
+                    <div class="rules-row">
+                        <span class="rules-icon">🟢</span>
+                        <div class="rules-content"><b>優先與遞補</b>：正選 20 人。候補名單中之 <b>⭐晴女</b>，享有優先遞補「非晴女」之權利。</div>
+                    </div>
+                    <div class="rules-row">
+                        <span class="rules-icon">🔵</span>
+                        <div class="rules-content"><b>行政與時間</b>：截止於前一日 12:00。雨備於當日 17:00 通知。僅能修改屬性，不可改名。</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
 
             # === 名單渲染 ===
-            st.subheader("🏀 報名名單") # [新增] 名單小標題
+            st.subheader("🏀 報名名單")
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
