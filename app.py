@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.21 最終除錯版
+# 2. UI 極簡禪意風格 (CSS) - V3.22 防切頭版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -50,7 +50,13 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
-    .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
+    
+    /* [重點修改] 增加上方留白，避免被系統列擋住 */
+    .block-container { 
+        padding-top: 3.5rem !important; /* 從 1rem 改為 3.5rem，標題往下移 */
+        padding-bottom: 5rem !important; 
+    }
+    
     #MainMenu, footer { visibility: hidden; }
 
     /* Header */
@@ -81,17 +87,17 @@ st.markdown("""
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* 列表卡片樣式 (修正結構，確保穩定) */
+    /* 列表卡片樣式 */
     .player-row {
         background: white;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
-        padding: 8px 10px; /* 緊湊 padding */
+        padding: 8px 10px;
         margin-bottom: 8px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
         display: flex; 
-        align-items: center; /* 垂直置中 */
+        align-items: center;
         width: 100%;
         line-height: 1.5;
     }
@@ -103,7 +109,7 @@ st.markdown("""
     .list-name { 
         color: #334155; 
         font-weight: 700; 
-        font-size: 1.15rem; /* 大字體 */
+        font-size: 1.15rem; 
         letter-spacing: 0.5px;
         flex-grow: 1;
         margin-right: 5px;
@@ -281,27 +287,21 @@ else:
                             related_entries = [p for p in players if p['name'] == name or p['name'].startswith(f"{name} (友")]
                             current_count = len(related_entries)
                             
-                            # 檢查：如果已經報名過(current_count > 0)，且這次又勾了晴女(im=True) -> 擋下
                             if current_count > 0 and im:
                                 st.error(f"❌ {name} 已經在名單中！\n\n加報朋友請勿勾選「⭐晴女」。若需修改自身狀態，請使用名單旁的 ✏️ 按鈕。")
-                            
-                            # 檢查：總數上限
                             elif current_count + tot > 3:
                                 st.error(f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位，無法再加 {tot} 位。")
-                            
                             else:
                                 ts = time.time()
                                 new_entries_list = []
                                 
                                 for k in range(tot):
-                                    # 判斷是本尊還是朋友
                                     is_main = (k == 0) and (current_count == 0)
                                     
                                     if is_main:
                                         final_name = name
                                         p_im, p_bb, p_oc = im, bb, oc 
                                     else:
-                                        # 朋友序號
                                         db_friend_count = len([p for p in players if p['name'].startswith(f"{name} (友")])
                                         current_loop_friend_count = len([n for n in new_entries_list if n['name'].startswith(f"{name} (友")])
                                         friend_seq = db_friend_count + current_loop_friend_count + 1
@@ -365,7 +365,7 @@ else:
                         c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
                         cols = st.columns(c_cfg, gap="small")
                         
-                        # [修復] 使用最安全的單層 HTML 結構，不再嵌套多餘 div，根絕 </div> 錯誤
+                        # [修復] 使用最安全的單層 HTML 結構，不嵌套多餘 div，根絕 </div> 錯誤
                         with cols[0]:
                             st.markdown(f"""
                             <div class="player-row">
