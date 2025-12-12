@@ -10,7 +10,7 @@ from datetime import datetime, date, timedelta
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-# ⚠️ 上線後請換成真實網址 (雖然沒按鈕了，但建議保留變數)
+# ⚠️ 上線後請換成真實網址
 APP_URL = "https://sunny-girls-basketball.streamlit.app"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.20 智慧加報版
+# 2. UI 極簡禪意風格 (CSS) - V3.21 最終除錯版
 # ==========================================
 st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
 
@@ -81,34 +81,35 @@ st.markdown("""
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* 列表卡片樣式 */
+    /* 列表卡片樣式 (修正結構，確保穩定) */
     .player-row {
         background: white;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
-        padding: 10px 8px 10px 14px;
+        padding: 8px 10px; /* 緊湊 padding */
         margin-bottom: 8px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
         display: flex; 
-        align-items: center;
-        height: 100%;
+        align-items: center; /* 垂直置中 */
+        width: 100%;
+        line-height: 1.5;
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
-    /* 名字樣式 (V3.13 妳喜歡的大小) */
+    /* 名字樣式 */
     .list-name { 
         color: #334155; 
         font-weight: 700; 
-        font-size: 1.15rem; 
+        font-size: 1.15rem; /* 大字體 */
         letter-spacing: 0.5px;
         flex-grow: 1;
-        line-height: 1.2;
+        margin-right: 5px;
     }
     
-    .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 6px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
+    .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
@@ -261,7 +262,7 @@ else:
                    save_data(st.session_state.data); st.balloons(); st.toast("🎉 遞補成功！"); time.sleep(1); st.rerun()
                 else: st.error("無可遞補對象")
 
-            # === 報名表單 (智慧加報邏輯) ===
+            # === 報名表單 ===
             with st.expander("📝 點擊報名 / 規則說明", expanded=not is_locked):
                 if is_locked and not is_admin: st.warning("⛔ 已截止")
                 with st.form(f"f_{date_key}", clear_on_submit=True):
@@ -272,38 +273,40 @@ else:
                     im = c1.checkbox("⭐晴女 (團員務必勾選)", key=f"m_{date_key}", disabled=not can_edit)
                     bb = c2.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
                     oc = c3.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
-                    # 提示文字稍微調整
-                    tot = st.number_input("本次報名人數 (含自己)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
+                    tot = st.number_input("總人數 (含自己, 上限3人)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
                     
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
                         if name:
-                            # [智慧判斷邏輯]
-                            # 1. 找出這個名字(含朋友)已經有幾個
+                            # [智慧加報 & 防重複邏輯]
                             related_entries = [p for p in players if p['name'] == name or p['name'].startswith(f"{name} (友")]
                             current_count = len(related_entries)
                             
-                            # 2. 檢查總量 (現有 + 這次新增 > 3 則擋下)
-                            if current_count + tot > 3:
+                            # 檢查：如果已經報名過(current_count > 0)，且這次又勾了晴女(im=True) -> 擋下
+                            if current_count > 0 and im:
+                                st.error(f"❌ {name} 已經在名單中！\n\n加報朋友請勿勾選「⭐晴女」。若需修改自身狀態，請使用名單旁的 ✏️ 按鈕。")
+                            
+                            # 檢查：總數上限
+                            elif current_count + tot > 3:
                                 st.error(f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位，無法再加 {tot} 位。")
+                            
                             else:
                                 ts = time.time()
                                 new_entries_list = []
                                 
-                                # 3. 開始建立資料
                                 for k in range(tot):
-                                    # 判斷是否為本尊：必須是第1筆 且 資料庫裡還沒有本尊
-                                    is_main = (k == 0) and (not any(p['name'] == name for p in players))
+                                    # 判斷是本尊還是朋友
+                                    is_main = (k == 0) and (current_count == 0)
                                     
                                     if is_main:
                                         final_name = name
-                                        p_im, p_bb, p_oc = im, bb, oc # 本尊帶入勾選屬性
+                                        p_im, p_bb, p_oc = im, bb, oc 
                                     else:
-                                        # 計算朋友序號 (資料庫現有朋友數 + 這次迴圈新增的朋友數 + 1)
+                                        # 朋友序號
                                         db_friend_count = len([p for p in players if p['name'].startswith(f"{name} (友")])
                                         current_loop_friend_count = len([n for n in new_entries_list if n['name'].startswith(f"{name} (友")])
                                         friend_seq = db_friend_count + current_loop_friend_count + 1
                                         final_name = f"{name} (友{friend_seq})"
-                                        p_im, p_bb, p_oc = False, False, False # 朋友預設不帶屬性
+                                        p_im, p_bb, p_oc = False, False, False 
                                     
                                     new_entries_list.append({
                                         "id": str(uuid.uuid4()),
@@ -362,15 +365,13 @@ else:
                         c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
                         cols = st.columns(c_cfg, gap="small")
                         
-                        # 使用 div 取代 span，確保結構穩定
+                        # [修復] 使用最安全的單層 HTML 結構，不再嵌套多餘 div，根絕 </div> 錯誤
                         with cols[0]:
                             st.markdown(f"""
                             <div class="player-row">
-                                <div style="display:flex; align-items:center; width:100%;">
-                                    <span class="list-index">{idx+1}.</span>
-                                    <span class="list-name">{p['name']}</span>
-                                    {badges}
-                                </div>
+                                <span class="list-index">{idx+1}.</span>
+                                <span class="list-name">{p['name']}</span>
+                                {badges}
                             </div>
                             """, unsafe_allow_html=True)
                         
