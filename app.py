@@ -41,22 +41,16 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.22 防切頭版
+# 2. UI 極簡禪意風格 (CSS) - V3.24 更名版
 # ==========================================
-st.set_page_config(page_title="Sunny Girls Basketball", page_icon="☀️", layout="centered") 
+st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
-    
-    /* [重點修改] 增加上方留白，避免被系統列擋住 */
-    .block-container { 
-        padding-top: 3.5rem !important; /* 從 1rem 改為 3.5rem，標題往下移 */
-        padding-bottom: 5rem !important; 
-    }
-    
+    .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
     #MainMenu, footer { visibility: hidden; }
 
     /* Header */
@@ -66,7 +60,7 @@ st.markdown("""
         text-align: center; margin-bottom: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     }
-    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
+    .header-title { font-size: 1.8rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b; font-weight: 500; }
     .info-pill {
         background: #f1f5f9; padding: 4px 14px;
@@ -92,14 +86,13 @@ st.markdown("""
         background: white;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
-        padding: 8px 10px;
+        padding: 10px 8px 10px 14px;
         margin-bottom: 8px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
         display: flex; 
-        align-items: center;
-        width: 100%;
-        line-height: 1.5;
+        align-items: center; /* 垂直置中 */
+        height: 100%;
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
@@ -112,13 +105,14 @@ st.markdown("""
         font-size: 1.15rem; 
         letter-spacing: 0.5px;
         flex-grow: 1;
-        margin-right: 5px;
+        line-height: 1.2;
     }
     
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
+    .badge-visit { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
     /* 按鈕樣式 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
@@ -187,13 +181,20 @@ with st.sidebar:
                del st.session_state.data["sessions"][del_d]
                save_data(st.session_state.data); st.rerun()
 
+# [修改] 標題改為 最美加油團
 st.markdown("""
     <div class="header-box">
-        <div class="header-title">晴女☀️在場邊等妳🌈</div>
+        <div class="header-title">最美加油團 🌸</div>
         <div class="header-sub">✨ Keep Playing, Keep Shining ✨</div>
         <div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕒 19:00</div>
     </div>
 """, unsafe_allow_html=True)
+
+# 分享區塊
+c_s1, c_s2, c_s3 = st.columns([1, 6, 1])
+with c_s2:
+    st.caption("👇 點擊右側按鈕複製連結")
+    st.code(APP_URL, language=None)
 
 # ==========================================
 # 4. 主畫面邏輯
@@ -220,17 +221,21 @@ else:
             main, wait = [], []
             curr = 0
             for p in players:
-                if curr + p.get('count', 1) <= MAX_CAPACITY: main.append(p); curr += p.get('count', 1)
-                else: wait.append(p)
+                p_count = p.get('count', 1) 
+                if curr + p_count <= MAX_CAPACITY:
+                    main.append(p)
+                    curr += p_count
+                else:
+                    wait.append(p)
 
             # === 進度條 ===
-            pct = min(100, (len(main) / MAX_CAPACITY) * 100)
+            pct = min(100, (curr / MAX_CAPACITY) * 100)
             bar_color = "#4ade80" if pct < 50 else "#fbbf24" if pct < 85 else "#f87171"
             
             st.markdown(f"""
             <div style="margin-bottom: 25px; padding: 0 4px;">
                 <div class="progress-info">
-                    <span style="color:#334155;">正選 ({len(main)}/{MAX_CAPACITY})</span>
+                    <span style="color:#334155;">正選 ({curr}/{MAX_CAPACITY})</span>
                     <span style="color:#94a3b8; font-weight:400;">候補: {len(wait)}</span>
                 </div>
                 <div class="progress-container">
@@ -240,10 +245,11 @@ else:
             """, unsafe_allow_html=True)
             
             # === Functions ===
-            def update(pid, d, n, im, bb, oc):
+            def update(pid, d, n, im, bb, oc, iv):
                 t = next((p for p in st.session_state.data["sessions"][d] if p['id']==pid), None)
                 if t: 
-                    t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc})
+                    new_count = 0 if iv else 1
+                    t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
                     save_data(st.session_state.data)
                     st.session_state.edit_target=None
                     st.toast("✅ 資料已更新")
@@ -279,16 +285,18 @@ else:
                     im = c1.checkbox("⭐晴女 (團員務必勾選)", key=f"m_{date_key}", disabled=not can_edit)
                     bb = c2.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
                     oc = c3.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
-                    tot = st.number_input("總人數 (含自己, 上限3人)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
+                    
+                    is_visit = st.checkbox("🤕 不打球 (僅場邊/帶人)", key=f"v_{date_key}", disabled=not can_edit)
+                    
+                    tot = st.number_input("本次報名人數 (含自己, 上限3人)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
                     
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
                         if name:
-                            # [智慧加報 & 防重複邏輯]
                             related_entries = [p for p in players if p['name'] == name or p['name'].startswith(f"{name} (友")]
                             current_count = len(related_entries)
                             
                             if current_count > 0 and im:
-                                st.error(f"❌ {name} 已經在名單中！\n\n加報朋友請勿勾選「⭐晴女」。若需修改自身狀態，請使用名單旁的 ✏️ 按鈕。")
+                                st.error(f"❌ {name} 已經在名單中！\n\n加報朋友請勿勾選「⭐晴女」。")
                             elif current_count + tot > 3:
                                 st.error(f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位，無法再加 {tot} 位。")
                             else:
@@ -301,17 +309,19 @@ else:
                                     if is_main:
                                         final_name = name
                                         p_im, p_bb, p_oc = im, bb, oc 
+                                        p_count = 0 if is_visit else 1
                                     else:
                                         db_friend_count = len([p for p in players if p['name'].startswith(f"{name} (友")])
                                         current_loop_friend_count = len([n for n in new_entries_list if n['name'].startswith(f"{name} (友")])
                                         friend_seq = db_friend_count + current_loop_friend_count + 1
                                         final_name = f"{name} (友{friend_seq})"
                                         p_im, p_bb, p_oc = False, False, False 
+                                        p_count = 1 
                                     
                                     new_entries_list.append({
                                         "id": str(uuid.uuid4()),
                                         "name": final_name,
-                                        "count": 1,
+                                        "count": p_count,
                                         "isMember": p_im,
                                         "bringBall": p_bb,
                                         "occupyCourt": p_oc,
@@ -328,12 +338,11 @@ else:
 
                 st.info("""
                 **📌 報名規則**
-                * **人數上限**：每場20人，含自己最多報名3位，超過的進入候補名單。
+                * **人數上限**：每場20人，含自己最多報名3位。
                 * **實名制**：報名名字需跟群組內名字一致，否則一律直接刪除。
-                * **修改限制**：修改時僅能更動屬性(晴女/帶球/佔場)，不能修改名字。
-                * **遞補規則**：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
+                * **傷兵/觀戰**：若不打球但要帶朋友，請勾選「🤕 不打球」。本人不佔名額，但朋友會佔名額。
+                * **修改限制**：修改時僅能更動屬性，不能修改名字。
                 * **截止時間**：開團前一日 中午12:00 截止報名。
-                * **雨備通知**：雨天當日 17:00 前通知是否開團。
                 """)
 
             # === 名單渲染 ===
@@ -353,11 +362,14 @@ else:
                                 em = ec1.checkbox("⭐晴女", p.get('isMember'))
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
+                                ev = st.checkbox("🤕 不打球 (僅場邊/帶人)", p.get('count') == 0)
+                                
                                 b1, b2 = st.columns(2)
-                                if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec)
+                                if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
                                 if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
                     else:
                         badges = ""
+                        if p.get('count') == 0: badges += "<span class='badge badge-visit'>🤕觀戰</span>"
                         if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
@@ -365,7 +377,6 @@ else:
                         c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
                         cols = st.columns(c_cfg, gap="small")
                         
-                        # [修復] 使用最安全的單層 HTML 結構，不嵌套多餘 div，根絕 </div> 錯誤
                         with cols[0]:
                             st.markdown(f"""
                             <div class="player-row">
