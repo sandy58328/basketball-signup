@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.39 規則完善版
+# 2. UI 極簡禪意風格 (CSS) - V3.40 邏輯嚴謹版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -197,6 +197,9 @@ st.markdown("""
         text-align: right;
         font-weight: 500;
     }
+    
+    /* 修正 st.code */
+    .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -218,9 +221,10 @@ with st.sidebar:
         st.markdown("---")
         dates = sorted(st.session_state.data["sessions"].keys())
         if dates:
-            hidden = st.multiselect("隱藏場次", dates, default=[d for d in st.session_state.data["hidden"] if d in dates])
-            if set(hidden) != set(st.session_state.data["hidden"]):
-                st.session_state.data["hidden"] = hidden; save_data(st.session_state.data); st.rerun()
+            cur_hidden = [d for d in st.session_state.data["hidden"] if d in dates]
+            sel_hidden = st.multiselect("隱藏場次", dates, default=cur_hidden)
+            if set(sel_hidden) != set(st.session_state.data["hidden"]):
+                st.session_state.data["hidden"] = sel_hidden; save_data(st.session_state.data); st.rerun()
             st.markdown("---")
             if st.button("🗑️ 刪除選定日期"):
                del_d = st.selectbox("選擇日期", dates)
@@ -340,7 +344,9 @@ else:
                                 elif not im: error_message = "❌ 報名或帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
                                 else: is_ok = True
                             elif current_count > 0:
-                                if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
+                                # [V3.40 嚴格防呆] 加報朋友時，嚴禁勾選加油團
+                                if ev: error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用（且不佔名額）。朋友必須是打球人員。"
+                                elif im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif current_count + tot > 3: error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
                                 else: is_ok = True
                             
@@ -366,13 +372,13 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [V3.39 Upgrade] 規則內容更新：加入事後補報說明
+                # [V3.39 Upgrade] 規則區塊
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
                     <div class="rules-row">
                         <span class="rules-icon">🔴</span>
-                        <div class="rules-content"><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名。朋友需由團員帶入 (不可單獨報)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
+                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名。朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🟡</span>
