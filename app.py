@@ -22,9 +22,7 @@ def load_data():
     if os.path.exists(FILE_PATH):
         try:
             with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                content = f.read()
-                if not content: return default_data
-                data = json.loads(content)
+                data = json.load(f)
                 if "sessions" not in data: data["sessions"] = {}
                 if "hidden" not in data: data["hidden"] = []
                 return data
@@ -42,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.43 列表救援版
+# 2. UI 極簡禪意風格 (CSS) - V3.43 源頭嚴控版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -52,6 +50,7 @@ st.markdown("""
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
     
+    /* 頂部留白 */
     .block-container { 
         padding-top: 3.5rem !important; 
         padding-bottom: 5rem !important; 
@@ -87,28 +86,33 @@ st.markdown("""
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* [V3.43 Fix] 列表卡片樣式修正 - 移除 height: 100% 避免塌陷 */
+    /* 列表卡片樣式 */
     .player-row {
         background: white;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
-        padding: 8px 10px;
+        padding: 10px 8px 10px 14px;
         margin-bottom: 8px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
         display: flex; 
         align-items: center;
         width: 100%;
-        min-height: 40px; /* 強制最小高度，避免消失 */
+        line-height: 1.5;
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     .list-index-flower { color: #f472b6; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
+    /* 名字樣式 */
     .list-name { 
-        color: #334155; font-weight: 700; font-size: 1.15rem; 
-        letter-spacing: 0.5px; flex-grow: 1; line-height: 1.2;
+        color: #334155; 
+        font-weight: 700; 
+        font-size: 1.15rem; 
+        letter-spacing: 0.5px;
+        flex-grow: 1;
+        line-height: 1.2;
     }
     
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
@@ -122,10 +126,16 @@ st.markdown("""
     [data-testid="column"] { padding: 0px 2px !important; } 
     
     .list-btn-col button {
-        border: none !important; background: transparent !important; padding: 0px !important;
-        color: #cbd5e1 !important; font-size: 14px !important;
-        line-height: 1 !important; height: 32px !important; width: 32px !important;
-        display: flex; justify-content: center; align-items: center; margin: 0 !important;
+        border: none !important; 
+        background: transparent !important;
+        padding: 0px !important;
+        color: #cbd5e1 !important; 
+        font-size: 14px !important;
+        line-height: 1 !important;
+        height: 32px !important;
+        width: 32px !important;
+        display: flex; justify-content: center; align-items: center;
+        margin: 0 !important;
     }
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 6px; }
     .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 12px !important; }
@@ -143,21 +153,52 @@ st.markdown("""
     
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     
-    /* 規則區塊 */
+    /* 大師級規則區塊 */
     .rules-box {
-        background-color: white; border-radius: 16px; padding: 20px;
-        border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px;
+        background-color: white;
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        margin-top: 15px;
     }
     .rules-header {
-        font-size: 1rem; font-weight: 800; color: #334155; margin-bottom: 15px;
-        border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; letter-spacing: 1px;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 8px;
+        letter-spacing: 1px;
     }
-    .rules-row { display: flex; align-items: flex-start; margin-bottom: 12px; }
-    .rules-icon { font-size: 1.1rem; margin-right: 12px; line-height: 1.4; }
-    .rules-content { font-size: 0.9rem; color: #64748b; line-height: 1.5; }
-    .rules-content b { color: #475569; font-weight: 700; }
-    .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8; text-align: right; font-weight: 500; }
+    .rules-row {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+    .rules-icon {
+        font-size: 1.1rem;
+        margin-right: 12px;
+        line-height: 1.4;
+    }
+    .rules-content {
+        font-size: 0.9rem;
+        color: #64748b;
+        line-height: 1.5;
+    }
+    .rules-content b {
+        color: #475569;
+        font-weight: 700;
+    }
+    .rules-footer {
+        margin-top: 15px;
+        font-size: 0.85rem;
+        color: #94a3b8;
+        text-align: right;
+        font-weight: 500;
+    }
     
+    /* 修正 st.code */
     .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -249,6 +290,7 @@ else:
             def update(pid, d, n, im, bb, oc, iv):
                 t = next((p for p in st.session_state.data["sessions"][d] if p['id']==pid), None)
                 if t: 
+                    # 編輯時 im 使用介面傳入的值 (但介面已鎖定，所以等於沒變)
                     new_count = 0 if iv else 1
                     t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
                     save_data(st.session_state.data)
@@ -297,14 +339,24 @@ else:
                             is_ok = False
                             error_message = None
                             
+                            # [V3.43 源頭嚴控] 
+                            # 1. 第一次報名(current_count==0)：無論如何都必須是晴女
                             if current_count == 0:
-                                if ev and not im: error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
-                                elif not im and tot > 1: error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
-                                else: is_ok = True
+                                if not im:
+                                    error_message = "❌ 第一次報名必須是「⭐晴女」本人！朋友不能單獨報名。請確認並勾選「⭐晴女」。"
+                                else:
+                                    is_ok = True
+                            
+                            # 2. 加報朋友(current_count>0)：
                             elif current_count > 0:
-                                if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
-                                elif current_count + tot > 3: error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
-                                else: is_ok = True
+                                # 如果又勾了晴女 (邏輯矛盾，同一人不能報兩次晴女)
+                                if im:
+                                    error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
+                                # 總數檢查
+                                elif current_count + tot > 3:
+                                    error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
+                                else:
+                                    is_ok = True
                             
                             if error_message: st.error(error_message)
                             elif is_ok:
@@ -328,13 +380,12 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # 規則區塊
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
                     <div class="rules-row">
                         <span class="rules-icon">🔴</span>
-                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名。朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
+                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🟡</span>
@@ -377,11 +428,8 @@ else:
                                 en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
                                 ec1, ec2, ec3 = st.columns(3)
                                 
-                                is_friend = "(友" in p['name']
-                                if is_friend:
-                                    em = ec1.checkbox("⭐晴女", False, disabled=True)
-                                else:
-                                    em = ec1.checkbox("⭐晴女", p.get('isMember'))
+                                # [V3.43 簡化修改] 晴女勾選框一律鎖定，不給改
+                                em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
                                     
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
