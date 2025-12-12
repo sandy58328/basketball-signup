@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.32 完美視覺版
+# 2. UI 極簡禪意風格 (CSS) - V3.33 完美計數版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -51,7 +51,7 @@ st.markdown("""
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
     
-    /* 防切頭設定 */
+    /* 修正頂部被切的問題 */
     .block-container { 
         padding-top: 3.5rem !important; 
         padding-bottom: 5rem !important; 
@@ -97,12 +97,15 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         transition: transform 0.1s;
         display: flex; 
-        align-items: center; /* 垂直置中 */
-        height: 100%;
+        align-items: center;
+        width: 100%;
+        line-height: 1.5;
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
+    /* 序號樣式：若是花朵圖示，顏色可以淡一點 */
     .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    .list-index-flower { color: #f472b6; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
     /* 名字樣式 */
     .list-name { 
@@ -118,7 +121,7 @@ st.markdown("""
     .badge-sunny { background: #fffbeb; color: #d97706; }
     .badge-ball { background: #fff7ed; color: #c2410c; }
     .badge-court { background: #eff6ff; color: #1d4ed8; }
-    .badge-visit { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+    .badge-visit { background: #fdf2f8; color: #db2777; border: 1px solid #fce7f3; } /* 觀戰改粉色系 */
 
     /* 按鈕樣式 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
@@ -195,11 +198,11 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# 分享區塊 (隱藏)
-# c_s1, c_s2, c_s3 = st.columns([1, 6, 1])
-# with c_s2:
-#     st.caption("👇 點擊右側按鈕複製連結")
-#     st.code(APP_URL, language=None)
+# 分享區塊
+c_s1, c_s2, c_s3 = st.columns([1, 6, 1])
+with c_s2:
+    st.caption("👇 點擊右側按鈕複製連結")
+    st.code(APP_URL, language=None)
 
 # ==========================================
 # 4. 主畫面邏輯
@@ -253,7 +256,7 @@ else:
             def update(pid, d, n, im, bb, oc, iv):
                 t = next((p for p in st.session_state.data["sessions"][d] if p['id']==pid), None)
                 if t: 
-                    # 如果是最美加油團(觀戰)，count=0，否則 count=1
+                    # 觀戰 count=0，否則 1
                     new_count = 0 if iv else 1
                     t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
                     save_data(st.session_state.data)
@@ -280,7 +283,7 @@ else:
                    save_data(st.session_state.data); st.balloons(); st.toast("🎉 遞補成功！"); time.sleep(1); st.rerun()
                 else: st.error("無可遞補對象")
 
-            # === 報名表單 (V3.32 新邏輯) ===
+            # === 報名表單 ===
             with st.expander("📝 點擊報名 / 規則說明", expanded=not is_locked):
                 if is_locked and not is_admin: st.warning("⛔ 已截止")
                 with st.form(f"f_{date_key}", clear_on_submit=True):
@@ -292,39 +295,38 @@ else:
                     bb = c2.checkbox("🏀帶球", key=f"b_{date_key}", disabled=not can_edit)
                     oc = c3.checkbox("🚩佔場", key=f"c_{date_key}", disabled=not can_edit)
                     
-                    # 觀戰按鈕
-                    is_visit = st.checkbox("🤕 不打球 (最美加油團)", key=f"v_{date_key}", disabled=not can_edit)
+                    # [修改] 新圖示：📣
+                    is_visit = st.checkbox("📣 不打球 (最美加油團)", key=f"v_{date_key}", disabled=not can_edit)
                     
                     tot = st.number_input("本次報名人數 (含自己, 上限3人)", 1, 3, 1, key=f"t_{date_key}", disabled=not can_edit)
                     
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
                         if name:
-                            # 1. 找出這個人報了幾次
                             related_entries = [p for p in players if p['name'] == name or p['name'].startswith(f"{name} (友")]
                             current_count = len(related_entries)
                             is_ok = False
                             error_message = None
                             
-                            # [關鍵邏輯 1] 第一次報名 (current_count == 0)
+                            # 1. 檢查新報名
                             if current_count == 0:
-                                # 必須是晴女才能發起報名 (無論是自己打球、觀戰、或帶人)
-                                if not im:
-                                    error_message = "❌ 僅限「⭐晴女」團員可發起報名及帶朋友。請確認並勾選「⭐晴女」。"
+                                # [邏輯] 報名加油團(is_visit=True) 必須是晴女
+                                if is_visit and not im:
+                                    error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
+                                # [邏輯] 一般報名，如果沒勾晴女，擋下 (防非團員佔位)
+                                elif not im:
+                                    error_message = "❌ 報名或帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
                                 else:
                                     is_ok = True
                             
-                            # [關鍵邏輯 2] 已經報名過，想要加人 (current_count > 0)
+                            # 2. 檢查加報
                             elif current_count > 0:
-                                # 如果又勾了晴女，提示不要重複勾
                                 if im:
-                                    error_message = f"❌ {name} 已經在名單中！加報朋友請勿重複勾選「⭐晴女」。"
-                                # 檢查總數 (含本次新增) 是否超過 3
+                                    error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif current_count + tot > 3:
-                                    error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位，無法再加 {tot} 位。"
+                                    error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
                                 else:
                                     is_ok = True
                             
-                            # 執行報名
                             if error_message:
                                 st.error(error_message)
                             elif is_ok:
@@ -332,24 +334,19 @@ else:
                                 new_entries_list = []
                                 
                                 for k in range(tot):
-                                    # 判斷是否為「團員本尊」
-                                    # 條件：這是迴圈的第1筆 (k=0) 且 資料庫裡還沒有本尊 (current_count=0)
                                     is_main = (k == 0) and (current_count == 0)
                                     
                                     if is_main:
                                         final_name = name
                                         p_im, p_bb, p_oc = im, bb, oc 
-                                        # 如果本尊勾選觀戰，count=0 (不佔額)，否則 count=1
                                         p_count = 0 if is_visit else 1
                                     else:
-                                        # 朋友邏輯：名稱自動遞增
                                         db_friend_count = len([p for p in players if p['name'].startswith(f"{name} (友")])
                                         current_loop_friend_count = len([n for n in new_entries_list if n['name'].startswith(f"{name} (友")])
                                         friend_seq = db_friend_count + current_loop_friend_count + 1
                                         final_name = f"{name} (友{friend_seq})"
-                                        
                                         p_im, p_bb, p_oc = False, False, False 
-                                        p_count = 1 # 朋友一定佔名額
+                                        p_count = 1 
                                     
                                     new_entries_list.append({
                                         "id": str(uuid.uuid4()),
@@ -369,24 +366,38 @@ else:
                                 st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
+                # [修改] 規則說明更新
                 st.info("""
                 **📌 報名規則**
                 * **人數上限**：每場20人。每人最多報名3位（含自己），超過的進入候補名單。
                 * **身份驗證**：**必須是 ⭐晴女 團員才能報名**。朋友不能單獨報名，需由團員帶入。
-                * **傷兵/觀戰**：團員若不打球但要帶朋友，請勾選「🤕 不打球」。本人不佔名額，但帶的朋友會佔打球名額。
+                * **最美加油團**：若不打球但要帶朋友，請勾選「📣 不打球 (最美加油團)」。**必須是晴女才能勾選**，本人不佔名額，但朋友會佔打球名額。
                 * **遞補規則**：候補名單中之 ⭐晴女，可優先遞補正選名單中之「非晴女」。
+                * **實名制**：報名名字需跟群組內名字一致，否則一律直接刪除。
                 * **修改限制**：修改時僅能更動屬性，不能修改名字。
                 * **截止時間**：開團前一日 中午12:00 截止報名。
                 """)
 
-            # === 名單渲染 ===
+            # === 名單渲染 (智慧計數邏輯) ===
             def render_list(lst, is_wait=False):
                 if not lst:
                     if not is_wait:
                         st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
                     return
 
+                # [智慧計數器]
+                display_counter = 0
+
                 for idx, p in enumerate(lst):
+                    # 決定顯示的序號：如果是觀戰(count=0)顯示🌸，否則顯示數字
+                    if p.get('count', 1) > 0:
+                        display_counter += 1
+                        index_str = f"{display_counter}."
+                        idx_class = "list-index"
+                    else:
+                        index_str = "🌸"
+                        idx_class = "list-index-flower"
+
                     if st.session_state.edit_target == p['id']:
                         with st.container():
                             st.markdown(f"<div class='edit-box'>✏️ 編輯中</div>", unsafe_allow_html=True)
@@ -396,14 +407,15 @@ else:
                                 em = ec1.checkbox("⭐晴女", p.get('isMember'))
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
-                                ev = st.checkbox("🤕 不打球 (最美加油團)", p.get('count') == 0)
+                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0)
                                 
                                 b1, b2 = st.columns(2)
                                 if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
                                 if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
                     else:
                         badges = ""
-                        if p.get('count') == 0: badges += "<span class='badge badge-visit'>🤕觀戰</span>"
+                        # [修改] 標籤改為 📣
+                        if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
                         if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
@@ -414,7 +426,7 @@ else:
                         with cols[0]:
                             st.markdown(f"""
                             <div class="player-row">
-                                <span class="list-index">{idx+1}.</span>
+                                <span class="{idx_class}">{index_str}</span>
                                 <span class="list-name">{p['name']}</span>
                                 {badges}
                             </div>
