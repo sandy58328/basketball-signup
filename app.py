@@ -41,7 +41,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.24 更名版
+# 2. UI 極簡禪意風格 (CSS) - V3.25 最終版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -50,7 +50,13 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
     html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
-    .block-container { padding-top: 1rem !important; padding-bottom: 5rem !important; }
+    
+    /* [V3.25 Fix] 修正頂部被切的問題 */
+    .block-container { 
+        padding-top: 3.5rem !important; 
+        padding-bottom: 5rem !important; 
+    }
+    
     #MainMenu, footer { visibility: hidden; }
 
     /* Header */
@@ -181,7 +187,6 @@ with st.sidebar:
                del st.session_state.data["sessions"][del_d]
                save_data(st.session_state.data); st.rerun()
 
-# [修改] 標題改為 最美加油團
 st.markdown("""
     <div class="header-box">
         <div class="header-title">最美加油團 🌸</div>
@@ -338,7 +343,7 @@ else:
 
                 st.info("""
                 **📌 報名規則**
-                * **人數上限**：每場20人，含自己最多報名3位。
+                * **人數上限**：每場20人。每人最多報名3位（含自己）。**朋友不能單獨報名**，需由團員帶入。
                 * **實名制**：報名名字需跟群組內名字一致，否則一律直接刪除。
                 * **傷兵/觀戰**：若不打球但要帶朋友，請勾選「🤕 不打球」。本人不佔名額，但朋友會佔名額。
                 * **修改限制**：修改時僅能更動屬性，不能修改名字。
