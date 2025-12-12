@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.40 邏輯嚴謹版
+# 2. UI 極簡禪意風格 (CSS) - V3.42 權限分流版
 # ==========================================
 st.set_page_config(page_title="最美加油團", page_icon="🌸", layout="centered") 
 
@@ -221,10 +221,9 @@ with st.sidebar:
         st.markdown("---")
         dates = sorted(st.session_state.data["sessions"].keys())
         if dates:
-            cur_hidden = [d for d in st.session_state.data["hidden"] if d in dates]
-            sel_hidden = st.multiselect("隱藏場次", dates, default=cur_hidden)
-            if set(sel_hidden) != set(st.session_state.data["hidden"]):
-                st.session_state.data["hidden"] = sel_hidden; save_data(st.session_state.data); st.rerun()
+            hidden = st.multiselect("隱藏場次", dates, default=[d for d in st.session_state.data["hidden"] if d in dates])
+            if set(hidden) != set(st.session_state.data["hidden"]):
+                st.session_state.data["hidden"] = hidden; save_data(st.session_state.data); st.rerun()
             st.markdown("---")
             if st.button("🗑️ 刪除選定日期"):
                del_d = st.selectbox("選擇日期", dates)
@@ -340,13 +339,18 @@ else:
                             error_message = None
                             
                             if current_count == 0:
-                                if ev and not im: error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
-                                elif not im: error_message = "❌ 報名或帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
-                                else: is_ok = True
+                                # [修改] 1人報名且不帶人，允許不勾晴女 (視為單人補報或特殊狀況)
+                                # 但若帶人(tot>1)，則嚴格要求必須是晴女
+                                if tot > 1 and not im:
+                                    error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
+                                # 加油團必須是晴女
+                                elif ev and not im:
+                                    error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
+                                else:
+                                    is_ok = True
+                            
                             elif current_count > 0:
-                                # [V3.40 嚴格防呆] 加報朋友時，嚴禁勾選加油團
-                                if ev: error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用（且不佔名額）。朋友必須是打球人員。"
-                                elif im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
+                                if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif current_count + tot > 3: error_message = f"❌ {name} 已有 {current_count} 筆報名，每人上限 3 位。"
                                 else: is_ok = True
                             
@@ -372,13 +376,13 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                # [V3.39 Upgrade] 規則區塊
+                # 規則區塊
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
                     <div class="rules-row">
                         <span class="rules-icon">🔴</span>
-                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名。朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
+                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
                     </div>
                     <div class="rules-row">
                         <span class="rules-icon">🟡</span>
@@ -420,55 +424,13 @@ else:
                             with st.form(key=f"e_{p['id']}"):
                                 en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
                                 ec1, ec2, ec3 = st.columns(3)
-                                em = ec1.checkbox("⭐晴女", p.get('isMember'))
+                                
+                                is_friend = "(友" in p['name']
+                                if is_friend:
+                                    em = ec1.checkbox("⭐晴女", False, disabled=True)
+                                else:
+                                    em = ec1.checkbox("⭐晴女", p.get('isMember'))
+                                    
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
-                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0)
-                                b1, b2 = st.columns(2)
-                                if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
-                                if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
-                    else:
-                        badges = ""
-                        if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
-                        if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
-                        if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
-                        if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
-
-                        c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
-                        cols = st.columns(c_cfg, gap="small")
-                        
-                        with cols[0]:
-                            st.markdown(f"""
-                            <div class="player-row">
-                                <span class="{idx_class}">{index_str}</span>
-                                <span class="list-name">{p['name']}</span>
-                                {badges}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        b_idx = 1
-                        if is_admin and is_wait and p.get('isMember'):
-                            with cols[b_idx]:
-                                st.markdown('<div class="list-btn-up">', unsafe_allow_html=True)
-                                if st.button("⬆️", key=f"up_{p['id']}"): promote(p['id'], date_key)
-                                st.markdown('</div>', unsafe_allow_html=True)
-                            b_idx += 1
-
-                        if can_edit:
-                            if b_idx < len(cols):
-                                with cols[b_idx]:
-                                    st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
-                                    if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
-                                    st.markdown('</div>', unsafe_allow_html=True)
-                            if b_idx+1 < len(cols):
-                                with cols[b_idx+1]:
-                                    st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
-                                    if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
-                                    st.markdown('</div>', unsafe_allow_html=True)
-
-            render_list(main)
-            
-            if wait:
-                st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-                st.subheader(f"⏳ 候補名單")
-                render_list(wait, is_wait=True)
+                                ev = st.checkbox
