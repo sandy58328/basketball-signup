@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.54 強制修復版
+# 2. UI 極簡禪意風格 (CSS) - V3.55 視覺強制修復版
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
@@ -48,19 +48,23 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
-    /* [V3.54 Fix] 強制鎖定背景色 (解決手機深色模式變成黑底的問題) */
-    .stApp {
+    /* [V3.55 Fix] 強制全站使用亮色背景 (無視手機深色模式) */
+    [data-testid="stAppViewContainer"] {
         background-color: #f8fafc !important;
+    }
+    [data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0) !important;
     }
     
     html, body, [class*="css"] { 
         font-family: 'Noto Sans TC', sans-serif; 
-        background-color: #f8fafc; 
+        background-color: #f8fafc !important;
+        color: #334155 !important; /* 強制字體深色 */
     }
     
-    /* [V3.54 Fix] 大幅增加頂部留白 (從 3.5rem -> 6rem)，避免被系統列擋住 */
+    /* [V3.55 Fix] 再次加大頂部留白 (避免被系統列擋住) */
     .block-container { 
-        padding-top: 6rem !important; 
+        padding-top: 5rem !important; 
         padding-bottom: 5rem !important; 
     }
     
@@ -79,6 +83,8 @@ st.markdown("""
         padding: 1.5rem 1rem; border-radius: 20px; 
         text-align: center; margin-bottom: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        /* [V3.55] 確保卡片文字在深色模式下也是黑的 */
+        color: #1e293b !important;
     }
     .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b; font-weight: 500; }
@@ -114,6 +120,7 @@ st.markdown("""
         align-items: center;
         width: 100%;
         min-height: 40px;
+        color: #334155 !important; /* 強制文字顏色 */
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
@@ -165,12 +172,13 @@ st.markdown("""
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
     .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
     
-    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
+    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; color: #334155; }
     
     /* 規則區塊 */
     .rules-box {
         background-color: white; border-radius: 16px; padding: 20px;
         border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px;
+        color: #475569 !important; /* 強制文字深色 */
     }
     .rules-header {
         font-size: 1rem; font-weight: 800; color: #334155; margin-bottom: 15px;
@@ -451,7 +459,6 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
-                                # 朋友不顯示編輯按鈕，只顯示刪除
                                 is_friend = "(友" in p['name']
                                 if not is_friend:
                                     with cols[b_idx]:
