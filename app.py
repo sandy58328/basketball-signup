@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.53 最終定案版
+# 2. UI 極簡禪意風格 (CSS) - V3.54 強制修復版
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
@@ -48,11 +48,19 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
-    html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
+    /* [V3.54 Fix] 強制鎖定背景色 (解決手機深色模式變成黑底的問題) */
+    .stApp {
+        background-color: #f8fafc !important;
+    }
     
-    /* 頂部留白 */
+    html, body, [class*="css"] { 
+        font-family: 'Noto Sans TC', sans-serif; 
+        background-color: #f8fafc; 
+    }
+    
+    /* [V3.54 Fix] 大幅增加頂部留白 (從 3.5rem -> 6rem)，避免被系統列擋住 */
     .block-container { 
-        padding-top: 3.5rem !important; 
+        padding-top: 6rem !important; 
         padding-bottom: 5rem !important; 
     }
     
@@ -323,10 +331,9 @@ else:
                             error_message = None
                             
                             if current_count == 0:
-                                if not im:
-                                    error_message = "❌ 身份驗證失敗！第一次報名必須是「⭐晴女」團員本人。朋友不能單獨報名。"
-                                else:
-                                    is_ok = True
+                                if ev and not im: error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
+                                elif not im and tot > 1: error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
+                                else: is_ok = True
                             elif current_count > 0:
                                 if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif ev: error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用。"
@@ -409,9 +416,9 @@ else:
                                 else:
                                     em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
                                     
-                                eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
-                                ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
-                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0)
+                                eb = ec2.checkbox("🏀帶球", p.get('bringBall'), disabled=is_friend)
+                                ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'), disabled=is_friend)
+                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0, disabled=is_friend)
                                 b1, b2 = st.columns(2)
                                 if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
                                 if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
@@ -444,7 +451,7 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
-                                # [V3.53] 朋友不顯示編輯按鈕，只顯示刪除
+                                # 朋友不顯示編輯按鈕，只顯示刪除
                                 is_friend = "(友" in p['name']
                                 if not is_friend:
                                     with cols[b_idx]:
