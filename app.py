@@ -40,7 +40,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.56 贖罪修復版
+# 2. UI 極簡禪意風格 (CSS) - V3.56 版面修復版
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
@@ -48,53 +48,59 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
-    /* [V3.56 Fix] 1. 強制全站亮色模式 (解決手機深色模式字體消失問題) */
+    /* [V3.56 Fix] 強制全站背景與字體顏色 (防止深色模式破圖) */
     .stApp {
         background-color: #f8fafc !important;
-    }
-    
-    /* 確保所有文字都是深色，不會因為手機設定變白字 */
-    html, body, [class*="css"], p, div, span, label, h1, h2, h3, .stMarkdown { 
-        font-family: 'Noto Sans TC', sans-serif; 
-        color: #334155 !important; 
-    }
-    
-    /* [V3.56 Fix] 2. 把側邊欄開關救回來！ */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
         color: #334155 !important;
-        z-index: 999999 !important; /* 確保它浮在最上面 */
     }
     
-    /* [V3.56 Fix] 3. 頂部留白調整 (避免被手機劉海或系統列擋住) */
+    html, body, [class*="css"] { 
+        font-family: 'Noto Sans TC', sans-serif; 
+    }
+    
+    /* [V3.56 Fix] 頂部安全距離加大，防止標題被手機系統列遮住 */
     .block-container { 
-        padding-top: 4rem !important; 
+        padding-top: 5rem !important; 
         padding-bottom: 5rem !important; 
     }
     
-    /* [V3.56 Fix] 4. 只隱藏不需要的系統雜訊，保留側邊欄功能 */
-    header {background: transparent !important;} /* header 背景透明 */
-    [data-testid="stDecoration"] {display: none !important;} /* 隱藏彩條 */
-    [data-testid="stToolbar"] {display: none !important;} /* 隱藏右上角工具列 */
-    [data-testid="stStatusWidget"] {display: none !important;} /* 隱藏連線狀態 */
-    #MainMenu {display: none !important;} /* 隱藏漢堡選單 */
-    footer {display: none !important;} /* 隱藏 Footer */
-    .stDeployButton {display: none !important;} /* 隱藏 Deploy 按鈕 */
+    /* [V3.56 Fix] 系統列處理：不隱藏 header，但隱藏 header 裡面的雜訊 */
+    header {
+        background-color: transparent !important; /* 讓 header 背景透明 */
+    }
     
-    /* Header Box */
+    /* 隱藏右上角功能選單、彩條、Deploy 按鈕 */
+    [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;} 
+    [data-testid="stStatusWidget"] {display: none !important;}
+    #MainMenu {display: none !important;}
+    footer {display: none !important;}
+    .stDeployButton {display: none !important;}
+
+    /* [V3.56 Fix] ★關鍵：強制顯示並美化「側邊欄箭頭 (>)」★ */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        color: #334155 !important; /* 強制深灰色，避免在白底看不見 */
+        background-color: white !important;
+        border-radius: 50%;
+        padding: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        z-index: 999999 !important; /* 確保浮在最上面 */
+    }
+    
+    /* Header */
     .header-box {
         background: white;
         padding: 1.5rem 1rem; border-radius: 20px; 
         text-align: center; margin-bottom: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        border: 1px solid #f1f5f9;
     }
     .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
     .info-pill {
         background: #f1f5f9; padding: 4px 14px;
-        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569 !important;
+        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569;
         display: inline-block; margin-top: 10px;
     }
 
@@ -102,10 +108,10 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
         height: 38px; background-color: transparent; border-radius: 20px;
-        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b !important; font-weight: 500;
+        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b; font-weight: 500;
     }
     .stTabs [aria-selected="true"] { 
-        background-color: white; color: #3b82f6 !important; border: none; 
+        background-color: white; color: #3b82f6; border: none; 
         box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
@@ -127,8 +133,8 @@ st.markdown("""
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
-    .list-index { color: #cbd5e1 !important; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
-    .list-index-flower { color: #f472b6 !important; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    .list-index-flower { color: #f472b6; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
     .list-name { 
         color: #334155 !important; 
@@ -140,10 +146,10 @@ st.markdown("""
     }
     
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
-    .badge-sunny { background: #fffbeb; color: #d97706 !important; }
-    .badge-ball { background: #fff7ed; color: #c2410c !important; }
-    .badge-court { background: #eff6ff; color: #1d4ed8 !important; }
-    .badge-visit { background: #fdf2f8; color: #db2777 !important; border: 1px solid #fce7f3; }
+    .badge-sunny { background: #fffbeb; color: #d97706; }
+    .badge-ball { background: #fff7ed; color: #c2410c; }
+    .badge-court { background: #eff6ff; color: #1d4ed8; }
+    .badge-visit { background: #fdf2f8; color: #db2777; border: 1px solid #fce7f3; }
 
     /* 按鈕樣式 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
@@ -173,9 +179,9 @@ st.markdown("""
     /* Progress Bar */
     .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
-    .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b !important; margin-bottom: 2px; font-weight: 600; }
+    .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
     
-    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; color: #334155 !important; }
+    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; color: #334155; }
     
     /* 規則區塊 */
     .rules-box {
@@ -184,16 +190,15 @@ st.markdown("""
         color: #475569 !important;
     }
     .rules-header {
-        font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 15px;
+        font-size: 1rem; font-weight: 800; color: #334155; margin-bottom: 15px;
         border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; letter-spacing: 1px;
     }
     .rules-row { display: flex; align-items: flex-start; margin-bottom: 12px; }
     .rules-icon { font-size: 1.1rem; margin-right: 12px; line-height: 1.4; }
-    .rules-content { font-size: 0.9rem; color: #64748b !important; line-height: 1.5; }
-    .rules-content b { color: #475569 !important; font-weight: 700; }
-    .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
+    .rules-content { font-size: 0.9rem; color: #64748b; line-height: 1.5; }
+    .rules-content b { color: #475569; font-weight: 700; }
+    .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8; text-align: right; font-weight: 500; }
     
-    /* 修正 st.code */
     .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
 """, unsafe_allow_html=True)
