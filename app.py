@@ -40,9 +40,8 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.51 真・最終完美版
+# 2. UI 極簡禪意風格 (CSS) - V3.53 最終定案版
 # ==========================================
-# [V3.51 Fix] 標題與圖示修正回歸
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
 st.markdown("""
@@ -445,10 +444,13 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
-                                with cols[b_idx]:
-                                    st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
-                                    if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
-                                    st.markdown('</div>', unsafe_allow_html=True)
+                                # [V3.53] 朋友不顯示編輯按鈕，只顯示刪除
+                                is_friend = "(友" in p['name']
+                                if not is_friend:
+                                    with cols[b_idx]:
+                                        st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
+                                        if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
+                                        st.markdown('</div>', unsafe_allow_html=True)
                             if b_idx+1 < len(cols):
                                 with cols[b_idx+1]:
                                     st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
