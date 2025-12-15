@@ -12,7 +12,6 @@ from datetime import datetime, date, timedelta
 ADMIN_PASSWORD = "sunny"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
-# 這裡先維持妳原本的設定，等之後要去後台改網址再改這裡
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
@@ -43,7 +42,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.59 終極修復版
+# 2. UI 極簡禪意風格 (CSS) - V3.45 穩定復原版
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
@@ -51,62 +50,28 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
-    /* 1. 強制鎖定全站為亮色背景 (解決手機深色模式變黑的問題) */
-    [data-testid="stAppViewContainer"] {
-        background-color: #f8fafc !important;
-        color: #334155 !important;
-    }
+    html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
     
-    /* 2. 強制所有文字顏色為深灰，避免在深色模式下變白 */
-    html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown { 
-        font-family: 'Noto Sans TC', sans-serif; 
-        color: #334155 !important;
-    }
-    
-    /* 3. 頂部安全距離，避免標題被手機瀏海擋住 */
+    /* 頂部留白 */
     .block-container { 
-        padding-top: 4rem !important; 
+        padding-top: 3.5rem !important; 
         padding-bottom: 5rem !important; 
     }
     
-    /* 4. 系統標記隱藏，但「保留 header 空間」給側邊欄按鈕 */
-    header {
-        background-color: transparent !important;
-    }
-    
-    /* 隱藏不需要的雜訊 */
-    [data-testid="stDecoration"] {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
-    footer {display: none !important;}
-    #MainMenu {display: none !important;}
-    .stDeployButton {display: none !important;}
+    #MainMenu, footer { visibility: hidden; }
 
-    /* 5. 【關鍵修正】強制顯示左上角側邊欄按鈕 (管理員入口) */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
-        color: #334155 !important;
-        background-color: white !important;
-        border-radius: 50%;
-        padding: 4px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        z-index: 999999 !important; /* 確保浮在最上面 */
-    }
-    
-    /* Header Box */
+    /* Header */
     .header-box {
         background: white;
         padding: 1.5rem 1rem; border-radius: 20px; 
         text-align: center; margin-bottom: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        border: 1px solid #f1f5f9;
     }
-    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
-    .header-sub { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
+    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
+    .header-sub { font-size: 0.9rem; color: #64748b; font-weight: 500; }
     .info-pill {
         background: #f1f5f9; padding: 4px 14px;
-        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569 !important;
+        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569;
         display: inline-block; margin-top: 10px;
     }
 
@@ -114,16 +79,16 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
         height: 38px; background-color: transparent; border-radius: 20px;
-        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b !important; font-weight: 500;
+        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b; font-weight: 500;
     }
     .stTabs [aria-selected="true"] { 
-        background-color: white; color: #3b82f6 !important; border: none; 
+        background-color: white; color: #3b82f6; border: none; 
         box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* 列表卡片樣式 */
+    /* 列表卡片樣式 (含高度修復) */
     .player-row {
         background: white;
         border: 1px solid #f1f5f9;
@@ -135,15 +100,15 @@ st.markdown("""
         display: flex; 
         align-items: center;
         width: 100%;
-        min-height: 40px;
+        min-height: 40px; /* 確保高度不會塌陷 */
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
-    .list-index { color: #cbd5e1 !important; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
-    .list-index-flower { color: #f472b6 !important; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    .list-index-flower { color: #f472b6; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
     .list-name { 
-        color: #334155 !important; 
+        color: #334155; 
         font-weight: 700; 
         font-size: 1.15rem; 
         letter-spacing: 0.5px;
@@ -152,10 +117,10 @@ st.markdown("""
     }
     
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
-    .badge-sunny { background: #fffbeb; color: #d97706 !important; }
-    .badge-ball { background: #fff7ed; color: #c2410c !important; }
-    .badge-court { background: #eff6ff; color: #1d4ed8 !important; }
-    .badge-visit { background: #fdf2f8; color: #db2777 !important; border: 1px solid #fce7f3; }
+    .badge-sunny { background: #fffbeb; color: #d97706; }
+    .badge-ball { background: #fff7ed; color: #c2410c; }
+    .badge-court { background: #eff6ff; color: #1d4ed8; }
+    .badge-visit { background: #fdf2f8; color: #db2777; border: 1px solid #fce7f3; }
 
     /* 按鈕樣式 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
@@ -185,26 +150,52 @@ st.markdown("""
     /* Progress Bar */
     .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
-    .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b !important; margin-bottom: 2px; font-weight: 600; }
+    .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
     
-    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; color: #334155 !important; }
+    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
     
-    /* 規則區塊 - 您指定的格式 */
+    /* 規則區塊 */
     .rules-box {
-        background-color: white; border-radius: 16px; padding: 20px;
-        border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px;
-        color: #475569 !important;
+        background-color: white;
+        border-radius: 12px;
+        padding: 16px 20px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        margin-top: 10px;
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.6;
     }
     .rules-header {
-        font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 15px;
-        border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; letter-spacing: 1px;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 10px;
+        font-size: 1rem;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 5px;
+        display: block;
     }
-    .rules-row { display: flex; align-items: flex-start; margin-bottom: 12px; }
-    .rules-icon { font-size: 1.1rem; margin-right: 12px; line-height: 1.4; }
-    .rules-content { font-size: 0.9rem; color: #64748b !important; line-height: 1.5; }
-    .rules-content b { color: #475569 !important; font-weight: 700; }
-    .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
+    .rules-row {
+        margin-bottom: 6px;
+        display: flex; 
+        align-items: flex-start;
+    }
+    .rules-icon {
+        margin-right: 8px;
+        min-width: 20px;
+        font-weight: bold;
+    }
+    .rules-content b {
+        color: #334155;
+    }
+    .rules-footer {
+        margin-top: 10px;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        text-align: right;
+    }
     
+    /* 修正 st.code */
     .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -305,6 +296,7 @@ else:
                     st.rerun()
             
             def delete(pid, d):
+                # V3.49 的連坐刪除邏輯 (刪除本尊，朋友一起刪)
                 target = next((p for p in st.session_state.data["sessions"][d] if p['id'] == pid), None)
                 if target:
                     target_name = target['name']
@@ -353,14 +345,17 @@ else:
                             is_ok = False
                             error_message = None
                             
-                            # 1. 第一次報名：必須是晴女 (且不能是加油團)
+                            # V3.45 邏輯：
+                            # 1. 第一次報名：
+                            #    單人報名 (tot=1)：允許不勾晴女 (可能是手滑，或非團員單獨報)。
+                            #    帶人報名 (tot>1)：必須勾晴女。
+                            #    加油團 (ev)：必須勾晴女。
                             if current_count == 0:
-                                if not im:
-                                    error_message = "❌ 身份驗證失敗！第一次報名必須是「⭐晴女」團員本人。朋友不能單獨報名。"
-                                else:
-                                    is_ok = True
+                                if ev and not im: error_message = "❌ 報名「最美加油團」必須是「⭐晴女」團員。"
+                                elif not im and tot > 1: error_message = "❌ 帶朋友報名，請務必勾選「⭐晴女」以驗證團員身份。"
+                                else: is_ok = True
                             
-                            # 2. 加報朋友
+                            # 2. 加報朋友：
                             elif current_count > 0:
                                 if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif ev: error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用。"
@@ -389,6 +384,7 @@ else:
                                 st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
+                # V3.45 規則文字
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
@@ -436,16 +432,10 @@ else:
                             with st.form(key=f"e_{p['id']}"):
                                 en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
                                 ec1, ec2, ec3 = st.columns(3)
-                                
-                                is_friend = "(友" in p['name']
-                                if is_friend:
-                                    em = ec1.checkbox("⭐晴女", False, disabled=True)
-                                else:
-                                    em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
-                                    
-                                eb = ec2.checkbox("🏀帶球", p.get('bringBall'), disabled=is_friend)
-                                ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'), disabled=is_friend)
-                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0, disabled=is_friend)
+                                em = ec1.checkbox("⭐晴女", p.get('isMember'))
+                                eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
+                                ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
+                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0)
                                 b1, b2 = st.columns(2)
                                 if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
                                 if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
@@ -478,12 +468,10 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
-                                is_friend = "(友" in p['name']
-                                if not is_friend:
-                                    with cols[b_idx]:
-                                        st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
-                                        if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
-                                        st.markdown('</div>', unsafe_allow_html=True)
+                                with cols[b_idx]:
+                                    st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
+                                    if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
+                                    st.markdown('</div>', unsafe_allow_html=True)
                             if b_idx+1 < len(cols):
                                 with cols[b_idx+1]:
                                     st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
