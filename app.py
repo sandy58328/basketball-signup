@@ -22,7 +22,9 @@ def load_data():
     if os.path.exists(FILE_PATH):
         try:
             with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+                content = f.read()
+                if not content: return default_data
+                data = json.loads(content)
                 if "sessions" not in data: data["sessions"] = {}
                 if "hidden" not in data: data["hidden"] = []
                 return data
@@ -40,7 +42,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.56 贖罪修復版
+# 2. UI 極簡禪意風格 (CSS) - V3.58 最終完美定稿版
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
@@ -48,39 +50,45 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
-    /* [V3.56 Fix] 1. 強制全站亮色模式 (解決手機深色模式字體消失問題) */
-    .stApp {
+    /* [重要] 強制全站亮色模式 & 字體顏色，防止手機深色模式導致畫面全黑 */
+    [data-testid="stAppViewContainer"] {
         background-color: #f8fafc !important;
-    }
-    
-    /* 確保所有文字都是深色，不會因為手機設定變白字 */
-    html, body, [class*="css"], p, div, span, label, h1, h2, h3, .stMarkdown { 
-        font-family: 'Noto Sans TC', sans-serif; 
-        color: #334155 !important; 
-    }
-    
-    /* [V3.56 Fix] 2. 把側邊欄開關救回來！ */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
         color: #334155 !important;
-        z-index: 999999 !important; /* 確保它浮在最上面 */
     }
     
-    /* [V3.56 Fix] 3. 頂部留白調整 (避免被手機劉海或系統列擋住) */
+    html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown { 
+        font-family: 'Noto Sans TC', sans-serif; 
+        color: #334155 !important;
+    }
+    
+    /* [重要] 頂部留白加大，避免標題被手機系統列擋住 */
     .block-container { 
         padding-top: 4rem !important; 
         padding-bottom: 5rem !important; 
     }
     
-    /* [V3.56 Fix] 4. 只隱藏不需要的系統雜訊，保留側邊欄功能 */
-    header {background: transparent !important;} /* header 背景透明 */
-    [data-testid="stDecoration"] {display: none !important;} /* 隱藏彩條 */
-    [data-testid="stToolbar"] {display: none !important;} /* 隱藏右上角工具列 */
-    [data-testid="stStatusWidget"] {display: none !important;} /* 隱藏連線狀態 */
-    #MainMenu {display: none !important;} /* 隱藏漢堡選單 */
-    footer {display: none !important;} /* 隱藏 Footer */
-    .stDeployButton {display: none !important;} /* 隱藏 Deploy 按鈕 */
+    /* [重要] 隱藏系統雜訊，但保留 header 空間給側邊欄按鈕 */
+    header {background: transparent !important;}
+    
+    /* 隱藏不需要的元件 */
+    [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    footer {display: none !important;}
+    #MainMenu {display: none !important;}
+    .stDeployButton {display: none !important;}
+
+    /* [重要] 讓左上角側邊欄按鈕(>)強制顯示並美化 */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        color: #334155 !important;
+        background-color: white !important;
+        border-radius: 50%;
+        padding: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        z-index: 999999 !important;
+    }
     
     /* Header Box */
     .header-box {
@@ -464,7 +472,7 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
-                                # 朋友不顯示編輯按鈕，只顯示刪除
+                                # 朋友不顯示編輯按鈕
                                 is_friend = "(友" in p['name']
                                 if not is_friend:
                                     with cols[b_idx]:
