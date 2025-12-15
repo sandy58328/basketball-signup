@@ -12,6 +12,7 @@ from datetime import datetime, date, timedelta
 ADMIN_PASSWORD = "sunny"
 FILE_PATH = 'basketball_data.json'
 MAX_CAPACITY = 20
+# 這裡先維持妳原本的設定，等之後要去後台改網址再改這裡
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
@@ -42,7 +43,7 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.58 最終完美定稿版
+# 2. UI 極簡禪意風格 (CSS) - V3.59 終極修復版
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
@@ -50,27 +51,30 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
-    /* [重要] 強制全站亮色模式 & 字體顏色，防止手機深色模式導致畫面全黑 */
+    /* 1. 強制鎖定全站為亮色背景 (解決手機深色模式變黑的問題) */
     [data-testid="stAppViewContainer"] {
         background-color: #f8fafc !important;
         color: #334155 !important;
     }
     
+    /* 2. 強制所有文字顏色為深灰，避免在深色模式下變白 */
     html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown { 
         font-family: 'Noto Sans TC', sans-serif; 
         color: #334155 !important;
     }
     
-    /* [重要] 頂部留白加大，避免標題被手機系統列擋住 */
+    /* 3. 頂部安全距離，避免標題被手機瀏海擋住 */
     .block-container { 
         padding-top: 4rem !important; 
         padding-bottom: 5rem !important; 
     }
     
-    /* [重要] 隱藏系統雜訊，但保留 header 空間給側邊欄按鈕 */
-    header {background: transparent !important;}
+    /* 4. 系統標記隱藏，但「保留 header 空間」給側邊欄按鈕 */
+    header {
+        background-color: transparent !important;
+    }
     
-    /* 隱藏不需要的元件 */
+    /* 隱藏不需要的雜訊 */
     [data-testid="stDecoration"] {display: none !important;}
     [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stStatusWidget"] {display: none !important;}
@@ -78,7 +82,7 @@ st.markdown("""
     #MainMenu {display: none !important;}
     .stDeployButton {display: none !important;}
 
-    /* [重要] 讓左上角側邊欄按鈕(>)強制顯示並美化 */
+    /* 5. 【關鍵修正】強制顯示左上角側邊欄按鈕 (管理員入口) */
     [data-testid="stSidebarCollapsedControl"] {
         display: block !important;
         visibility: visible !important;
@@ -87,7 +91,7 @@ st.markdown("""
         border-radius: 50%;
         padding: 4px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        z-index: 999999 !important;
+        z-index: 999999 !important; /* 確保浮在最上面 */
     }
     
     /* Header Box */
@@ -185,7 +189,7 @@ st.markdown("""
     
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; color: #334155 !important; }
     
-    /* 規則區塊 */
+    /* 規則區塊 - 您指定的格式 */
     .rules-box {
         background-color: white; border-radius: 16px; padding: 20px;
         border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px;
@@ -201,7 +205,6 @@ st.markdown("""
     .rules-content b { color: #475569 !important; font-weight: 700; }
     .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
     
-    /* 修正 st.code */
     .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -350,11 +353,14 @@ else:
                             is_ok = False
                             error_message = None
                             
+                            # 1. 第一次報名：必須是晴女 (且不能是加油團)
                             if current_count == 0:
                                 if not im:
                                     error_message = "❌ 身份驗證失敗！第一次報名必須是「⭐晴女」團員本人。朋友不能單獨報名。"
                                 else:
                                     is_ok = True
+                            
+                            # 2. 加報朋友
                             elif current_count > 0:
                                 if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif ev: error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用。"
@@ -472,7 +478,6 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
-                                # 朋友不顯示編輯按鈕
                                 is_friend = "(友" in p['name']
                                 if not is_friend:
                                     with cols[b_idx]:
