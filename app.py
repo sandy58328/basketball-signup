@@ -1,38 +1,57 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import json
-import os
 import time
 import uuid
 from datetime import datetime, date, timedelta
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # ==========================================
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-FILE_PATH = 'basketball_data.json'
+# ⚠️ 請確保妳的 Google 試算表名稱跟下面這個一模一樣
+SHEET_NAME = "basketball_db" 
 MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料處理
+# 1. 資料庫連線 (Google Sheets)
 # ==========================================
+def get_db_connection():
+    # 設定權限範圍
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    
+    # 從 Streamlit Secrets 讀取鑰匙 (剛剛貼在後台的那些)
+    try:
+        creds_dict = st.secrets["gcp_service_account"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        # 開啟試算表 (讀取第一張工作表)
+        sheet = client.open(SHEET_NAME).sheet1 
+        return sheet
+    except Exception as e:
+        st.error(f"❌ 資料庫連線失敗：{e}")
+        st.stop()
+
 def load_data():
-    default_data = {"sessions": {}, "hidden": []}
-    if os.path.exists(FILE_PATH):
-        try:
-            with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if "sessions" not in data: data["sessions"] = {}
-                if "hidden" not in data: data["hidden"] = []
-                return data
-        except:
-            return default_data
-    return default_data
+    sheet = get_db_connection()
+    try:
+        # 我們把所有資料存在 A1 這一格，把它當成倉庫
+        data_str = sheet.acell('A1').value
+        if not data_str:
+            return {"sessions": {}, "hidden": []}
+        return json.loads(data_str)
+    except:
+        return {"sessions": {}, "hidden": []}
 
 def save_data(data):
-    with open(FILE_PATH, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    sheet = get_db_connection()
+    try:
+        # 把資料打包成字串，寫回 A1
+        sheet.update_acell('A1', json.dumps(data, ensure_ascii=False))
+    except Exception as e:
+        st.error(f"❌ 資料儲存失敗：{e}")
 
 if 'data' not in st.session_state:
     st.session_state.data = load_data()
@@ -40,44 +59,66 @@ if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V3.51 真・最終完美版
+# 2. UI 極簡禪意風格 (CSS) - V4.0 雲端永存版
 # ==========================================
-# [V3.51 Fix] 標題與圖示修正回歸
+# 保留 V3.58 的所有視覺修復與強制設定
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
-    html, body, [class*="css"] { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
+    /* 強制全站亮色模式 & 字體顏色 */
+    [data-testid="stAppViewContainer"] {
+        background-color: #f8fafc !important;
+        color: #334155 !important;
+    }
+    
+    html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown { 
+        font-family: 'Noto Sans TC', sans-serif; 
+        color: #334155 !important;
+    }
     
     /* 頂部留白 */
     .block-container { 
-        padding-top: 3.5rem !important; 
+        padding-top: 4rem !important; 
         padding-bottom: 5rem !important; 
     }
     
-    /* 核彈級隱藏系統標記 */
-    header {visibility: hidden !important;}
-    #MainMenu {display: none !important;}
-    footer {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
+    /* 隱藏系統雜訊 */
+    header {background: transparent !important;}
     [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stStatusWidget"] {display: none !important;}
+    footer {display: none !important;}
+    #MainMenu {display: none !important;}
     .stDeployButton {display: none !important;}
+
+    /* 左上角側邊欄按鈕(>)強制顯示 */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        color: #334155 !important;
+        background-color: white !important;
+        border-radius: 50%;
+        padding: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        z-index: 999999 !important;
+    }
     
-    /* Header */
+    /* Header Box */
     .header-box {
         background: white;
         padding: 1.5rem 1rem; border-radius: 20px; 
         text-align: center; margin-bottom: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        border: 1px solid #f1f5f9;
     }
-    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b; letter-spacing: 1px; margin-bottom: 5px; }
-    .header-sub { font-size: 0.9rem; color: #64748b; font-weight: 500; }
+    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
+    .header-sub { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
     .info-pill {
         background: #f1f5f9; padding: 4px 14px;
-        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569;
+        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569 !important;
         display: inline-block; margin-top: 10px;
     }
 
@@ -85,10 +126,10 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
     .stTabs [data-baseweb="tab"] {
         height: 38px; background-color: transparent; border-radius: 20px;
-        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b; font-weight: 500;
+        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b !important; font-weight: 500;
     }
     .stTabs [aria-selected="true"] { 
-        background-color: white; color: #3b82f6; border: none; 
+        background-color: white; color: #3b82f6 !important; border: none; 
         box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
     }
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
@@ -110,11 +151,11 @@ st.markdown("""
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
-    .list-index { color: #cbd5e1; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
-    .list-index-flower { color: #f472b6; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    .list-index { color: #cbd5e1 !important; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
+    .list-index-flower { color: #f472b6 !important; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
     .list-name { 
-        color: #334155; 
+        color: #334155 !important; 
         font-weight: 700; 
         font-size: 1.15rem; 
         letter-spacing: 0.5px;
@@ -123,10 +164,10 @@ st.markdown("""
     }
     
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
-    .badge-sunny { background: #fffbeb; color: #d97706; }
-    .badge-ball { background: #fff7ed; color: #c2410c; }
-    .badge-court { background: #eff6ff; color: #1d4ed8; }
-    .badge-visit { background: #fdf2f8; color: #db2777; border: 1px solid #fce7f3; }
+    .badge-sunny { background: #fffbeb; color: #d97706 !important; }
+    .badge-ball { background: #fff7ed; color: #c2410c !important; }
+    .badge-court { background: #eff6ff; color: #1d4ed8 !important; }
+    .badge-visit { background: #fdf2f8; color: #db2777 !important; border: 1px solid #fce7f3; }
 
     /* 按鈕樣式 */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
@@ -156,24 +197,25 @@ st.markdown("""
     /* Progress Bar */
     .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
-    .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
+    .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b !important; margin-bottom: 2px; font-weight: 600; }
     
-    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
+    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; color: #334155 !important; }
     
     /* 規則區塊 */
     .rules-box {
         background-color: white; border-radius: 16px; padding: 20px;
         border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px;
+        color: #475569 !important;
     }
     .rules-header {
-        font-size: 1rem; font-weight: 800; color: #334155; margin-bottom: 15px;
+        font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 15px;
         border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; letter-spacing: 1px;
     }
     .rules-row { display: flex; align-items: flex-start; margin-bottom: 12px; }
     .rules-icon { font-size: 1.1rem; margin-right: 12px; line-height: 1.4; }
-    .rules-content { font-size: 0.9rem; color: #64748b; line-height: 1.5; }
-    .rules-content b { color: #475569; font-weight: 700; }
-    .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8; text-align: right; font-weight: 500; }
+    .rules-content { font-size: 0.9rem; color: #64748b !important; line-height: 1.5; }
+    .rules-content b { color: #475569 !important; font-weight: 700; }
+    .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
     
     .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
@@ -191,20 +233,31 @@ with st.sidebar:
         st.success("🔓 已解鎖")
         new_date = st.date_input("新增日期", min_value=date.today())
         if st.button("➕ 新增場次"):
-            if (d:=str(new_date)) not in st.session_state.data["sessions"]:
-                st.session_state.data["sessions"][d] = []
-                save_data(st.session_state.data); st.rerun()
+            # 讀取現有資料
+            current_data = load_data() 
+            if (d:=str(new_date)) not in current_data["sessions"]:
+                current_data["sessions"][d] = []
+                save_data(current_data)
+                st.session_state.data = current_data # 更新 Session State
+                st.rerun()
         st.markdown("---")
+        
+        # 重新讀取資料以顯示在選單
+        st.session_state.data = load_data()
         dates = sorted(st.session_state.data["sessions"].keys())
+        
         if dates:
             hidden = st.multiselect("隱藏場次", dates, default=[d for d in st.session_state.data["hidden"] if d in dates])
             if set(hidden) != set(st.session_state.data["hidden"]):
-                st.session_state.data["hidden"] = hidden; save_data(st.session_state.data); st.rerun()
+                st.session_state.data["hidden"] = hidden
+                save_data(st.session_state.data)
+                st.rerun()
             st.markdown("---")
             if st.button("🗑️ 刪除選定日期"):
                del_d = st.selectbox("選擇日期", dates)
                del st.session_state.data["sessions"][del_d]
-               save_data(st.session_state.data); st.rerun()
+               save_data(st.session_state.data)
+               st.rerun()
 
 st.markdown("""
     <div class="header-box">
@@ -217,6 +270,9 @@ st.markdown("""
 # ==========================================
 # 4. 主畫面邏輯
 # ==========================================
+# 每次渲染前都重新從 Google Sheet 讀取一次最新資料，確保多人同時操作不會衝突
+st.session_state.data = load_data()
+
 all_dates = sorted(st.session_state.data["sessions"].keys())
 hidden = st.session_state.data.get("hidden", [])
 dates = all_dates if is_admin else [d for d in all_dates if d not in hidden]
@@ -264,41 +320,59 @@ else:
             
             # === Functions ===
             def update(pid, d, n, im, bb, oc, iv):
-                t = next((p for p in st.session_state.data["sessions"][d] if p['id']==pid), None)
+                # 重新讀取，避免覆蓋別人的資料
+                current_data = load_data()
+                t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
                 if t: 
                     new_count = 0 if iv else 1
                     t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
-                    save_data(st.session_state.data)
+                    save_data(current_data)
                     st.session_state.edit_target=None
                     st.toast("✅ 資料已更新")
                     time.sleep(0.5)
                     st.rerun()
             
             def delete(pid, d):
-                target = next((p for p in st.session_state.data["sessions"][d] if p['id'] == pid), None)
+                current_data = load_data()
+                target = next((p for p in current_data["sessions"][d] if p['id'] == pid), None)
                 if target:
                     target_name = target['name']
                     if "(友" in target_name:
-                        st.session_state.data["sessions"][d] = [p for p in st.session_state.data["sessions"][d] if p['id'] != pid]
+                        current_data["sessions"][d] = [p for p in current_data["sessions"][d] if p['id'] != pid]
                     else:
-                        st.session_state.data["sessions"][d] = [
-                            p for p in st.session_state.data["sessions"][d] 
+                        current_data["sessions"][d] = [
+                            p for p in current_data["sessions"][d] 
                             if p['id'] != pid and not p['name'].startswith(f"{target_name} (友")
                         ]
                     if st.session_state.edit_target == pid: st.session_state.edit_target = None
-                    save_data(st.session_state.data); st.toast("🗑️ 已刪除"); time.sleep(0.5); st.rerun()
+                    save_data(current_data)
+                    st.toast("🗑️ 已刪除")
+                    time.sleep(0.5)
+                    st.rerun()
             
             def promote(wid, d):
-                all_p = st.session_state.data["sessions"][d]
-                w = next((p for p in all_p if p['id']==wid), None)
-                tg = next((p for p in reversed(main) if not p.get('isMember') and next((x for x in all_p if x['id']==p['id']), None)), None) 
-                tg_ref = next((p for p in all_p if p['id']==tg['id']), None) if tg else None
-
-                if w and tg_ref:
-                   cutoff = main[-1]['timestamp']
+                current_data = load_data()
+                # 這裡需要重新計算 main/wait，因為資料可能變了
+                _players = sorted(current_data["sessions"][d], key=lambda x: x.get('timestamp', 0))
+                _main, _ = [], []
+                _c = 0
+                for _p in _players:
+                    if _c + _p.get('count', 1) <= MAX_CAPACITY: _main.append(_p); _c += _p.get('count', 1)
+                
+                w = next((p for p in current_data["sessions"][d] if p['id']==wid), None)
+                # 尋找最後一個非會員的正選
+                tg = next((p for p in reversed(_main) if not p.get('isMember') and next((x for x in current_data["sessions"][d] if x['id']==p['id']), None)), None) 
+                
+                if w and tg:
+                   tg_ref = next((p for p in current_data["sessions"][d] if p['id']==tg['id']), None)
+                   cutoff = _main[-1]['timestamp']
                    w['timestamp'] = tg_ref['timestamp'] - 1.0
                    tg_ref['timestamp'] = cutoff + 1.0
-                   save_data(st.session_state.data); st.balloons(); st.toast("🎉 遞補成功！"); time.sleep(1); st.rerun()
+                   save_data(current_data)
+                   st.balloons()
+                   st.toast("🎉 遞補成功！")
+                   time.sleep(1)
+                   st.rerun()
                 else: st.error("無可遞補對象")
 
             # === 報名表單 ===
@@ -318,7 +392,11 @@ else:
                     
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
                         if name:
-                            related_entries = [p for p in players if p['name'] == name or p['name'].startswith(f"{name} (友")]
+                            # 重新讀取一次資料，確保人數計算正確
+                            latest_data = load_data()
+                            latest_players = latest_data["sessions"].get(date_key, [])
+                            
+                            related_entries = [p for p in latest_players if p['name'] == name or p['name'].startswith(f"{name} (友")]
                             current_count = len(related_entries)
                             is_ok = False
                             error_message = None
@@ -345,7 +423,7 @@ else:
                                         p_im, p_bb, p_oc = im, bb, oc 
                                         p_count = 0 if ev else 1
                                     else:
-                                        db_friend_count = len([p for p in players if p['name'].startswith(f"{name} (友")])
+                                        db_friend_count = len([p for p in latest_players if p['name'].startswith(f"{name} (友")])
                                         current_loop_friend_count = len([n for n in new_entries_list if n['name'].startswith(f"{name} (友")])
                                         friend_seq = db_friend_count + current_loop_friend_count + 1
                                         final_name = f"{name} (友{friend_seq})"
@@ -353,7 +431,14 @@ else:
                                         p_count = 1 
                                     
                                     new_entries_list.append({"id": str(uuid.uuid4()),"name": final_name,"count": p_count,"isMember": p_im,"bringBall": p_bb,"occupyCourt": p_oc,"timestamp": ts + 0.1 + (k * 0.01)})
-                                st.session_state.data["sessions"][date_key].extend(new_entries_list); save_data(st.session_state.data); st.balloons(); st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀"); time.sleep(1.5); st.rerun()
+                                
+                                # 寫入資料庫
+                                latest_data["sessions"][date_key].extend(new_entries_list)
+                                save_data(latest_data)
+                                st.balloons()
+                                st.toast(f"🎉 歡迎 {name} 加入！", icon="🏀")
+                                time.sleep(1.5)
+                                st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
                 st.markdown("""
@@ -410,9 +495,9 @@ else:
                                 else:
                                     em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
                                     
-                                eb = ec2.checkbox("🏀帶球", p.get('bringBall'))
-                                ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'))
-                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0)
+                                eb = ec2.checkbox("🏀帶球", p.get('bringBall'), disabled=is_friend)
+                                ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'), disabled=is_friend)
+                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0, disabled=is_friend)
                                 b1, b2 = st.columns(2)
                                 if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
                                 if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
@@ -445,10 +530,13 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
-                                with cols[b_idx]:
-                                    st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
-                                    if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
-                                    st.markdown('</div>', unsafe_allow_html=True)
+                                # 朋友不顯示編輯按鈕，只顯示刪除
+                                is_friend = "(友" in p['name']
+                                if not is_friend:
+                                    with cols[b_idx]:
+                                        st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
+                                        if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
+                                        st.markdown('</div>', unsafe_allow_html=True)
                             if b_idx+1 < len(cols):
                                 with cols[b_idx+1]:
                                     st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
