@@ -15,35 +15,27 @@ MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線 (Google Sheets) - V4.1 節能版
+# 1. 資料庫連線 (Google Sheets)
 # ==========================================
-# ★★★ 這裡加了快取指令，只會連線一次，不會一直發生 429 錯誤 ★★★
 @st.cache_resource
 def get_db_connection():
-    # 設定權限範圍
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    
-    # 從 Streamlit Secrets 讀取鑰匙
     try:
         creds_dict = st.secrets["gcp_service_account"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
-        # 開啟試算表
         sheet = client.open(SHEET_NAME).sheet1 
         return sheet
     except Exception as e:
-        st.error(f"❌ 資料庫連線失敗，請檢查 Secrets 設定：{e}")
+        st.error(f"❌ 資料庫連線失敗：{e}")
         return None
 
 def load_data():
     sheet = get_db_connection()
     if not sheet: return {"sessions": {}, "hidden": []}
-    
     try:
-        # 讀取 A1
         data_str = sheet.acell('A1').value
-        if not data_str:
-            return {"sessions": {}, "hidden": []}
+        if not data_str: return {"sessions": {}, "hidden": []}
         return json.loads(data_str)
     except:
         return {"sessions": {}, "hidden": []}
@@ -51,103 +43,54 @@ def load_data():
 def save_data(data):
     sheet = get_db_connection()
     if not sheet: return
-    
     try:
-        # 寫入 A1
         sheet.update_acell('A1', json.dumps(data, ensure_ascii=False))
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
-# 初始化
 if 'data' not in st.session_state:
     st.session_state.data = load_data()
 if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS)
+# 2. UI 設定 (CSS)
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
-    
-    /* 強制亮色模式 */
     [data-testid="stAppViewContainer"] { background-color: #f8fafc !important; color: #334155 !important; }
-    html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown { 
-        font-family: 'Noto Sans TC', sans-serif; color: #334155 !important;
-    }
-    
-    /* 頂部與系統列 */
+    html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown { font-family: 'Noto Sans TC', sans-serif; color: #334155 !important; }
     .block-container { padding-top: 4rem !important; padding-bottom: 5rem !important; }
     header {background: transparent !important;}
     [data-testid="stDecoration"], [data-testid="stToolbar"], [data-testid="stStatusWidget"], footer, #MainMenu, .stDeployButton {display: none !important;}
-
-    /* 側邊欄按鈕 */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important; visibility: visible !important;
-        color: #334155 !important; background-color: white !important;
-        border-radius: 50%; padding: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        z-index: 999999 !important;
-    }
-    
-    /* Header Box */
-    .header-box {
-        background: white; padding: 1.5rem 1rem; border-radius: 20px; 
-        text-align: center; margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;
-    }
+    [data-testid="stSidebarCollapsedControl"] { display: block !important; visibility: visible !important; color: #334155 !important; background-color: white !important; border-radius: 50%; padding: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 999999 !important; }
+    .header-box { background: white; padding: 1.5rem 1rem; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; }
     .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
-    .info-pill {
-        background: #f1f5f9; padding: 4px 14px;
-        border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569 !important;
-        display: inline-block; margin-top: 10px;
-    }
-
-    /* Tabs */
+    .info-pill { background: #f1f5f9; padding: 4px 14px; border-radius: 30px; font-size: 0.8rem; font-weight: 600; color: #475569 !important; display: inline-block; margin-top: 10px; }
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 10px; }
-    .stTabs [data-baseweb="tab"] {
-        height: 38px; background-color: transparent; border-radius: 20px;
-        padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b !important; font-weight: 500;
-    }
-    .stTabs [aria-selected="true"] { 
-        background-color: white; color: #3b82f6 !important; border: none; 
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700;
-    }
+    .stTabs [data-baseweb="tab"] { height: 38px; background-color: transparent; border-radius: 20px; padding: 0 16px; font-size: 0.9rem; border: 1px solid transparent; color: #64748b !important; font-weight: 500; }
+    .stTabs [aria-selected="true"] { background-color: white; color: #3b82f6 !important; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-weight: 700; }
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
-
-    /* 列表卡片 */
-    .player-row {
-        background: white; border: 1px solid #f1f5f9; border-radius: 12px;
-        padding: 8px 10px; margin-bottom: 8px; 
-        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-        transition: transform 0.1s; display: flex; align-items: center;
-        width: 100%; min-height: 40px;
-    }
+    .player-row { background: white; border: 1px solid #f1f5f9; border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: transform 0.1s; display: flex; align-items: center; width: 100%; min-height: 40px; }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-
     .list-index { color: #cbd5e1 !important; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     .list-index-flower { color: #f472b6 !important; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
-    
     .list-name { color: #334155 !important; font-weight: 700; font-size: 1.15rem; letter-spacing: 0.5px; flex-grow: 1; line-height: 1.2; }
-    
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
     .badge-sunny { background: #fffbeb; color: #d97706 !important; }
     .badge-ball { background: #fff7ed; color: #c2410c !important; }
     .badge-court { background: #eff6ff; color: #1d4ed8 !important; }
     .badge-visit { background: #fdf2f8; color: #db2777 !important; border: 1px solid #fce7f3; }
-
-    /* 按鈕 */
     .list-btn-col button { border: none !important; background: transparent !important; padding: 0px !important; color: #cbd5e1 !important; font-size: 14px !important; line-height: 1 !important; height: 32px !important; width: 32px !important; display: flex; justify-content: center; align-items: center; margin: 0 !important; }
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 6px; }
     .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 12px !important; }
     .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 6px; }
     .list-btn-up button { padding: 0px 8px !important; height: 26px !important; font-size: 0.75rem !important; border-radius: 6px !important; background: #e0f2fe !important; color: #0284c7 !important; font-weight: 600 !important; width: auto !important; }
-
-    /* 其他元件 */
     .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
     .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b !important; margin-bottom: 2px; font-weight: 600; }
@@ -198,6 +141,63 @@ with st.sidebar:
                del st.session_state.data["sessions"][del_d]
                save_data(st.session_state.data)
                st.rerun()
+        
+        # [V4.2 Feature] 出席統計
+        st.markdown("---")
+        show_stats = st.checkbox("📊 出席統計 (踢人神器)")
+        if show_stats:
+            st.info("計算所有歷史資料中...")
+            try:
+                # 1. 整理所有人的最後出席日
+                last_seen = {}
+                all_sessions = st.session_state.data["sessions"]
+                
+                for d_str, p_list in all_sessions.items():
+                    # 轉換日期物件
+                    try:
+                        d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
+                    except: continue # 跳過格式錯誤的日期
+                    
+                    # 只計算過去或今天的場次 (未來的場次不算已出席)
+                    if d_obj <= date.today():
+                        for p in p_list:
+                            # 排除含有 "(友" 的名字，只看本尊
+                            if "(友" not in p['name']:
+                                name = p['name']
+                                if name not in last_seen or d_obj > last_seen[name]:
+                                    last_seen[name] = d_obj
+                
+                # 2. 計算天數並分類
+                report_data = []
+                today = date.today()
+                
+                for name, last_date in last_seen.items():
+                    days_diff = (today - last_date).days
+                    if days_diff >= 60:
+                        status = "🔴 踢出 (>60天)"
+                    elif days_diff >= 30:
+                        status = "🟡 觀察 (>30天)"
+                    else:
+                        status = "🟢 活躍"
+                    
+                    report_data.append({
+                        "姓名": name,
+                        "最後出席": str(last_date),
+                        "未出席天數": days_diff,
+                        "狀態": status
+                    })
+                
+                # 3. 排序 (未出席天數由多到少)
+                report_data.sort(key=lambda x: x["未出席天數"], reverse=True)
+                
+                # 4. 顯示表格
+                if report_data:
+                    st.dataframe(report_data, hide_index=True)
+                else:
+                    st.warning("目前沒有足夠的歷史資料")
+                    
+            except Exception as e:
+                st.error(f"統計失敗: {e}")
 
 st.markdown("""
     <div class="header-box">
@@ -210,7 +210,7 @@ st.markdown("""
 # ==========================================
 # 4. 主畫面邏輯
 # ==========================================
-st.session_state.data = load_data() # 每次都讀取最新資料
+st.session_state.data = load_data() 
 
 all_dates = sorted(st.session_state.data["sessions"].keys())
 hidden = st.session_state.data.get("hidden", [])
@@ -437,6 +437,7 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
+                                # 朋友不顯示編輯按鈕，只顯示刪除
                                 is_friend = "(友" in p['name']
                                 if not is_friend:
                                     with cols[b_idx]:
