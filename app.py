@@ -10,34 +10,37 @@ from oauth2client.service_account import ServiceAccountCredentials
 # 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
-# ⚠️ 請確保妳的 Google 試算表名稱跟下面這個一模一樣
 SHEET_NAME = "basketball_db" 
 MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線 (Google Sheets)
+# 1. 資料庫連線 (Google Sheets) - V4.1 節能版
 # ==========================================
+# ★★★ 這裡加了快取指令，只會連線一次，不會一直發生 429 錯誤 ★★★
+@st.cache_resource
 def get_db_connection():
     # 設定權限範圍
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     
-    # 從 Streamlit Secrets 讀取鑰匙 (剛剛貼在後台的那些)
+    # 從 Streamlit Secrets 讀取鑰匙
     try:
         creds_dict = st.secrets["gcp_service_account"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
-        # 開啟試算表 (讀取第一張工作表)
+        # 開啟試算表
         sheet = client.open(SHEET_NAME).sheet1 
         return sheet
     except Exception as e:
-        st.error(f"❌ 資料庫連線失敗：{e}")
-        st.stop()
+        st.error(f"❌ 資料庫連線失敗，請檢查 Secrets 設定：{e}")
+        return None
 
 def load_data():
     sheet = get_db_connection()
+    if not sheet: return {"sessions": {}, "hidden": []}
+    
     try:
-        # 我們把所有資料存在 A1 這一格，把它當成倉庫
+        # 讀取 A1
         data_str = sheet.acell('A1').value
         if not data_str:
             return {"sessions": {}, "hidden": []}
@@ -47,72 +50,53 @@ def load_data():
 
 def save_data(data):
     sheet = get_db_connection()
+    if not sheet: return
+    
     try:
-        # 把資料打包成字串，寫回 A1
+        # 寫入 A1
         sheet.update_acell('A1', json.dumps(data, ensure_ascii=False))
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
+# 初始化
 if 'data' not in st.session_state:
     st.session_state.data = load_data()
 if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
 
 # ==========================================
-# 2. UI 極簡禪意風格 (CSS) - V4.0 雲端永存版
+# 2. UI 極簡禪意風格 (CSS)
 # ==========================================
-# 保留 V3.58 的所有視覺修復與強制設定
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
-    /* 強制全站亮色模式 & 字體顏色 */
-    [data-testid="stAppViewContainer"] {
-        background-color: #f8fafc !important;
-        color: #334155 !important;
-    }
-    
+    /* 強制亮色模式 */
+    [data-testid="stAppViewContainer"] { background-color: #f8fafc !important; color: #334155 !important; }
     html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown { 
-        font-family: 'Noto Sans TC', sans-serif; 
-        color: #334155 !important;
+        font-family: 'Noto Sans TC', sans-serif; color: #334155 !important;
     }
     
-    /* 頂部留白 */
-    .block-container { 
-        padding-top: 4rem !important; 
-        padding-bottom: 5rem !important; 
-    }
-    
-    /* 隱藏系統雜訊 */
+    /* 頂部與系統列 */
+    .block-container { padding-top: 4rem !important; padding-bottom: 5rem !important; }
     header {background: transparent !important;}
-    [data-testid="stDecoration"] {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
-    footer {display: none !important;}
-    #MainMenu {display: none !important;}
-    .stDeployButton {display: none !important;}
+    [data-testid="stDecoration"], [data-testid="stToolbar"], [data-testid="stStatusWidget"], footer, #MainMenu, .stDeployButton {display: none !important;}
 
-    /* 左上角側邊欄按鈕(>)強制顯示 */
+    /* 側邊欄按鈕 */
     [data-testid="stSidebarCollapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
-        color: #334155 !important;
-        background-color: white !important;
-        border-radius: 50%;
-        padding: 4px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        display: block !important; visibility: visible !important;
+        color: #334155 !important; background-color: white !important;
+        border-radius: 50%; padding: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         z-index: 999999 !important;
     }
     
     /* Header Box */
     .header-box {
-        background: white;
-        padding: 1.5rem 1rem; border-radius: 20px; 
+        background: white; padding: 1.5rem 1rem; border-radius: 20px; 
         text-align: center; margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        border: 1px solid #f1f5f9;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;
     }
     .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
@@ -135,33 +119,20 @@ st.markdown("""
     div[data-baseweb="tab-highlight"] { display: none !important; height: 0 !important; }
     div[data-baseweb="tab-border"] { display: none !important; }
 
-    /* 列表卡片樣式 */
+    /* 列表卡片 */
     .player-row {
-        background: white;
-        border: 1px solid #f1f5f9;
-        border-radius: 12px;
-        padding: 8px 10px;
-        margin-bottom: 8px; 
+        background: white; border: 1px solid #f1f5f9; border-radius: 12px;
+        padding: 8px 10px; margin-bottom: 8px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-        transition: transform 0.1s;
-        display: flex; 
-        align-items: center;
-        width: 100%;
-        min-height: 40px;
+        transition: transform 0.1s; display: flex; align-items: center;
+        width: 100%; min-height: 40px;
     }
     .player-row:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
     .list-index { color: #cbd5e1 !important; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right;}
     .list-index-flower { color: #f472b6 !important; font-weight: 700; font-size: 1rem; margin-right: 12px; min-width: 20px; text-align: right;}
     
-    .list-name { 
-        color: #334155 !important; 
-        font-weight: 700; 
-        font-size: 1.15rem; 
-        letter-spacing: 0.5px;
-        flex-grow: 1;
-        line-height: 1.2;
-    }
+    .list-name { color: #334155 !important; font-weight: 700; font-size: 1.15rem; letter-spacing: 0.5px; flex-grow: 1; line-height: 1.2; }
     
     .badge { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; transform: translateY(-1px);}
     .badge-sunny { background: #fffbeb; color: #d97706 !important; }
@@ -169,54 +140,25 @@ st.markdown("""
     .badge-court { background: #eff6ff; color: #1d4ed8 !important; }
     .badge-visit { background: #fdf2f8; color: #db2777 !important; border: 1px solid #fce7f3; }
 
-    /* 按鈕樣式 */
-    [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0rem !important; }
-    [data-testid="column"] { padding: 0px 2px !important; } 
-    
-    .list-btn-col button {
-        border: none !important; 
-        background: transparent !important;
-        padding: 0px !important;
-        color: #cbd5e1 !important; 
-        font-size: 14px !important;
-        line-height: 1 !important;
-        height: 32px !important;
-        width: 32px !important;
-        display: flex; justify-content: center; align-items: center;
-        margin: 0 !important;
-    }
+    /* 按鈕 */
+    .list-btn-col button { border: none !important; background: transparent !important; padding: 0px !important; color: #cbd5e1 !important; font-size: 14px !important; line-height: 1 !important; height: 32px !important; width: 32px !important; display: flex; justify-content: center; align-items: center; margin: 0 !important; }
     .list-btn-e button:hover { color: #3b82f6 !important; background: #eff6ff !important; border-radius: 6px; }
     .list-btn-d button { color: unset !important; opacity: 0.7; font-size: 12px !important; }
     .list-btn-d button:hover { opacity: 1; background: #fef2f2 !important; border-radius: 6px; }
-    .list-btn-up button { 
-        padding: 0px 8px !important; height: 26px !important; font-size: 0.75rem !important; 
-        border-radius: 6px !important; background: #e0f2fe !important; color: #0284c7 !important;
-        font-weight: 600 !important; width: auto !important;
-    }
+    .list-btn-up button { padding: 0px 8px !important; height: 26px !important; font-size: 0.75rem !important; border-radius: 6px !important; background: #e0f2fe !important; color: #0284c7 !important; font-weight: 600 !important; width: auto !important; }
 
-    /* Progress Bar */
+    /* 其他元件 */
     .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
     .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b !important; margin-bottom: 2px; font-weight: 600; }
-    
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; color: #334155 !important; }
-    
-    /* 規則區塊 */
-    .rules-box {
-        background-color: white; border-radius: 16px; padding: 20px;
-        border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px;
-        color: #475569 !important;
-    }
-    .rules-header {
-        font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 15px;
-        border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; letter-spacing: 1px;
-    }
+    .rules-box { background-color: white; border-radius: 16px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px; color: #475569 !important; }
+    .rules-header { font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; letter-spacing: 1px; }
     .rules-row { display: flex; align-items: flex-start; margin-bottom: 12px; }
     .rules-icon { font-size: 1.1rem; margin-right: 12px; line-height: 1.4; }
     .rules-content { font-size: 0.9rem; color: #64748b !important; line-height: 1.5; }
     .rules-content b { color: #475569 !important; font-weight: 700; }
     .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
-    
     .stCode { font-family: monospace !important; font-size: 0.8rem !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -233,16 +175,14 @@ with st.sidebar:
         st.success("🔓 已解鎖")
         new_date = st.date_input("新增日期", min_value=date.today())
         if st.button("➕ 新增場次"):
-            # 讀取現有資料
             current_data = load_data() 
             if (d:=str(new_date)) not in current_data["sessions"]:
                 current_data["sessions"][d] = []
                 save_data(current_data)
-                st.session_state.data = current_data # 更新 Session State
+                st.session_state.data = current_data
                 st.rerun()
         st.markdown("---")
         
-        # 重新讀取資料以顯示在選單
         st.session_state.data = load_data()
         dates = sorted(st.session_state.data["sessions"].keys())
         
@@ -270,8 +210,7 @@ st.markdown("""
 # ==========================================
 # 4. 主畫面邏輯
 # ==========================================
-# 每次渲染前都重新從 Google Sheet 讀取一次最新資料，確保多人同時操作不會衝突
-st.session_state.data = load_data()
+st.session_state.data = load_data() # 每次都讀取最新資料
 
 all_dates = sorted(st.session_state.data["sessions"].keys())
 hidden = st.session_state.data.get("hidden", [])
@@ -302,7 +241,7 @@ else:
                 else:
                     wait.append(p)
 
-            # === 進度條 ===
+            # 進度條
             pct = min(100, (curr / MAX_CAPACITY) * 100)
             bar_color = "#4ade80" if pct < 50 else "#fbbf24" if pct < 85 else "#f87171"
             
@@ -318,9 +257,8 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            # === Functions ===
+            # Functions
             def update(pid, d, n, im, bb, oc, iv):
-                # 重新讀取，避免覆蓋別人的資料
                 current_data = load_data()
                 t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
                 if t: 
@@ -352,7 +290,6 @@ else:
             
             def promote(wid, d):
                 current_data = load_data()
-                # 這裡需要重新計算 main/wait，因為資料可能變了
                 _players = sorted(current_data["sessions"][d], key=lambda x: x.get('timestamp', 0))
                 _main, _ = [], []
                 _c = 0
@@ -360,7 +297,6 @@ else:
                     if _c + _p.get('count', 1) <= MAX_CAPACITY: _main.append(_p); _c += _p.get('count', 1)
                 
                 w = next((p for p in current_data["sessions"][d] if p['id']==wid), None)
-                # 尋找最後一個非會員的正選
                 tg = next((p for p in reversed(_main) if not p.get('isMember') and next((x for x in current_data["sessions"][d] if x['id']==p['id']), None)), None) 
                 
                 if w and tg:
@@ -375,7 +311,7 @@ else:
                    st.rerun()
                 else: st.error("無可遞補對象")
 
-            # === 報名表單 ===
+            # 報名表單
             with st.expander("📝 點擊報名 / 規則說明", expanded=not is_locked):
                 if is_locked and not is_admin: st.warning("⛔ 已截止")
                 with st.form(f"f_{date_key}", clear_on_submit=True):
@@ -392,20 +328,16 @@ else:
                     
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
                         if name:
-                            # 重新讀取一次資料，確保人數計算正確
                             latest_data = load_data()
                             latest_players = latest_data["sessions"].get(date_key, [])
-                            
                             related_entries = [p for p in latest_players if p['name'] == name or p['name'].startswith(f"{name} (友")]
                             current_count = len(related_entries)
                             is_ok = False
                             error_message = None
                             
                             if current_count == 0:
-                                if not im:
-                                    error_message = "❌ 身份驗證失敗！第一次報名必須是「⭐晴女」團員本人。朋友不能單獨報名。"
-                                else:
-                                    is_ok = True
+                                if not im: error_message = "❌ 身份驗證失敗！第一次報名必須是「⭐晴女」團員本人。朋友不能單獨報名。"
+                                else: is_ok = True
                             elif current_count > 0:
                                 if im: error_message = f"❌ {name} 已有報名資料，加報朋友請勿重複勾選「⭐晴女」。"
                                 elif ev: error_message = "❌ 朋友無法報名「📣最美加油團」，該選項僅限「⭐晴女」本人適用。"
@@ -432,7 +364,6 @@ else:
                                     
                                     new_entries_list.append({"id": str(uuid.uuid4()),"name": final_name,"count": p_count,"isMember": p_im,"bringBall": p_bb,"occupyCourt": p_oc,"timestamp": ts + 0.1 + (k * 0.01)})
                                 
-                                # 寫入資料庫
                                 latest_data["sessions"][date_key].extend(new_entries_list)
                                 save_data(latest_data)
                                 st.balloons()
@@ -444,32 +375,19 @@ else:
                 st.markdown("""
                 <div class="rules-box">
                     <div class="rules-header">📌 報名須知</div>
-                    <div class="rules-row">
-                        <span class="rules-icon">🔴</span>
-                        <div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div>
-                    </div>
-                    <div class="rules-row">
-                        <span class="rules-icon">🟡</span>
-                        <div class="rules-content"><b>📣最美加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div>
-                    </div>
-                    <div class="rules-row">
-                        <span class="rules-icon">🟢</span>
-                        <div class="rules-content"><b>優先與遞補</b>：正選 20 人。候補名單中之 <b>⭐晴女</b>，享有優先遞補「非晴女」之權利。</div>
-                    </div>
-                    <div class="rules-row">
-                        <span class="rules-icon">🔵</span>
-                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00、雨備於當日 17:00 通知。僅能修改勾選項目。</div>
-                    </div>
+                    <div class="rules-row"><span class="rules-icon">🔴</span><div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div></div>
+                    <div class="rules-row"><span class="rules-icon">🟡</span><div class="rules-content"><b>📣最美加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div>
+                    <div class="rules-row"><span class="rules-icon">🟢</span><div class="rules-content"><b>優先與遞補</b>：正選 20 人。候補名單中之 <b>⭐晴女</b>，享有優先遞補「非晴女」之權利。</div></div>
+                    <div class="rules-row"><span class="rules-icon">🔵</span><div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00、雨備於當日 17:00 通知。僅能修改勾選項目。</div></div>
                     <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                 </div>
                 """, unsafe_allow_html=True)
 
-            # === 名單渲染 ===
+            # 名單
             st.subheader("🏀 報名名單")
             def render_list(lst, is_wait=False):
                 if not lst:
-                    if not is_wait:
-                        st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
+                    if not is_wait: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
                     return
 
                 display_counter = 0
@@ -488,13 +406,9 @@ else:
                             with st.form(key=f"e_{p['id']}"):
                                 en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
                                 ec1, ec2, ec3 = st.columns(3)
-                                
                                 is_friend = "(友" in p['name']
-                                if is_friend:
-                                    em = ec1.checkbox("⭐晴女", False, disabled=True)
-                                else:
-                                    em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
-                                    
+                                if is_friend: em = ec1.checkbox("⭐晴女", False, disabled=True)
+                                else: em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
                                 eb = ec2.checkbox("🏀帶球", p.get('bringBall'), disabled=is_friend)
                                 ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'), disabled=is_friend)
                                 ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0, disabled=is_friend)
@@ -510,15 +424,8 @@ else:
 
                         c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
                         cols = st.columns(c_cfg, gap="small")
-                        
                         with cols[0]:
-                            st.markdown(f"""
-                            <div class="player-row">
-                                <span class="{idx_class}">{index_str}</span>
-                                <span class="list-name">{p['name']}</span>
-                                {badges}
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(f"""<div class="player-row"><span class="{idx_class}">{index_str}</span><span class="list-name">{p['name']}</span>{badges}</div>""", unsafe_allow_html=True)
                         
                         b_idx = 1
                         if is_admin and is_wait and p.get('isMember'):
@@ -530,7 +437,6 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
-                                # 朋友不顯示編輯按鈕，只顯示刪除
                                 is_friend = "(友" in p['name']
                                 if not is_friend:
                                     with cols[b_idx]:
@@ -544,7 +450,6 @@ else:
                                     st.markdown('</div>', unsafe_allow_html=True)
 
             render_list(main)
-            
             if wait:
                 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
                 st.subheader(f"⏳ 候補名單")
