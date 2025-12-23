@@ -142,60 +142,35 @@ with st.sidebar:
                save_data(st.session_state.data)
                st.rerun()
         
-        # [V4.2 Feature] 出席統計
+        # [V4.2] 踢人統計功能 (保留)
         st.markdown("---")
         show_stats = st.checkbox("📊 出席統計 (踢人神器)")
         if show_stats:
             st.info("計算所有歷史資料中...")
             try:
-                # 1. 整理所有人的最後出席日
                 last_seen = {}
                 all_sessions = st.session_state.data["sessions"]
-                
                 for d_str, p_list in all_sessions.items():
-                    # 轉換日期物件
                     try:
                         d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
-                    except: continue # 跳過格式錯誤的日期
-                    
-                    # 只計算過去或今天的場次 (未來的場次不算已出席)
+                    except: continue 
                     if d_obj <= date.today():
                         for p in p_list:
-                            # 排除含有 "(友" 的名字，只看本尊
                             if "(友" not in p['name']:
                                 name = p['name']
                                 if name not in last_seen or d_obj > last_seen[name]:
                                     last_seen[name] = d_obj
-                
-                # 2. 計算天數並分類
                 report_data = []
                 today = date.today()
-                
                 for name, last_date in last_seen.items():
                     days_diff = (today - last_date).days
-                    if days_diff >= 60:
-                        status = "🔴 踢出 (>60天)"
-                    elif days_diff >= 30:
-                        status = "🟡 觀察 (>30天)"
-                    else:
-                        status = "🟢 活躍"
-                    
-                    report_data.append({
-                        "姓名": name,
-                        "最後出席": str(last_date),
-                        "未出席天數": days_diff,
-                        "狀態": status
-                    })
-                
-                # 3. 排序 (未出席天數由多到少)
+                    if days_diff >= 60: status = "🔴 踢出 (>60天)"
+                    elif days_diff >= 30: status = "🟡 觀察 (>30天)"
+                    else: status = "🟢 活躍"
+                    report_data.append({"姓名": name,"最後出席": str(last_date),"未出席天數": days_diff,"狀態": status})
                 report_data.sort(key=lambda x: x["未出席天數"], reverse=True)
-                
-                # 4. 顯示表格
-                if report_data:
-                    st.dataframe(report_data, hide_index=True)
-                else:
-                    st.warning("目前沒有足夠的歷史資料")
-                    
+                if report_data: st.dataframe(report_data, hide_index=True)
+                else: st.warning("目前沒有足夠的歷史資料")
             except Exception as e:
                 st.error(f"統計失敗: {e}")
 
@@ -241,12 +216,16 @@ else:
                 else:
                     wait.append(p)
 
+            # [V4.3 新增] 統計數據計算 (只統計正選名單)
+            ball_count = len([p for p in main if p.get('bringBall')])
+            court_count = len([p for p in main if p.get('occupyCourt')])
+
             # 進度條
             pct = min(100, (curr / MAX_CAPACITY) * 100)
             bar_color = "#4ade80" if pct < 50 else "#fbbf24" if pct < 85 else "#f87171"
             
             st.markdown(f"""
-            <div style="margin-bottom: 25px; padding: 0 4px;">
+            <div style="margin-bottom: 5px; padding: 0 4px;">
                 <div class="progress-info">
                     <span style="color:#334155;">正選 ({curr}/{MAX_CAPACITY})</span>
                     <span style="color:#94a3b8; font-weight:400;">候補: {len(wait)}</span>
@@ -254,6 +233,10 @@ else:
                 <div class="progress-container">
                     <div class="progress-bar" style="width: {pct}%; background: {bar_color};"></div>
                 </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;">
+                <span>🏀 帶球：<b style="color:#ea580c;">{ball_count}</b></span>
+                <span>🚩 佔場：<b style="color:#2563eb;">{court_count}</b></span>
             </div>
             """, unsafe_allow_html=True)
             
