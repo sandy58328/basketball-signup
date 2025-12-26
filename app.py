@@ -70,7 +70,24 @@ st.markdown("""
     .block-container { padding-top: 4rem !important; padding-bottom: 5rem !important; }
     header {background: transparent !important;}
     [data-testid="stDecoration"], [data-testid="stToolbar"], [data-testid="stStatusWidget"], footer, #MainMenu, .stDeployButton {display: none !important;}
-    [data-testid="stSidebarCollapsedControl"] { display: block !important; visibility: visible !important; color: #334155 !important; background-color: white !important; border-radius: 50%; padding: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 999999 !important; }
+    
+    /* [V4.6] 強力修正：左上角側邊欄按鈕 */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        position: fixed !important;  /* 強制固定位置 */
+        top: 15px !important;        /* 往下移，避開手機時間 */
+        left: 15px !important;       /* 靠左 */
+        color: #ffffff !important;   /* 白色箭頭 */
+        background-color: #3b82f6 !important; /* 藍色背景，超顯眼 */
+        border-radius: 50%;
+        width: 40px !important;
+        height: 40px !important;
+        padding: 5px !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
+        z-index: 99999999 !important; /* 確保在最上層 */
+    }
+
     .header-box { background: white; padding: 1.5rem 1rem; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; }
     .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
@@ -148,7 +165,7 @@ with st.sidebar:
                save_data(st.session_state.data)
                st.rerun()
         
-        # [V4.5] 管理員也可以幫忙請假/刪除請假
+        # 請假管理 (管理員)
         st.markdown("---")
         with st.expander("🛠️ 請假管理 (管理員)"):
             st.caption("這裡可以查看與刪除大家的假單")
@@ -157,7 +174,6 @@ with st.sidebar:
                 for lname, ldates in leaves_data.items():
                     if ldates:
                         st.markdown(f"**{lname}**: {', '.join(ldates)}")
-                        # 刪除功能
                         del_month = st.selectbox(f"刪除 {lname} 的假", ["請選擇"] + ldates, key=f"adm_del_{lname}")
                         if del_month != "請選擇":
                             if st.button("確認刪除", key=f"btn_del_{lname}"):
@@ -236,7 +252,7 @@ st.markdown("""
 # ==========================================
 st.session_state.data = load_data() 
 
-# [V4.5] 自助請假區塊 (放在最上面)
+# 自助請假區塊
 with st.expander("🏖️ 我要請假 (長假登記)"):
     st.markdown("""
     <div style="font-size:0.9rem; color:#64748b; margin-bottom:10px;">
@@ -254,12 +270,9 @@ with st.expander("🏖️ 我要請假 (長假登記)"):
             if l_name:
                 leave_str = l_month.strftime("%Y-%m")
                 current_data = load_data()
-                
-                # 初始化
                 if "leaves" not in current_data: current_data["leaves"] = {}
                 if l_name not in current_data["leaves"]: current_data["leaves"][l_name] = []
                 
-                # 檢查重複
                 if leave_str not in current_data["leaves"][l_name]:
                     current_data["leaves"][l_name].append(leave_str)
                     save_data(current_data)
@@ -301,7 +314,6 @@ else:
                 else:
                     wait.append(p)
 
-            # 統計與進度
             ball_count = len([p for p in main if p.get('bringBall')])
             court_count = len([p for p in main if p.get('occupyCourt')])
             pct = min(100, (curr / MAX_CAPACITY) * 100)
@@ -448,73 +460,6 @@ else:
                     <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                 </div>
                 """, unsafe_allow_html=True)
-
-            # 名單
-            st.subheader("🏀 報名名單")
-            def render_list(lst, is_wait=False):
-                if not lst:
-                    if not is_wait: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
-                    return
-
-                display_counter = 0
-                for idx, p in enumerate(lst):
-                    if p.get('count', 1) > 0:
-                        display_counter += 1
-                        index_str = f"{display_counter}."
-                        idx_class = "list-index"
-                    else:
-                        index_str = "🌸"
-                        idx_class = "list-index-flower"
-
-                    if st.session_state.edit_target == p['id']:
-                        with st.container():
-                            st.markdown(f"<div class='edit-box'>✏️ 正在編輯：{p['name']}</div>", unsafe_allow_html=True)
-                            with st.form(key=f"e_{p['id']}"):
-                                en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
-                                ec1, ec2, ec3 = st.columns(3)
-                                is_friend = "(友" in p['name']
-                                if is_friend: em = ec1.checkbox("⭐晴女", False, disabled=True)
-                                else: em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
-                                eb = ec2.checkbox("🏀帶球", p.get('bringBall'), disabled=is_friend)
-                                ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'), disabled=is_friend)
-                                ev = st.checkbox("📣 不打球 (最美加油團)", p.get('count') == 0, disabled=is_friend)
-                                b1, b2 = st.columns(2)
-                                if b1.form_submit_button("💾 儲存", type="primary"): update(p['id'], date_key, en, em, eb, ec, ev)
-                                if b2.form_submit_button("取消"): st.session_state.edit_target=None; st.rerun()
-                    else:
-                        badges = ""
-                        if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
-                        if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
-                        if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
-                        if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
-
-                        c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
-                        cols = st.columns(c_cfg, gap="small")
-                        with cols[0]:
-                            st.markdown(f"""<div class="player-row"><span class="{idx_class}">{index_str}</span><span class="list-name">{p['name']}</span>{badges}</div>""", unsafe_allow_html=True)
-                        
-                        b_idx = 1
-                        if is_admin and is_wait and p.get('isMember'):
-                            with cols[b_idx]:
-                                st.markdown('<div class="list-btn-up">', unsafe_allow_html=True)
-                                if st.button("⬆️", key=f"up_{p['id']}"): promote(p['id'], date_key)
-                                st.markdown('</div>', unsafe_allow_html=True)
-                            b_idx += 1
-
-                        if can_edit:
-                            if b_idx < len(cols):
-                                # 朋友不顯示編輯按鈕，只顯示刪除
-                                is_friend = "(友" in p['name']
-                                if not is_friend:
-                                    with cols[b_idx]:
-                                        st.markdown('<div class="list-btn-col list-btn-e">', unsafe_allow_html=True)
-                                        if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target=p['id']; st.rerun()
-                                        st.markdown('</div>', unsafe_allow_html=True)
-                            if b_idx+1 < len(cols):
-                                with cols[b_idx+1]:
-                                    st.markdown('<div class="list-btn-col list-btn-d">', unsafe_allow_html=True)
-                                    if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
-                                    st.markdown('</div>', unsafe_allow_html=True)
 
             render_list(main)
             if wait:
