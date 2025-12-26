@@ -15,7 +15,7 @@ MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線
+# 1. 資料庫連線 (Google Sheets)
 # ==========================================
 @st.cache_resource
 def get_db_connection():
@@ -52,74 +52,13 @@ def save_data(data):
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
-# ==========================================
-# 2. 全域變數與初始化
-# ==========================================
 if 'data' not in st.session_state:
     st.session_state.data = load_data()
 if 'edit_target' not in st.session_state:
     st.session_state.edit_target = None
-if 'is_admin' not in st.session_state:
-    st.session_state.is_admin = False
 
 # ==========================================
-# 3. 功能函數 (移到這裡保證不會出錯)
-# ==========================================
-def update(pid, d, n, im, bb, oc, iv):
-    current_data = load_data()
-    t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
-    if t: 
-        new_count = 0 if iv else 1
-        t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
-        save_data(current_data)
-        st.session_state.edit_target=None
-        st.toast("✅ 資料已更新")
-        time.sleep(0.5)
-        st.rerun()
-
-def delete(pid, d):
-    current_data = load_data()
-    target = next((p for p in current_data["sessions"][d] if p['id'] == pid), None)
-    if target:
-        target_name = target['name']
-        if "(友" in target_name:
-            current_data["sessions"][d] = [p for p in current_data["sessions"][d] if p['id'] != pid]
-        else:
-            current_data["sessions"][d] = [
-                p for p in current_data["sessions"][d] 
-                if p['id'] != pid and not p['name'].startswith(f"{target_name} (友")
-            ]
-        if st.session_state.edit_target == pid: st.session_state.edit_target = None
-        save_data(current_data)
-        st.toast("🗑️ 已刪除")
-        time.sleep(0.5)
-        st.rerun()
-
-def promote(wid, d):
-    current_data = load_data()
-    _players = sorted(current_data["sessions"][d], key=lambda x: x.get('timestamp', 0))
-    _main, _ = [], []
-    _c = 0
-    for _p in _players:
-        if _c + _p.get('count', 1) <= MAX_CAPACITY: _main.append(_p); _c += _p.get('count', 1)
-    
-    w = next((p for p in current_data["sessions"][d] if p['id']==wid), None)
-    tg = next((p for p in reversed(_main) if not p.get('isMember') and next((x for x in current_data["sessions"][d] if x['id']==p['id']), None)), None) 
-    
-    if w and tg:
-       tg_ref = next((p for p in current_data["sessions"][d] if p['id']==tg['id']), None)
-       cutoff = _main[-1]['timestamp']
-       w['timestamp'] = tg_ref['timestamp'] - 1.0
-       tg_ref['timestamp'] = cutoff + 1.0
-       save_data(current_data)
-       st.balloons()
-       st.toast("🎉 遞補成功！")
-       time.sleep(1)
-       st.rerun()
-    else: st.error("無可遞補對象")
-
-# ==========================================
-# 4. UI 設定
+# 2. UI 設定 (CSS)
 # ==========================================
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 
@@ -131,8 +70,7 @@ st.markdown("""
     .block-container { padding-top: 4rem !important; padding-bottom: 5rem !important; }
     header {background: transparent !important;}
     [data-testid="stDecoration"], [data-testid="stToolbar"], [data-testid="stStatusWidget"], footer, #MainMenu, .stDeployButton {display: none !important;}
-    [data-testid="stSidebarCollapsedControl"] { display: none !important; }
-
+    [data-testid="stSidebarCollapsedControl"] { display: block !important; visibility: visible !important; color: #334155 !important; background-color: white !important; border-radius: 50%; padding: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 999999 !important; }
     .header-box { background: white; padding: 1.5rem 1rem; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; }
     .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
     .header-sub { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
@@ -173,8 +111,118 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. 主畫面 Header & 自助請假
+# 3. 側邊欄 & Header
 # ==========================================
+with st.sidebar:
+    st.header("⚙️ 場次管理員")
+    pwd = st.text_input("密碼", type="password")
+    is_admin = (pwd == ADMIN_PASSWORD)
+    
+    if is_admin:
+        st.success("🔓 已解鎖")
+        
+        # 1. 新增場次
+        new_date = st.date_input("新增日期", min_value=date.today())
+        if st.button("➕ 新增場次"):
+            current_data = load_data() 
+            if (d:=str(new_date)) not in current_data["sessions"]:
+                current_data["sessions"][d] = []
+                save_data(current_data)
+                st.session_state.data = current_data
+                st.rerun()
+        st.markdown("---")
+        
+        st.session_state.data = load_data()
+        dates = sorted(st.session_state.data["sessions"].keys())
+        
+        if dates:
+            hidden = st.multiselect("隱藏場次", dates, default=[d for d in st.session_state.data["hidden"] if d in dates])
+            if set(hidden) != set(st.session_state.data["hidden"]):
+                st.session_state.data["hidden"] = hidden
+                save_data(st.session_state.data)
+                st.rerun()
+            st.markdown("---")
+            if st.button("🗑️ 刪除選定日期"):
+               del_d = st.selectbox("選擇日期", dates)
+               del st.session_state.data["sessions"][del_d]
+               save_data(st.session_state.data)
+               st.rerun()
+        
+        # [V4.5] 管理員也可以幫忙請假/刪除請假
+        st.markdown("---")
+        with st.expander("🛠️ 請假管理 (管理員)"):
+            st.caption("這裡可以查看與刪除大家的假單")
+            leaves_data = st.session_state.data.get("leaves", {})
+            if leaves_data:
+                for lname, ldates in leaves_data.items():
+                    if ldates:
+                        st.markdown(f"**{lname}**: {', '.join(ldates)}")
+                        # 刪除功能
+                        del_month = st.selectbox(f"刪除 {lname} 的假", ["請選擇"] + ldates, key=f"adm_del_{lname}")
+                        if del_month != "請選擇":
+                            if st.button("確認刪除", key=f"btn_del_{lname}"):
+                                current_data = load_data()
+                                if lname in current_data["leaves"] and del_month in current_data["leaves"][lname]:
+                                    current_data["leaves"][lname].remove(del_month)
+                                    save_data(current_data)
+                                    st.rerun()
+            else:
+                st.info("目前無人請假")
+
+        # 踢人統計 (含請假過濾)
+        st.markdown("---")
+        show_stats = st.checkbox("📊 出席統計 (含請假狀態)")
+        if show_stats:
+            st.info("計算中...")
+            try:
+                last_seen = {}
+                all_sessions = st.session_state.data["sessions"]
+                leaves_data = st.session_state.data.get("leaves", {})
+                
+                for d_str, p_list in all_sessions.items():
+                    try:
+                        d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
+                    except: continue 
+                    if d_obj <= date.today():
+                        for p in p_list:
+                            if "(友" not in p['name']:
+                                name = p['name']
+                                if name not in last_seen or d_obj > last_seen[name]:
+                                    last_seen[name] = d_obj
+                report_data = []
+                today = date.today()
+                
+                for name, last_date in last_seen.items():
+                    days_diff = (today - last_date).days
+                    status = "🟢 活躍"
+                    
+                    is_on_leave = False
+                    player_leaves = leaves_data.get(name, [])
+                    check_months = [
+                        today.strftime("%Y-%m"), 
+                        (today.replace(day=1) - timedelta(days=1)).strftime("%Y-%m"),
+                        (today.replace(day=1) - timedelta(days=40)).strftime("%Y-%m")
+                    ]
+                    for m in check_months:
+                        if m in player_leaves:
+                            is_on_leave = True
+                            break
+                    
+                    if days_diff >= 60:
+                        if is_on_leave: status = "🏖️ 請假中 (Pass)"
+                        else: status = "🔴 踢出 (>60天)"
+                    elif days_diff >= 30:
+                        if is_on_leave: status = "🏖️ 請假中 (Pass)"
+                        else: status = "🟡 觀察 (>30天)"
+                    
+                    report_data.append({"姓名": name,"最後出席": str(last_date),"未出席": days_diff,"狀態": status})
+                
+                report_data.sort(key=lambda x: x["未出席"], reverse=True)
+                if report_data: st.dataframe(report_data, hide_index=True)
+                else: st.warning("目前沒有足夠的歷史資料")
+            except Exception as e:
+                st.error(f"統計失敗: {e}")
+
 st.markdown("""
     <div class="header-box">
         <div class="header-title">晴女☀️在場邊等妳🌈</div>
@@ -183,9 +231,12 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+# ==========================================
+# 4. 主畫面邏輯
+# ==========================================
 st.session_state.data = load_data() 
 
-# 自助請假區塊
+# [V4.5] 自助請假區塊 (放在最上面)
 with st.expander("🏖️ 我要請假 (長假登記)"):
     st.markdown("""
     <div style="font-size:0.9rem; color:#64748b; margin-bottom:10px;">
@@ -203,9 +254,12 @@ with st.expander("🏖️ 我要請假 (長假登記)"):
             if l_name:
                 leave_str = l_month.strftime("%Y-%m")
                 current_data = load_data()
+                
+                # 初始化
                 if "leaves" not in current_data: current_data["leaves"] = {}
                 if l_name not in current_data["leaves"]: current_data["leaves"][l_name] = []
                 
+                # 檢查重複
                 if leave_str not in current_data["leaves"][l_name]:
                     current_data["leaves"][l_name].append(leave_str)
                     save_data(current_data)
@@ -217,17 +271,15 @@ with st.expander("🏖️ 我要請假 (長假登記)"):
             else:
                 st.error("請輸入姓名")
 
-# ==========================================
-# 6. 場次 Tab & 報名列表
-# ==========================================
+# 下方顯示場次
 all_dates = sorted(st.session_state.data["sessions"].keys())
 hidden = st.session_state.data.get("hidden", [])
-dates = [d for d in all_dates if d not in hidden]
+dates = all_dates if is_admin else [d for d in all_dates if d not in hidden]
 
 if not dates:
     st.info("👋 目前沒有開放報名的場次，請稍後再來！")
 else:
-    tabs = st.tabs([f"{int(d.split('-')[1])}/{int(d.split('-')[2])}" for d in dates])
+    tabs = st.tabs([f"{int(d.split('-')[1])}/{int(d.split('-')[2])}" + ("🔒" if d in hidden else "") for d in dates])
 
     for i, date_key in enumerate(dates):
         with tabs[i]:
@@ -236,9 +288,7 @@ else:
                 deadline = (dt_obj - timedelta(days=1)).replace(hour=12, minute=0, second=0)
                 is_locked = datetime.now() > deadline
             except: is_locked = False
-            
-            # 使用 Session State 的 is_admin 狀態
-            can_edit = st.session_state.is_admin or (not is_locked)
+            can_edit = is_admin or (not is_locked)
 
             players = sorted(st.session_state.data["sessions"][date_key], key=lambda x: x.get('timestamp', 0))
             main, wait = [], []
@@ -251,6 +301,7 @@ else:
                 else:
                     wait.append(p)
 
+            # 統計與進度
             ball_count = len([p for p in main if p.get('bringBall')])
             court_count = len([p for p in main if p.get('occupyCourt')])
             pct = min(100, (curr / MAX_CAPACITY) * 100)
@@ -271,10 +322,64 @@ else:
                 <span>🚩 佔場：<b style="color:#2563eb;">{court_count}</b></span>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Functions
+            def update(pid, d, n, im, bb, oc, iv):
+                current_data = load_data()
+                t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
+                if t: 
+                    new_count = 0 if iv else 1
+                    t.update({'name':n,'isMember':im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
+                    save_data(current_data)
+                    st.session_state.edit_target=None
+                    st.toast("✅ 資料已更新")
+                    time.sleep(0.5)
+                    st.rerun()
+            
+            def delete(pid, d):
+                current_data = load_data()
+                target = next((p for p in current_data["sessions"][d] if p['id'] == pid), None)
+                if target:
+                    target_name = target['name']
+                    if "(友" in target_name:
+                        current_data["sessions"][d] = [p for p in current_data["sessions"][d] if p['id'] != pid]
+                    else:
+                        current_data["sessions"][d] = [
+                            p for p in current_data["sessions"][d] 
+                            if p['id'] != pid and not p['name'].startswith(f"{target_name} (友")
+                        ]
+                    if st.session_state.edit_target == pid: st.session_state.edit_target = None
+                    save_data(current_data)
+                    st.toast("🗑️ 已刪除")
+                    time.sleep(0.5)
+                    st.rerun()
+            
+            def promote(wid, d):
+                current_data = load_data()
+                _players = sorted(current_data["sessions"][d], key=lambda x: x.get('timestamp', 0))
+                _main, _ = [], []
+                _c = 0
+                for _p in _players:
+                    if _c + _p.get('count', 1) <= MAX_CAPACITY: _main.append(_p); _c += _p.get('count', 1)
+                
+                w = next((p for p in current_data["sessions"][d] if p['id']==wid), None)
+                tg = next((p for p in reversed(_main) if not p.get('isMember') and next((x for x in current_data["sessions"][d] if x['id']==p['id']), None)), None) 
+                
+                if w and tg:
+                   tg_ref = next((p for p in current_data["sessions"][d] if p['id']==tg['id']), None)
+                   cutoff = _main[-1]['timestamp']
+                   w['timestamp'] = tg_ref['timestamp'] - 1.0
+                   tg_ref['timestamp'] = cutoff + 1.0
+                   save_data(current_data)
+                   st.balloons()
+                   st.toast("🎉 遞補成功！")
+                   time.sleep(1)
+                   st.rerun()
+                else: st.error("無可遞補對象")
 
             # 報名表單
             with st.expander("📝 點擊報名 / 規則說明", expanded=not is_locked):
-                if is_locked and not st.session_state.is_admin: st.warning("⛔ 已截止")
+                if is_locked and not is_admin: st.warning("⛔ 已截止")
                 with st.form(f"f_{date_key}", clear_on_submit=True):
                     name = st.text_input("球員姓名", disabled=not can_edit, placeholder="輸入您的稱呼...")
                     st.caption("⚠️ 名字請務必與群組內一致，不符者將直接刪除")
@@ -333,12 +438,22 @@ else:
                                 st.rerun()
                         else: st.toast("❌ 請輸入姓名")
 
-                st.markdown("""<div class="rules-box"><div class="rules-header">📌 報名須知</div><div class="rules-row"><span class="rules-icon">🔴</span><div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div></div><div class="rules-row"><span class="rules-icon">🟡</span><div class="rules-content"><b>📣最美加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div><div class="rules-row"><span class="rules-icon">🟢</span><div class="rules-content"><b>優先與遞補</b>：正選 20 人。候補名單中之 <b>⭐晴女</b>，享有優先遞補「非晴女」之權利。</div></div><div class="rules-row"><span class="rules-icon">🔵</span><div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00、雨備於當日 17:00 通知。僅能修改勾選項目。</div></div><div class="rules-footer">有任何問題請找最美管理員們 ❤️</div></div>""", unsafe_allow_html=True)
+                st.markdown("""
+                <div class="rules-box">
+                    <div class="rules-header">📌 報名須知</div>
+                    <div class="rules-row"><span class="rules-icon">🔴</span><div class="rules-content"><b>資格與規範</b>：採實名制 (需與群組名一致)。僅限 <b>⭐晴女</b> 報名，朋友不可單獨報名 (需由團員帶入)。<b>欲事後補報朋友，請用原名再次填寫即可</b> (含自己上限3位)。</div></div>
+                    <div class="rules-row"><span class="rules-icon">🟡</span><div class="rules-content"><b>📣最美加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div>
+                    <div class="rules-row"><span class="rules-icon">🟢</span><div class="rules-content"><b>優先與遞補</b>：正選 20 人。候補名單中之 <b>⭐晴女</b>，享有優先遞補「非晴女」之權利。</div></div>
+                    <div class="rules-row"><span class="rules-icon">🔵</span><div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00、雨備於當日 17:00 通知。僅能修改勾選項目。</div></div>
+                    <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-            # 名單顯示 (定義好函數直接渲染)
-            def render_list_items(lst, is_wait_list=False):
+            # 名單
+            st.subheader("🏀 報名名單")
+            def render_list(lst, is_wait=False):
                 if not lst:
-                    if not is_wait_list: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
+                    if not is_wait: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
                     return
 
                 display_counter = 0
@@ -373,20 +488,13 @@ else:
                         if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
                         if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
 
-                        c_cfg = [7.8, 0.6, 0.6, 1.0] if not (st.session_state.is_admin and is_wait_list) else [6.5, 1.2, 0.6, 0.6, 1.1]
+                        c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
                         cols = st.columns(c_cfg, gap="small")
-                        
                         with cols[0]:
-                            st.markdown(f"""
-                            <div class="player-row">
-                                <span class="{idx_class}">{index_str}</span>
-                                <span class="list-name">{p['name']}</span>
-                                {badges}
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(f"""<div class="player-row"><span class="{idx_class}">{index_str}</span><span class="list-name">{p['name']}</span>{badges}</div>""", unsafe_allow_html=True)
                         
                         b_idx = 1
-                        if st.session_state.is_admin and is_wait_list and p.get('isMember'):
+                        if is_admin and is_wait and p.get('isMember'):
                             with cols[b_idx]:
                                 st.markdown('<div class="list-btn-up">', unsafe_allow_html=True)
                                 if st.button("⬆️", key=f"up_{p['id']}"): promote(p['id'], date_key)
@@ -395,6 +503,7 @@ else:
 
                         if can_edit:
                             if b_idx < len(cols):
+                                # 朋友不顯示編輯按鈕，只顯示刪除
                                 is_friend = "(友" in p['name']
                                 if not is_friend:
                                     with cols[b_idx]:
@@ -407,111 +516,8 @@ else:
                                     if st.button("❌", key=f"bd_{p['id']}"): delete(p['id'], date_key)
                                     st.markdown('</div>', unsafe_allow_html=True)
 
-            st.subheader("🏀 報名名單")
-            render_list_items(main)
-            
+            render_list(main)
             if wait:
                 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
                 st.subheader(f"⏳ 候補名單")
-                render_list_items(wait, is_wait_list=True)
-
-# ==========================================
-# 7. 管理員專區 (置底)
-# ==========================================
-st.markdown("---")
-st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem; margin-top: 20px;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
-
-with st.expander("⚙️ 管理員登入 (Admin Login)", expanded=st.session_state.is_admin):
-    if not st.session_state.is_admin:
-        adm_pwd = st.text_input("請輸入管理員密碼", type="password")
-        if adm_pwd == ADMIN_PASSWORD:
-            st.session_state.is_admin = True
-            st.success("🔓 登入成功！請重新展開此區塊或操作上方功能。")
-            st.rerun()
-    else:
-        st.success("🔓 管理員已登入")
-        if st.button("登出"):
-            st.session_state.is_admin = False
-            st.rerun()
-        
-        # === 管理功能區 ===
-        st.subheader("1. 場次管理")
-        col_new1, col_new2 = st.columns([2,1])
-        new_date = col_new1.date_input("新增日期", min_value=date.today())
-        if col_new2.button("➕ 新增", use_container_width=True):
-            current_data = load_data() 
-            if (d:=str(new_date)) not in current_data["sessions"]:
-                current_data["sessions"][d] = []
-                save_data(current_data)
-                st.rerun()
-        
-        st.divider()
-        st.subheader("2. 刪除/隱藏場次")
-        all_d = sorted(st.session_state.data["sessions"].keys())
-        if all_d:
-            del_d = st.selectbox("選擇要刪除的場次", all_d)
-            if st.button("🗑️ 刪除此場次"):
-                current_data = load_data()
-                if del_d in current_data["sessions"]:
-                    del current_data["sessions"][del_d]
-                    save_data(current_data)
-                    st.rerun()
-            
-            # 隱藏設定
-            hidden = st.multiselect("隱藏場次 (不公開)", all_d, default=[d for d in st.session_state.data["hidden"] if d in all_d])
-            if set(hidden) != set(st.session_state.data["hidden"]):
-                current_data = load_data()
-                current_data["hidden"] = hidden
-                save_data(current_data)
-                st.rerun()
-
-        st.divider()
-        st.subheader("3. 請假管理")
-        leaves_data = st.session_state.data.get("leaves", {})
-        if leaves_data:
-            for lname, ldates in leaves_data.items():
-                if ldates:
-                    st.markdown(f"**{lname}**: {', '.join(ldates)}")
-                    del_month = st.selectbox(f"刪除 {lname} 的假", ["請選擇"] + ldates, key=f"adm_del_{lname}")
-                    if del_month != "請選擇":
-                        if st.button("確認刪除", key=f"btn_del_{lname}"):
-                            current_data = load_data()
-                            if lname in current_data["leaves"] and del_month in current_data["leaves"][lname]:
-                                current_data["leaves"][lname].remove(del_month)
-                                save_data(current_data)
-                                st.rerun()
-        else: st.info("無請假紀錄")
-
-        st.divider()
-        st.subheader("4. 踢人神器 (統計)")
-        if st.button("📊 產生出席報表"):
-            try:
-                last_seen = {}
-                leaves_data = st.session_state.data.get("leaves", {})
-                for d_str, p_list in st.session_state.data["sessions"].items():
-                    try: d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
-                    except: continue 
-                    if d_obj <= date.today():
-                        for p in p_list:
-                            if "(友" not in p['name']:
-                                name = p['name']
-                                if name not in last_seen or d_obj > last_seen[name]: last_seen[name] = d_obj
-                report_data = []
-                today = date.today()
-                for name, last_date in last_seen.items():
-                    days_diff = (today - last_date).days
-                    status = "🟢 活躍"
-                    is_on_leave = False
-                    player_leaves = leaves_data.get(name, [])
-                    check_months = [today.strftime("%Y-%m"), (today.replace(day=1) - timedelta(days=1)).strftime("%Y-%m"), (today.replace(day=1) - timedelta(days=40)).strftime("%Y-%m")]
-                    for m in check_months:
-                        if m in player_leaves: is_on_leave = True; break
-                    
-                    if days_diff >= 60: status = "🏖️ 請假中" if is_on_leave else "🔴 踢出 (>60天)"
-                    elif days_diff >= 30: status = "🏖️ 請假中" if is_on_leave else "🟡 觀察 (>30天)"
-                    report_data.append({"姓名": name,"最後出席": str(last_date),"未出席": days_diff,"狀態": status})
-                
-                report_data.sort(key=lambda x: x["未出席"], reverse=True)
-                if report_data: st.dataframe(report_data, hide_index=True)
-                else: st.warning("資料不足")
-            except: st.error("統計失敗")
+                render_list(wait, is_wait=True)
