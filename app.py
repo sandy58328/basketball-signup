@@ -15,7 +15,7 @@ MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線與資料處理
+# 1. 資料庫連線
 # ==========================================
 @st.cache_resource
 def get_db_connection():
@@ -53,7 +53,7 @@ def save_data(data):
         st.error(f"❌ 資料儲存失敗：{e}")
 
 # ==========================================
-# 2. 功能工具箱
+# 2. 功能工具箱 (穩定順序)
 # ==========================================
 def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
@@ -185,7 +185,7 @@ else:
                     im, bb, oc = c1.checkbox("⭐晴女", key=f"m_{dk}", disabled=not can_e), c2.checkbox("🏀帶球", key=f"b_{dk}", disabled=not can_e), c3.checkbox("🚩佔場", key=f"c_{dk}", disabled=not can_e)
                     ev = st.checkbox("📣 不打球 (加油團)", key=f"v_{dk}", disabled=not can_e)
                     tot = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=not can_e)
-                    if st.form_submit_button("送出報名", disabled=not can_e, type="primary"):
+                    if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
                         if nm:
                             lat = load_data(); cur_p = lat["sessions"].get(dk, [])
                             rel = [x for x in cur_p if x['name'] == nm or x['name'].startswith(f"{nm} (友")]
@@ -210,40 +210,54 @@ else:
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
-with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_admin):
+
+with st.expander("⚙️ 管理員登入 (Admin)", expanded=st.session_state.is_admin):
     if not st.session_state.is_admin:
-        if st.text_input("密碼", type="password") == ADMIN_PASSWORD: st.session_state.is_admin = True; st.rerun()
+        adm_input = st.text_input("密碼", type="password")
+        if st.button("登入管理模式"):
+            if adm_input == ADMIN_PASSWORD:
+                st.session_state.is_admin = True
+                st.rerun()
+            else: st.error("密碼錯誤")
     else:
-        if st.button("登出管理模式"): st.session_state.is_admin = False; st.rerun()
+        if st.button("登出"): st.session_state.is_admin = False; st.rerun()
+        
+        # 1. 場次管理
         st.subheader("1. 場次管理")
-        nd = st.date_input("選擇新增日期")
-        if st.button("新增場次"):
+        nd = st.date_input("新增場次日期", min_value=date.today())
+        if st.button("➕ 新增日期"):
             cur = load_data()
             if str(nd) not in cur["sessions"]: cur["sessions"][str(nd)] = []; save_data(cur); st.rerun()
+        
         all_s = sorted(st.session_state.data["sessions"].keys())
         if all_s:
-            del_s = st.selectbox("刪除場次", all_s)
-            if st.button("確認刪除場次"):
-                cur = load_data(); del cur["sessions"][del_s]; save_data(cur); st.rerun()
-            h_s = st.multiselect("隱藏場次", all_s, default=st.session_state.data.get("hidden", []))
-            if st.button("更新隱藏設定"):
-                cur = load_data(); cur["hidden"] = h_s; save_data(cur); st.rerun()
-        
+            ds = st.selectbox("選擇要刪除的場次", all_s)
+            if st.button("🗑️ 確認刪除此場次"):
+                cur = load_data(); del cur["sessions"][ds]; save_data(cur); st.rerun()
+            hs = st.multiselect("隱藏場次 (不公開)", all_s, default=st.session_state.data.get("hidden", []))
+            if st.button("💾 更新隱藏設定"):
+                cur = load_data(); cur["hidden"] = hs; save_data(cur); st.rerun()
+
+        # 2. 請假管理 (這是妳要找的！)
         st.divider()
         st.subheader("2. 請假管理 (刪除假單)")
         l_data = st.session_state.data.get("leaves", {})
-        has_l = False
+        has_any_leave = False
         for ln, lv in l_data.items():
             if lv:
-                has_l = True
-                st.markdown(f"**{ln}**: {', '.join(lv)}")
-                dm = st.selectbox(f"刪除 {ln} 的假", ["選擇月份"] + lv, key=f"adm_l_{ln}")
-                if dm != "選擇月份" and st.button("確認刪除假單", key=f"btn_l_{ln}"):
-                    cur = load_data(); cur["leaves"][ln].remove(dm); save_data(cur); st.rerun()
-        if not has_l: st.info("目前無人請假")
+                has_any_leave = True
+                st.markdown(f"**👤 {ln}**：{', '.join(lv)}")
+                dm = st.selectbox(f"要刪除 {ln} 哪個月份的假？", ["請選擇"] + lv, key=f"del_l_{ln}")
+                if dm != "請選擇":
+                    if st.button(f"🗑️ 確認刪除 {ln} {dm} 的假", key=f"btn_l_{ln}"):
+                        cur = load_data(); cur["leaves"][ln].remove(dm)
+                        if not cur["leaves"][ln]: del cur["leaves"][ln] # 清空名字
+                        save_data(cur); st.rerun()
+        if not has_any_leave: st.info("目前無人請假，所以沒有假單可以刪除喔！")
 
+        # 3. 出席統計
         st.divider()
-        st.subheader("3. 出席統計")
+        st.subheader("3. 出席統計 (踢人神器)")
         if st.button("📊 產生報表"):
             try:
                 ls, d_m = {}, st.session_state.data
