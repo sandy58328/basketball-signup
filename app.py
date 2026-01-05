@@ -14,7 +14,7 @@ SHEET_NAME = "basketball_db"
 MAX_CAPACITY = 20
 
 # ==========================================
-# 1. 資料庫核心
+# 1. 資料庫基礎函數
 # ==========================================
 @st.cache_resource
 def get_db_connection():
@@ -47,19 +47,20 @@ def save_data(data):
     except: st.error("❌ 儲存失敗")
 
 # ==========================================
-# 2. 功能與渲染函數 (置頂防止 NameError)
+# 2. 功能與名單渲染 (放在最上方，徹底解決 NameError)
 # ==========================================
-def delete_leave_action(name, month):
-    """管理員專用的刪除請假函數"""
-    current_data = load_data()
-    if name in current_data["leaves"] and month in current_data["leaves"][name]:
-        current_data["leaves"][name].remove(month)
-        if not current_data["leaves"][name]: del current_data["leaves"][name]
-        save_data(current_data)
-        st.toast(f"✅ 已成功移除 {name} 的假單"); time.sleep(0.5); st.rerun()
+def delete_leave_final(name, month):
+    """管理員專屬：徹底刪除請假記錄"""
+    cd = load_data()
+    if name in cd["leaves"] and month in cd["leaves"][name]:
+        cd["leaves"][name].remove(month)
+        if not cd["leaves"][name]: del cd["leaves"][name]
+        save_data(cd)
+        st.toast(f"✅ 已刪除 {name} 的假單")
+        time.sleep(0.5)
+        st.rerun()
 
 def render_list(lst, dk, is_wait=False, can_edit=True, is_adm=False):
-    """畫出報名名單的函數"""
     if not lst:
         if not is_wait: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem;">目前無人報名</p></div>""", unsafe_allow_html=True)
         return
@@ -113,11 +114,12 @@ def render_list(lst, dk, is_wait=False, can_edit=True, is_adm=False):
 # ==========================================
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
+
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered") 
 st.markdown("""<style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');[data-testid="stAppViewContainer"]{background-color:#f8fafc!important;color:#334155!important}html,body,[class*="css"],p,div,label,span,h1,h2,h3,.stMarkdown{font-family:'Noto Sans TC',sans-serif;color:#334155!important}.block-container{padding-top:4rem!important;padding-bottom:5rem!important}header{background:transparent!important}[data-testid="stDecoration"],[data-testid="stToolbar"],[data-testid="stStatusWidget"],footer,#MainMenu,.stDeployButton{display:none!important}[data-testid="stSidebarCollapsedControl"]{display:none!important}.header-box{background:white;padding:1.5rem 1rem;border-radius:20px;text-align:center;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,.03);border:1px solid #f1f5f9}.header-title{font-size:1.6rem;font-weight:800;color:#1e293b!important;letter-spacing:1px;margin-bottom:5px}.header-sub{font-size:.9rem;color:#64748b!important;font-weight:500}.info-pill{background:#f1f5f9;padding:4px 14px;border-radius:30px;font-size:.8rem;font-weight:600;color:#475569!important;display:inline-block;margin-top:10px}.stTabs [data-baseweb="tab-list"]{gap:8px;margin-bottom:10px}.stTabs [data-baseweb="tab"]{height:38px;background-color:transparent;border-radius:20px;padding:0 16px;font-size:.9rem;border:1px solid transparent;color:#64748b!important;font-weight:500}.stTabs [aria-selected="true"]{background-color:white;color:#3b82f6!important;border:none;box-shadow:0 2px 6px rgba(0,0,0,.04);font-weight:700}div[data-baseweb="tab-highlight"],div[data-baseweb="tab-border"]{display:none!important}.player-row{background:white;border:1px solid #f1f5f9;border-radius:12px;padding:8px 10px;margin-bottom:8px;box-shadow:0 2px 5px rgba(0,0,0,.03);display:flex;align-items:center;width:100%;min-height:40px}.list-index{color:#cbd5e1!important;font-weight:700;font-size:.9rem;margin-right:12px;min-width:20px;text-align:right}.list-index-flower{color:#f472b6!important;font-weight:700;font-size:1rem;margin-right:12px;min-width:20px;text-align:right}.list-name{color:#334155!important;font-weight:700;font-size:1.15rem;flex-grow:1;line-height:1.2}.badge{padding:2px 6px;border-radius:5px;font-size:.7rem;font-weight:700;margin-left:4px;display:inline-block;vertical-align:middle}.badge-sunny{background:#fffbeb;color:#d97706!important}.badge-ball{background:#fff7ed;color:#c2410c!important}.badge-court{background:#eff6ff;color:#1d4ed8!important}.badge-visit{background:#fdf2f8;color:#db2777!important;border:1px solid #fce7f3}.progress-container{width:100%;background:#e2e8f0;border-radius:6px;height:6px;margin-top:8px;overflow:hidden}.progress-bar{height:100%;border-radius:6px;transition:width .6s ease}.progress-info{display:flex;justify-content:space-between;font-size:.8rem;color:#64748b!important;margin-bottom:2px;font-weight:600}.rules-box{background-color:white;border-radius:16px;padding:20px;border:1px solid #f1f5f9;box-shadow:0 4px 15px rgba(0,0,0,.02);margin-top:15px}.rules-header{font-size:1rem;font-weight:800;color:#334155!important;margin-bottom:15px;border-bottom:2px solid #f1f5f9;padding-bottom:8px}.rules-row{display:flex;align-items:flex-start;margin-bottom:12px}.rules-icon{font-size:1.1rem;margin-right:12px;line-height:1.4}.rules-content{font-size:.9rem;color:#64748b!important;line-height:1.5}.rules-content b{color:#475569!important;font-weight:700}.rules-footer{margin-top:15px;font-size:.85rem;color:#94a3b8!important;text-align:right;font-weight:500}</style>""", unsafe_allow_html=True)
 
 # ==========================================
-# 4. 主畫面內容
+# 4. 主畫面抬頭與公報
 # ==========================================
 st.markdown("""<div class="header-box"><div class="header-title">晴女☀️在場邊等妳🌈</div><div class="header-sub">✨ Keep Playing, Keep Shining ✨</div><div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕒 19:00</div></div>""", unsafe_allow_html=True)
 st.session_state.data = load_data()
@@ -141,7 +143,9 @@ with c_l2:
             if v: any_l = True; st.markdown(f"👤 **{k}**: {', '.join(sorted(v))}")
         if not any_l: st.info("目前無人請長假")
 
-# 場次 Tab
+# ==========================================
+# 5. 場次 Tab
+# ==========================================
 all_d, h_d = sorted(st.session_state.data["sessions"].keys()), st.session_state.data.get("hidden", [])
 dates = [d for d in all_d if d not in h_d]
 if not dates: st.info("👋 目前沒有開放報名的場次")
@@ -168,7 +172,8 @@ else:
                     nm = st.text_input("球員姓名", disabled=not can_e)
                     c1, c2, c3 = st.columns(3)
                     im, bb, oc = c1.checkbox("⭐晴女", key=f"m_{dk}", disabled=not can_e), c2.checkbox("🏀帶球", key=f"b_{dk}", disabled=not can_e), c3.checkbox("🚩佔場", key=f"c_{dk}", disabled=not can_e)
-                    ev = st.checkbox("📣加油團", key=f"v_{dk}", disabled=not can_e); tot = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=not can_e)
+                    ev = st.checkbox("📣加油團", key=f"v_{dk}", disabled=not can_e)
+                    tot = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=not can_e)
                     if st.form_submit_button("送出報名", disabled=not can_e, type="primary"):
                         if nm:
                             lat = load_data(); cur_ps = lat["sessions"].get(dk, []); rel = [x for x in cur_ps if x['name'] == nm or x['name'].startswith(f"{nm} (友")]
@@ -189,10 +194,11 @@ else:
             if wait_p: st.markdown("<br>", unsafe_allow_html=True); st.subheader("⏳ 候補名單"); render_list(wait_p, dk, True, can_e, st.session_state.is_admin)
 
 # ==========================================
-# 5. 管理員專區 (置底)
+# 6. 管理員專區 (置底通道)
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
+
 with st.expander("⚙️ 管理員專區 (Admin Login)", expanded=st.session_state.is_admin):
     if not st.session_state.is_admin:
         adm_input = st.text_input("管理員密碼", type="password")
@@ -200,36 +206,38 @@ with st.expander("⚙️ 管理員專區 (Admin Login)", expanded=st.session_sta
             if adm_input == ADMIN_PASSWORD: st.session_state.is_admin = True; st.rerun()
             else: st.error("密碼不正確")
     else:
-        if st.button("👋 登出管理員模式"): st.session_state.is_admin = False; st.rerun()
-        st.subheader("1. 場次日期管理")
+        if st.button("👋 登出管理模式"): st.session_state.is_admin = False; st.rerun()
+        
+        # 1. 場次管理
+        st.subheader("1. 場次管理")
         nd = st.date_input("新增日期", min_value=date.today())
         if st.button("➕ 新增場次"):
             cur = load_data(); 
             if str(nd) not in cur["sessions"]: cur["sessions"][str(nd)] = []; save_data(cur); st.rerun()
         all_ss = sorted(st.session_state.data["sessions"].keys())
         if all_ss:
-            ds = st.selectbox("選擇要刪除的場次", all_ss)
-            if st.button("🗑️ 確認刪除此日期"):
-                cur = load_data(); del cur["sessions"][ds]; save_data(cur); st.rerun()
-            hs = st.multiselect("隱藏場次 (不公開)", all_ss, default=st.session_state.data.get("hidden", []))
-            if st.button("💾 更新隱藏設定"):
-                cur = load_data(); cur["hidden"] = hs; save_data(cur); st.rerun()
-        
-        # 【重點補回：刪除請假區】
+            ds = st.selectbox("選擇場次", all_ss); c_d, c_h = st.columns(2)
+            if c_d.button("🗑️ 確定刪除此日期"): cur = load_data(); del cur["sessions"][ds]; save_data(cur); st.rerun()
+            hs = st.multiselect("隱藏場次", all_ss, default=st.session_state.data.get("hidden", []))
+            if st.button("💾 更新隱藏設定"): cur = load_data(); cur["hidden"] = hs; save_data(cur); st.rerun()
+
+        # 【重點補回：強迫顯示請假管理】
         st.divider()
         st.subheader("🛠️ 2. 請假管理 (刪除假單)")
-        l_data = st.session_state.data.get("leaves", {})
-        leave_list = []
-        for name, months in l_data.items():
-            for m in months: leave_list.append({"name": name, "month": m})
-        if leave_list:
-            st.write(f"目前資料庫內共有 {len(leave_list)} 筆假單：")
-            for record in leave_list:
-                c1, c2 = st.columns([3, 1])
-                c1.markdown(f"👤 **{record['name']}**：{record['month']}")
-                if c2.button("🗑️ 刪除", key=f"adm_del_{record['name']}_{record['month']}"):
-                    delete_leave_action(record['name'], record['month'])
-        else: st.info("目前系統內無人請假。")
+        # 這裡強迫重新讀取資料，保證不漏接
+        admin_cur_data = load_data()
+        l_dict = admin_cur_data.get("leaves", {})
+        
+        if l_dict:
+            st.info(f"偵測到資料庫中有團員請假。")
+            for name, months in l_dict.items():
+                for m in sorted(months):
+                    col_info, col_btn = st.columns([3, 1])
+                    col_info.write(f"👤 **{name}** ({m})")
+                    if col_btn.button("🗑️ 刪除", key=f"adm_del_{name}_{m}"):
+                        delete_leave_final(name, m)
+        else:
+            st.write("目前資料庫中沒有任何請假資料。")
 
         st.divider()
         st.subheader("3. 出席統計")
@@ -246,6 +254,6 @@ with st.expander("⚙️ 管理員專區 (Admin Login)", expanded=st.session_sta
                     df = (today - do).days
                     onl = any(m in dm["leaves"].get(n, []) for m in [today.strftime("%Y-%m")])
                     stt = "🏖️ 請假" if onl else "🔴 警告" if df > 60 else "🟢 活躍"
-                    rep.append({"姓名": n, "最後出席": str(do), "未出席天數": df, "狀態": stt})
+                    rep.append({"姓名": n, "最後出席": str(do), "未出席": df, "狀態": stt})
                 st.dataframe(rep, hide_index=True)
             except: st.error("統計失敗")
