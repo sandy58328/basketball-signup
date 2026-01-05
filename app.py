@@ -138,7 +138,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
             b_idx = 1
             if is_admin_mode and is_wait and p.get('isMember'):
                 with cols[b_idx]:
-                    if st.button("⬆️", key=f"up_{p['id']}"): promote_player(p['id'], date_key)
+                    if st.button("⬆️", key=f"up_{p['id']}"): promote_player(wid=p['id'], d=date_key)
                 b_idx += 1
             if can_edit_global:
                 if b_idx < len(cols):
@@ -147,7 +147,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                             if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target = p['id']; st.rerun()
                 if b_idx+1 < len(cols):
                     with cols[b_idx+1]:
-                        if st.button("❌", key=f"bd_{p['id']}"): delete_player(p['id'], date_key)
+                        if st.button("❌", key=f"bd_{p['id']}"): delete_player(pid=p['id'], d=date_key)
 
 # ==========================================
 # 3. 初始化 & CSS
@@ -231,7 +231,6 @@ with c_l1:
                         cur = load_data()
                         if t_n in cur["leaves"] and t_m in cur["leaves"][t_n]:
                             cur["leaves"][t_n].remove(t_m)
-                            # 如果名下沒假了就連人名一起刪掉
                             if not cur["leaves"][t_n]: del cur["leaves"][t_n]
                             save_data(cur)
                             st.toast("✅ 已成功刪除紀錄")
@@ -354,4 +353,3 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     rep.append({"姓名": n, "最後出席": str(do), "未出席天數": df, "狀態": "🏖️ 請假" if onl else "🔴 警告" if df > 60 else "🟢 活躍"})
                 st.table(rep)
             except: st.error("統計失敗")
-
