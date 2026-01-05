@@ -131,7 +131,9 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
             if p.get('isMember'): badges += "<span class='badge badge-sunny'>晴女</span>"
             if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
             if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
-            c_cfg = [7.8, 0.6, 0.6, 1.0] if not (is_admin_mode and is_wait) else [6.5, 1.2, 0.6, 0.6, 1.1]
+            
+            # 寬度微調，給刪除彈窗多一點點空間
+            c_cfg = [7.5, 0.6, 0.6, 1.3] if not (is_admin_mode and is_wait) else [6.0, 1.2, 0.6, 0.6, 1.6]
             cols = st.columns(c_cfg, gap="small")
             with cols[0]:
                 st.markdown(f"""<div class="player-row"><span class="{idx_cls}">{idx_str}</span><span class="list-name">{p['name']}</span>{badges}</div>""", unsafe_allow_html=True)
@@ -147,7 +149,11 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                             if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target = p['id']; st.rerun()
                 if b_idx+1 < len(cols):
                     with cols[b_idx+1]:
-                        if st.button("❌", key=f"bd_{p['id']}"): delete_player(pid=p['id'], d=date_key)
+                        # --- 報名刪除防手滑：確認彈窗 ---
+                        with st.popover("❌"):
+                            st.write("確定取消報名嗎？順序將無法找回喔！")
+                            if st.button("確認刪除", key=f"conf_del_{p['id']}", type="primary"):
+                                delete_player(pid=p['id'], d=date_key)
 
 # ==========================================
 # 3. 初始化 & CSS
@@ -196,6 +202,9 @@ st.markdown("""
     .rules-content { font-size: 0.9rem; color: #64748b !important; line-height: 1.5; }
     .rules-content b { color: #475569 !important; font-weight: 700; }
     .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
+    
+    /* 彈窗按鈕寬度修正 */
+    button[data-testid="stBaseButton-secondary"] { width: 100% !important; height: 32px !important; padding: 0 !important;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -205,7 +214,7 @@ st.markdown("""
 st.markdown("""<div class="header-box"><div class="header-title">晴女☀️在場邊等妳🌈</div><div class="header-sub">✨ Keep Playing, Keep Shining ✨</div><div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕒 19:00</div></div>""", unsafe_allow_html=True)
 st.session_state.data = load_data()
 
-# 請假區與公告區
+# 請假與公告
 c_l1, c_l2 = st.columns(2)
 with c_l1:
     with st.expander("🏖️ 我要請假 (長假登記)"):
@@ -223,11 +232,11 @@ with c_l2:
         if any(l_d.values()):
             for k, months in sorted(l_d.items()):
                 for month in sorted(months):
-                    # --- 核心改進：每條紀錄後面放垃圾桶 ---
                     col_info, col_del = st.columns([0.85, 0.15])
                     with col_info:
                         st.markdown(f"**👤 {k}**: {month}")
                     with col_del:
+                        # 休假公報維持點擊即刪，不設確認
                         if st.button("🗑️", key=f"del_{k}_{month}"):
                             cur = load_data()
                             if k in cur["leaves"] and month in cur["leaves"][k]:
@@ -237,8 +246,7 @@ with c_l2:
                                 st.toast("🗑️ 紀錄已移除")
                                 time.sleep(0.5)
                                 st.rerun()
-        else:
-            st.info("目前無人請假")
+        else: st.info("目前無人請假")
 
 # 場次顯示
 all_d = sorted(st.session_state.data["sessions"].keys())
