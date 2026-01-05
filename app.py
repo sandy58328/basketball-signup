@@ -205,7 +205,7 @@ st.markdown("""
 st.markdown("""<div class="header-box"><div class="header-title">晴女☀️在場邊等妳🌈</div><div class="header-sub">✨ Keep Playing, Keep Shining ✨</div><div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕒 19:00</div></div>""", unsafe_allow_html=True)
 st.session_state.data = load_data()
 
-# 請假與公報
+# 請假區與公告區
 c_l1, c_l2 = st.columns(2)
 with c_l1:
     with st.expander("🏖️ 我要請假 (長假登記)"):
@@ -217,33 +217,28 @@ with c_l1:
                 if n not in cur["leaves"]: cur["leaves"][n] = []
                 if s not in cur["leaves"][n]: cur["leaves"][n].append(s); save_data(cur); st.toast("✅ 已登記"); time.sleep(1); st.rerun()
 
-    # --- 新增：取消假單功能 ---
-    with st.expander("🗑️ 取消已登記的假單"):
-        l_d = st.session_state.data.get("leaves", {})
-        if not l_d:
-            st.info("目前無人登記請假")
-        else:
-            with st.form("cancel_leave_form", clear_on_submit=True):
-                t_n = st.selectbox("選擇姓名", sorted(l_d.keys()))
-                if t_n:
-                    t_m = st.selectbox("選擇要取消的月份", sorted(l_d[t_n]))
-                    if st.form_submit_button("確認刪除紀錄"):
-                        cur = load_data()
-                        if t_n in cur["leaves"] and t_m in cur["leaves"][t_n]:
-                            cur["leaves"][t_n].remove(t_m)
-                            if not cur["leaves"][t_n]: del cur["leaves"][t_n]
-                            save_data(cur)
-                            st.toast("✅ 已成功刪除")
-                            time.sleep(1)
-                            st.rerun()
-
 with c_l2:
     with st.expander("📜 休假公報", expanded=True):
         l_d = st.session_state.data.get("leaves", {})
         if any(l_d.values()):
-            for k, v in sorted(l_d.items()):
-                if v: st.markdown(f"**👤 {k}**: {', '.join(sorted(v))}")
-        else: st.info("目前無人請假")
+            for k, months in sorted(l_d.items()):
+                for month in sorted(months):
+                    # --- 核心改進：每條紀錄後面放垃圾桶 ---
+                    col_info, col_del = st.columns([0.85, 0.15])
+                    with col_info:
+                        st.markdown(f"**👤 {k}**: {month}")
+                    with col_del:
+                        if st.button("🗑️", key=f"del_{k}_{month}"):
+                            cur = load_data()
+                            if k in cur["leaves"] and month in cur["leaves"][k]:
+                                cur["leaves"][k].remove(month)
+                                if not cur["leaves"][k]: del cur["leaves"][k]
+                                save_data(cur)
+                                st.toast("🗑️ 紀錄已移除")
+                                time.sleep(0.5)
+                                st.rerun()
+        else:
+            st.info("目前無人請假")
 
 # 場次顯示
 all_d = sorted(st.session_state.data["sessions"].keys())
@@ -320,7 +315,7 @@ st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
 with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_admin):
     if not st.session_state.is_admin:
-        if st.text_input("密碼", type="password") == ADMIN_PASSWORD: st.session_state.is_admin = True; st.rerun()
+        if st.text_input("密碼", key="admin_pwd_input", type="password") == ADMIN_PASSWORD: st.session_state.is_admin = True; st.rerun()
     else:
         if st.button("登出"): st.session_state.is_admin = False; st.rerun()
         st.subheader("管理功能")
