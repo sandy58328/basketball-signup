@@ -217,7 +217,7 @@ with c_l1:
                 if n not in cur["leaves"]: cur["leaves"][n] = []
                 if s not in cur["leaves"][n]: cur["leaves"][n].append(s); save_data(cur); st.toast("✅ 已登記"); time.sleep(1); st.rerun()
 
-    # --- 新增：取消已登記的假單 ---
+    # --- 新增：取消假單功能 ---
     with st.expander("🗑️ 取消已登記的假單"):
         l_d = st.session_state.data.get("leaves", {})
         if not l_d:
@@ -227,13 +227,13 @@ with c_l1:
                 t_n = st.selectbox("選擇姓名", sorted(l_d.keys()))
                 if t_n:
                     t_m = st.selectbox("選擇要取消的月份", sorted(l_d[t_n]))
-                    if st.form_submit_button("確認刪除此月份紀錄"):
+                    if st.form_submit_button("確認刪除紀錄"):
                         cur = load_data()
                         if t_n in cur["leaves"] and t_m in cur["leaves"][t_n]:
                             cur["leaves"][t_n].remove(t_m)
                             if not cur["leaves"][t_n]: del cur["leaves"][t_n]
                             save_data(cur)
-                            st.toast("✅ 已成功刪除紀錄")
+                            st.toast("✅ 已成功刪除")
                             time.sleep(1)
                             st.rerun()
 
