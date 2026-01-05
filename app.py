@@ -53,7 +53,7 @@ def save_data(data):
         st.error(f"❌ 資料儲存失敗：{e}")
 
 # ==========================================
-# 2. 功能工具箱
+# 2. 功能工具箱 (穩定版結構)
 # ==========================================
 def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
@@ -188,6 +188,7 @@ st.markdown("""
     .progress-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
     .progress-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b !important; margin-bottom: 2px; font-weight: 600; }
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
+    
     .rules-box { background-color: white; border-radius: 16px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px; }
     .rules-header { font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; }
     .rules-row { display: flex; align-items: flex-start; margin-bottom: 12px; }
@@ -215,22 +216,26 @@ with c_l1:
                 cur = load_data(); s = m.strftime("%Y-%m")
                 if n not in cur["leaves"]: cur["leaves"][n] = []
                 if s not in cur["leaves"][n]: cur["leaves"][n].append(s); save_data(cur); st.toast("✅ 已登記"); time.sleep(1); st.rerun()
-    
+
+    # --- 新增功能：取消請假 ---
     with st.expander("🗑️ 取消請假"):
         l_d = st.session_state.data.get("leaves", {})
         if not l_d:
             st.info("目前無請假紀錄")
         else:
             with st.form("cancel_leave_form"):
-                target_name = st.selectbox("我的姓名", sorted(l_d.keys()))
+                target_name = st.selectbox("選擇姓名", sorted(l_d.keys()))
                 if target_name:
-                    target_month = st.selectbox("取消月份", sorted(l_d[target_name]))
-                    if st.form_submit_button("確認刪除", type="secondary"):
+                    target_month = st.selectbox("選擇取消月份", sorted(l_d[target_name]))
+                    if st.form_submit_button("確認刪除"):
                         cur = load_data()
                         if target_name in cur["leaves"] and target_month in cur["leaves"][target_name]:
                             cur["leaves"][target_name].remove(target_month)
                             if not cur["leaves"][target_name]: del cur["leaves"][target_name]
-                            save_data(cur); st.toast("🗑️ 已移除紀錄"); time.sleep(1); st.rerun()
+                            save_data(cur)
+                            st.toast("✅ 紀錄已刪除")
+                            time.sleep(1)
+                            st.rerun()
 
 with c_l2:
     with st.expander("📜 休假公報"):
@@ -309,7 +314,7 @@ else:
                 render_list(wait, dk, True, can_edit, st.session_state.is_admin)
 
 # ==========================================
-# 5. 管理員專區
+# 5. 管理員專區 (置底)
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
