@@ -132,7 +132,6 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
             if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
             if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
             
-            # 寬度微調，給刪除彈窗多一點點空間
             c_cfg = [7.5, 0.6, 0.6, 1.3] if not (is_admin_mode and is_wait) else [6.0, 1.2, 0.6, 0.6, 1.6]
             cols = st.columns(c_cfg, gap="small")
             with cols[0]:
@@ -203,7 +202,6 @@ st.markdown("""
     .rules-content b { color: #475569 !important; font-weight: 700; }
     .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
     
-    /* 彈窗按鈕寬度修正 */
     button[data-testid="stBaseButton-secondary"] { width: 100% !important; height: 32px !important; padding: 0 !important;}
     </style>
 """, unsafe_allow_html=True)
@@ -236,7 +234,6 @@ with c_l2:
                     with col_info:
                         st.markdown(f"**👤 {k}**: {month}")
                     with col_del:
-                        # 休假公報維持點擊即刪，不設確認
                         if st.button("🗑️", key=f"del_{k}_{month}"):
                             cur = load_data()
                             if k in cur["leaves"] and month in cur["leaves"][k]:
@@ -295,7 +292,7 @@ else:
                                 ts = time.time(); new_li = []
                                 for k in range(tot):
                                     is_m = (k==0 and not rel)
-                                    fn = name if is_m else f"{name} (友{len(rel)+k+1})"
+                                    fn = name if is_m else f"{name} (友{len(rel)+k})"
                                     new_li.append({"id": str(uuid.uuid4()),"name": fn,"count": (0 if ev and is_m else 1),"isMember": (im if is_m else False),"bringBall": (bb if is_m else False),"occupyCourt": (oc if is_m else False),"timestamp": ts + (k*0.01)})
                                 lat["sessions"][dk].extend(new_li); save_data(lat); st.balloons(); st.rerun()
 
