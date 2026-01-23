@@ -100,7 +100,10 @@ def promote_player(wid, d):
        w['timestamp'] = tg_ref['timestamp'] - 1.0
        tg_ref['timestamp'] = cutoff + 1.0
        save_data(current_data)
-       st.balloons(); st.toast("🎉 遞補成功！"); time.sleep(1); st.rerun()
+       st.balloons()
+       st.toast("🎉 遞補成功！")
+       time.sleep(2) # 讓遞補氣球飛一下
+       st.rerun()
     else: st.error("無可遞補對象")
 
 def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mode=False):
@@ -148,9 +151,9 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                             if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target = p['id']; st.rerun()
                 if b_idx+1 < len(cols):
                     with cols[b_idx+1]:
-                        # --- 報名刪除防手滑：確認彈窗 ---
+                        # --- 報名名單刪除確認 ---
                         with st.popover("❌"):
-                            st.write("確定取消報名嗎？順序將無法找回喔！")
+                            st.write("確定取消報名嗎？")
                             if st.button("確認刪除", key=f"conf_del_{p['id']}", type="primary"):
                                 delete_player(pid=p['id'], d=date_key)
 
@@ -202,6 +205,7 @@ st.markdown("""
     .rules-content b { color: #475569 !important; font-weight: 700; }
     .rules-footer { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
     
+    /* 彈窗按鈕寬度修正 */
     button[data-testid="stBaseButton-secondary"] { width: 100% !important; height: 32px !important; padding: 0 !important;}
     </style>
 """, unsafe_allow_html=True)
@@ -294,7 +298,12 @@ else:
                                     is_m = (k==0 and not rel)
                                     fn = name if is_m else f"{name} (友{len(rel)+k})"
                                     new_li.append({"id": str(uuid.uuid4()),"name": fn,"count": (0 if ev and is_m else 1),"isMember": (im if is_m else False),"bringBall": (bb if is_m else False),"occupyCourt": (oc if is_m else False),"timestamp": ts + (k*0.01)})
-                                lat["sessions"][dk].extend(new_li); save_data(lat); st.balloons(); st.rerun()
+                                lat["sessions"][dk].extend(new_li); save_data(lat)
+                                # --- 報名成功動畫改進 ---
+                                st.balloons()
+                                st.toast("🎉 報名成功！")
+                                time.sleep(2) # 讓妳看氣球飛一會兒
+                                st.rerun()
 
                 st.markdown("""
                 <div class="rules-box">
