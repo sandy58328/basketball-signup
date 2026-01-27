@@ -59,7 +59,6 @@ def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
     t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
     if t: 
-        # 如果是朋友，強制不可為晴女
         final_im = False if "(友" in n else im
         new_count = 0 if iv else 1
         t.update({'name':n,'isMember':final_im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
@@ -133,7 +132,6 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
         else:
             badges = ""
             if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
-            # --- 修正點：朋友絕對不顯示晴女標籤 ---
             if p.get('isMember') and "(友" not in p['name']: 
                 badges += "<span class='badge badge-sunny'>晴女</span>"
             if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
@@ -276,7 +274,6 @@ else:
             c_c = len([x for x in main if x.get('occupyCourt')])
             pct = min(100, (curr/MAX_CAPACITY)*100)
             
-            # --- 修復語法錯誤點：拆解長字串 ---
             color = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
             st.markdown(f"""
                 <div style="margin-bottom: 5px; padding: 0 4px;">
@@ -322,7 +319,7 @@ else:
                                         "id": str(uuid.uuid4()),
                                         "name": fn,
                                         "count": (0 if ev and is_m else 1),
-                                        "isMember": (im if is_m else False), # 朋友強制為False
+                                        "isMember": (im if is_m else False),
                                         "bringBall": (bb if is_m else False),
                                         "occupyCourt": (oc if is_m else False),
                                         "timestamp": ts + (k*0.01)
@@ -390,3 +387,18 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     rep.append({"姓名": n, "最後出席": str(do), "未出席天數": df, "狀態": "🏖️ 請假" if onl else "🔴 警告" if df > 60 else "🟢 活躍"})
                 st.table(rep)
             except: st.error("統計失敗")
+
+        # --- 核心清洗按鈕 (執行完可以刪除這一段) ---
+        st.divider()
+        if st.button("🧹 一鍵清洗現有錯誤標籤"):
+            cur = load_data()
+            count = 0
+            for dk in cur["sessions"]:
+                for p in cur["sessions"][dk]:
+                    if "(友" in p['name'] and p.get('isMember'):
+                        p['isMember'] = False
+                        count += 1
+            save_data(cur)
+            st.success(f"清洗完成！共修正 {count} 筆朋友的晴女標籤。")
+            time.sleep(2)
+            st.rerun()
