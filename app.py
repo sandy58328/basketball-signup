@@ -59,7 +59,7 @@ def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
     t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
     if t: 
-        final_im = False if "(友" in n else im
+        final_im = False if ("(友" in n or "之友" in n) else im
         new_count = 0 if iv else 1
         t.update({'name':n,'isMember':final_im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
         save_data(current_data)
@@ -121,7 +121,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                 with st.form(key=f"e_{p['id']}"):
                     en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
                     ec1, ec2, ec3 = st.columns(3)
-                    is_friend = "(友" in p['name']
+                    is_friend = "(友" in p['name'] or "之友" in p['name']
                     em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
                     eb = ec2.checkbox("🏀帶球", p.get('bringBall'), disabled=is_friend)
                     ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'), disabled=is_friend)
@@ -132,7 +132,8 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
         else:
             badges = ""
             if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
-            if p.get('isMember') and "(友" not in p['name']: 
+            # --- 強化顯示邏輯：名字含朋友關鍵字者，即便資料庫勾選了晴女，畫面上也絕對不顯示標籤 ---
+            if p.get('isMember') and "(友" not in p['name'] and "之友" not in p['name']: 
                 badges += "<span class='badge badge-sunny'>晴女</span>"
             if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
             if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
@@ -148,7 +149,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                 b_idx += 1
             if can_edit_global:
                 if b_idx < len(cols):
-                    if "(友" not in p['name']:
+                    if "(友" not in p['name'] and "之友" not in p['name']:
                         with cols[b_idx]:
                             if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target = p['id']; st.rerun()
                 if b_idx+1 < len(cols):
@@ -274,7 +275,8 @@ else:
             c_c = len([x for x in main if x.get('occupyCourt')])
             pct = min(100, (curr/MAX_CAPACITY)*100)
             
-            color = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
+            # --- 修復 SyntaxError：將 HTML 字串寫法優化 ---
+            prog_color = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
             st.markdown(f"""
                 <div style="margin-bottom: 5px; padding: 0 4px;">
                     <div class="progress-info">
@@ -282,7 +284,7 @@ else:
                         <span>候補: {len(wait)}</span>
                     </div>
                     <div class="progress-container">
-                        <div class="progress-bar" style="width: {pct}%; background: {color};"></div>
+                        <div class="progress-bar" style="width: {pct}%; background: {prog_color};"></div>
                     </div>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;">
@@ -319,7 +321,7 @@ else:
                                         "id": str(uuid.uuid4()),
                                         "name": fn,
                                         "count": (0 if ev and is_m else 1),
-                                        "isMember": (im if is_m else False),
+                                        "isMember": (im if is_m else False), # 朋友絕對不設為True
                                         "bringBall": (bb if is_m else False),
                                         "occupyCourt": (oc if is_m else False),
                                         "timestamp": ts + (k*0.01)
@@ -388,14 +390,15 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 st.table(rep)
             except: st.error("統計失敗")
 
-        # --- 核心清洗按鈕 (執行完可以刪除這一段) ---
+        # --- 核心清洗按鈕 ---
         st.divider()
         if st.button("🧹 一鍵清洗現有錯誤標籤"):
             cur = load_data()
             count = 0
             for dk in cur["sessions"]:
                 for p in cur["sessions"][dk]:
-                    if "(友" in p['name'] and p.get('isMember'):
+                    # 修正：不管是不是全形括號都檢查，只要有 "(友" 或 "之友" 且勾了晴女就取消
+                    if ("(友" in p['name'] or "之友" in p['name']) and p.get('isMember'):
                         p['isMember'] = False
                         count += 1
             save_data(cur)
