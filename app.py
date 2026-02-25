@@ -226,26 +226,40 @@ with c_l1:
                 if s not in cur["leaves"][n]: cur["leaves"][n].append(s); save_data(cur); st.toast("✅ 已登記"); time.sleep(1); st.rerun()
 
 with c_l2:
-    # --- 核心改進點：休假公報合併邏輯 ---
+    # --- 核心改進點：智能化大小寫合併邏輯 ---
     with st.expander("📜 休假公報", expanded=False):
         l_d = st.session_state.data.get("leaves", {})
         if any(l_d.values()):
-            for k, months in sorted(l_d.items()):
-                sorted_months = sorted(months)
+            # 建立大小寫合併地圖
+            combined_leaves = {}
+            name_map = {} # 用來記錄要顯示哪一個版本的大寫
+            for original_name, months in l_d.items():
+                lower_name = original_name.lower()
+                if lower_name not in combined_leaves:
+                    combined_leaves[lower_name] = set()
+                    name_map[lower_name] = original_name # 預設使用第一個遇到的名字版本
+                combined_leaves[lower_name].update(months)
+            
+            # 渲染合併後的清單
+            for lower_name in sorted(combined_leaves.keys()):
+                display_name = name_map[lower_name]
+                merged_months = sorted(list(combined_leaves[lower_name]))
                 col_info, col_manage = st.columns([0.82, 0.18])
                 with col_info:
-                    # 合併同一個人的月份在一行
-                    st.markdown(f"**👤 {k}**: {', '.join(sorted_months)}")
+                    st.markdown(f"**👤 {display_name}**: {', '.join(merged_months)}")
                 with col_manage:
                     with st.popover("🗑️"):
-                        st.write(f"管理 {k} 的假單：")
-                        for m_item in sorted_months:
-                            if st.button(f"刪除 {m_item}", key=f"del_f_{k}_{m_item}"):
+                        st.write(f"管理 {display_name} 的假單：")
+                        for m_item in merged_months:
+                            if st.button(f"刪除 {m_item}", key=f"del_final_{lower_name}_{m_item}"):
                                 cur = load_data()
-                                if k in cur["leaves"] and m_item in cur["leaves"][k]:
-                                    cur["leaves"][k].remove(m_item)
-                                    if not cur["leaves"][k]: del cur["leaves"][k]
-                                    save_data(cur); st.toast(f"🗑️ 已移除 {m_item}"); time.sleep(0.5); st.rerun()
+                                # 遍歷資料庫中所有大小寫版本，只要符合就刪除該月
+                                for orig_key in list(cur["leaves"].keys()):
+                                    if orig_key.lower() == lower_name:
+                                        if m_item in cur["leaves"][orig_key]:
+                                            cur["leaves"][orig_key].remove(m_item)
+                                            if not cur["leaves"][orig_key]: del cur["leaves"][orig_key]
+                                save_data(cur); st.toast(f"🗑️ 已移除 {m_item}"); time.sleep(0.5); st.rerun()
         else: st.info("目前無人請假")
 
 # 場次顯示 (絕對不動)
