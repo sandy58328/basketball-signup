@@ -53,13 +53,12 @@ def save_data(data):
         st.error(f"❌ 資料儲存失敗：{e}")
 
 # ==========================================
-# 2. 功能工具箱
+# 2. 功能工具箱 (穩定版結構)
 # ==========================================
 def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
     t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
     if t: 
-        # 自動防護：更新時若名含「友」則強制不為晴女
         final_im = False if ("友" in n) else im
         new_count = 0 if iv else 1
         t.update({'name':n,'isMember':final_im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
@@ -133,7 +132,6 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
         else:
             badges = ""
             if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
-            # 未來自動屏蔽：畫面上只要含「友」一律不印晴女標籤
             if p.get('isMember') and "友" not in p['name']: 
                 badges += "<span class='badge badge-sunny'>晴女</span>"
             if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
@@ -155,13 +153,14 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                             if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target = p['id']; st.rerun()
                 if b_idx+1 < len(cols):
                     with cols[b_idx+1]:
+                        # --- 報名清單刪除確認 (防手滑) ---
                         with st.popover("❌"):
                             st.write("確定取消報名嗎？")
                             if st.button("確認刪除", key=f"conf_del_{p['id']}", type="primary"):
                                 delete_player(pid=p['id'], d=date_key)
 
 # ==========================================
-# 3. 初始化 & CSS
+# 3. 初始化 & CSS (樣式完全不變)
 # ==========================================
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
@@ -218,7 +217,7 @@ st.markdown("""
 st.markdown("""<div class="header-box"><div class="header-title">晴女☀️在場邊等妳🌈</div><div class="header-sub">✨ Keep Playing, Keep Shining ✨</div><div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕒 19:00</div></div>""", unsafe_allow_html=True)
 st.session_state.data = load_data()
 
-# 請假與公告
+# 請假與公報
 c_l1, c_l2 = st.columns(2)
 with c_l1:
     with st.expander("🏖️ 我要請假 (長假登記)"):
@@ -234,21 +233,25 @@ with c_l2:
     with st.expander("📜 休假公報", expanded=False):
         l_d = st.session_state.data.get("leaves", {})
         if any(l_d.values()):
+            # --- 核心改進：同一個人合併為一條顯示 ---
             for k, months in sorted(l_d.items()):
-                for month in sorted(months):
-                    col_info, col_del = st.columns([0.85, 0.15])
-                    with col_info:
-                        st.markdown(f"**👤 {k}**: {month}")
-                    with col_del:
-                        if st.button("🗑️", key=f"del_{k}_{month}"):
-                            cur = load_data()
-                            if k in cur["leaves"] and month in cur["leaves"][k]:
-                                cur["leaves"][k].remove(month)
-                                if not cur["leaves"][k]: del cur["leaves"][k]
-                                save_data(cur)
-                                st.toast("🗑️ 紀錄已移除")
-                                time.sleep(0.5)
-                                st.rerun()
+                sorted_months = sorted(months)
+                col_info, col_manage = st.columns([0.82, 0.18])
+                with col_info:
+                    st.markdown(f"**👤 {k}**: {', '.join(sorted_months)}")
+                with col_manage:
+                    with st.popover("🗑️"):
+                        st.write(f"管理 {k} 的假單：")
+                        for m_item in sorted_months:
+                            if st.button(f"刪除 {m_item}", key=f"del_final_{k}_{m_item}"):
+                                cur = load_data()
+                                if k in cur["leaves"] and m_item in cur["leaves"][k]:
+                                    cur["leaves"][k].remove(m_item)
+                                    if not cur["leaves"][k]: del cur["leaves"][k]
+                                    save_data(cur)
+                                    st.toast(f"🗑️ 已移除 {m_item}")
+                                    time.sleep(0.5)
+                                    st.rerun()
         else: st.info("目前無人請假")
 
 # 場次顯示
@@ -276,8 +279,7 @@ else:
             c_c = len([x for x in main if x.get('occupyCourt')])
             pct = min(100, (curr/MAX_CAPACITY)*100)
             
-            # --- 修復 HTML 字串 ---
-            prog_color = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
+            color = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
             st.markdown(f"""
                 <div style="margin-bottom: 5px; padding: 0 4px;">
                     <div class="progress-info">
@@ -285,7 +287,7 @@ else:
                         <span>候補: {len(wait)}</span>
                     </div>
                     <div class="progress-container">
-                        <div class="progress-bar" style="width: {pct}%; background: {prog_color};"></div>
+                        <div class="progress-bar" style="width: {pct}%; background: {color};"></div>
                     </div>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;">
@@ -351,7 +353,7 @@ else:
                 render_list(wait, dk, True, can_edit, st.session_state.is_admin)
 
 # ==========================================
-# 5. 管理員專區
+# 5. 管理員專區 (功能與密碼完全不變)
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
@@ -391,14 +393,12 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 st.table(rep)
             except: st.error("統計失敗")
 
-        # --- 更強大的手動清洗按鈕 ---
         st.divider()
         if st.button("🧹 一鍵清洗現有錯誤標籤"):
             cur = load_data()
             count = 0
             for dk in cur["sessions"]:
                 for p in cur["sessions"][dk]:
-                    # 只要名字含「友」且標記為晴女，就修正它
                     if "友" in p['name'] and p.get('isMember'):
                         p['isMember'] = False
                         count += 1
