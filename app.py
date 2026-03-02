@@ -248,7 +248,7 @@ with c_l2:
                     with st.popover("🗑️"):
                         st.write(f"管理 {disp_n} 的假單：")
                         for m_item in m_list:
-                            if st.button(f"刪除 {m_item}", key=f"del_f_{low_n}_{m_item}"):
+                            if st.button(f"刪除 {m_item}", key=f"del_final_{low_n}_{m_item}"):
                                 cur = load_data()
                                 for ok in list(cur["leaves"].keys()):
                                     if ok.lower() == low_n and m_item in cur["leaves"][ok]:
@@ -338,7 +338,7 @@ else:
                 render_list(wait, dk, True, can_edit, st.session_state.is_admin)
 
 # ==========================================
-# 5. 管理員專區 (出席統計優化版)
+# 5. 管理員專區 (優化報表邏輯)
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
@@ -365,7 +365,7 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
         if st.button("📊 產生報表"):
             try:
                 d_m = st.session_state.data
-                stats = {} # key: lower_name, value: {display_name, last_date, leave_months}
+                stats = {} 
                 
                 # 處理場次 (收集出席資料)
                 for ds, pl in d_m["sessions"].items():
@@ -376,17 +376,18 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                             if "友" not in pname:
                                 low_n = pname.lower()
                                 if low_n not in stats:
-                                    stats[low_n] = {"name": pname, "last_date": do, "leaves": set()}
+                                    stats[low_n] = {"name": pname, "last_date": do, "leaves": set(), "attend_count": 1}
                                 else:
+                                    stats[low_n]["attend_count"] += 1
                                     if do > stats[low_n]["last_date"]:
                                         stats[low_n]["last_date"] = do
                                         stats[low_n]["name"] = pname
                 
-                # 處理請假 (確保有請假的人都被列入)
+                # 處理請假
                 for lname, l_months in d_m["leaves"].items():
                     low_n = lname.lower()
                     if low_n not in stats:
-                        stats[low_n] = {"name": lname, "last_date": None, "leaves": set(l_months)}
+                        stats[low_n] = {"name": lname, "last_date": None, "leaves": set(l_months), "attend_count": 0}
                     else:
                         stats[low_n]["leaves"].update(l_months)
 
@@ -397,7 +398,6 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     name = item["name"]
                     ld = item["last_date"]
                     l_mons = sorted(list(item["leaves"]))
-                    
                     is_on_leave = curr_m in l_mons
                     
                     if ld:
@@ -405,15 +405,28 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                         ld_str = str(ld)
                     else:
                         days = 999
-                        ld_str = "無紀錄"
+                        ld_str = "無出席紀錄"
                     
-                    status = "🏖️ 請假中" if is_on_leave else "🔴 警告" if days > 60 else "🟢 活躍"
+                    # 智能化狀態判斷
+                    if is_on_leave:
+                        status = "🏖️ 請假中"
+                    elif days > 60:
+                        status = "🔴 逾期 (2個月未出席)"
+                    elif days > 45:
+                        status = "🟡 預警 (本月需出席)"
+                    else:
+                        status = "🟢 活躍"
                     
+                    # 檢查連續請假月份 (長假限制)
+                    leave_count = len(l_mons)
+                    leave_warning = "⚠️ 超過2月" if leave_count > 2 else "正常"
+
                     rep.append({
                         "姓名": name,
                         "最後出席": ld_str,
-                        "未出席天數": "N/A" if ld_str == "無紀錄" else days,
-                        "請假紀錄": ", ".join(l_mons) if l_mons else "無",
+                        "缺席天數": days if ld else "N/A",
+                        "請假月份": ", ".join(l_mons) if l_mons else "無",
+                        "累計請假月數": leave_count,
                         "狀態": status
                     })
                 st.table(rep)
