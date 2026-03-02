@@ -7,7 +7,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ==========================================
-# 0. 設定區 (絕對不動)
+# 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 SHEET_NAME = "basketball_db" 
@@ -15,7 +15,7 @@ MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線 (絕對不動)
+# 1. 資料庫連線與資料處理
 # ==========================================
 @st.cache_resource
 def get_db_connection():
@@ -53,7 +53,7 @@ def save_data(data):
         st.error(f"❌ 資料儲存失敗：{e}")
 
 # ==========================================
-# 2. 功能工具箱 (絕對不動)
+# 2. 功能工具箱
 # ==========================================
 def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
@@ -156,7 +156,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                                 delete_player(pid=p['id'], d=date_key)
 
 # ==========================================
-# 3. 初始化 & CSS (絕對不動)
+# 3. 初始化 & CSS
 # ==========================================
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
@@ -226,43 +226,47 @@ with c_l1:
                 if s not in cur["leaves"][n]: cur["leaves"][n].append(s); save_data(cur); st.toast("✅ 已登記"); time.sleep(1); st.rerun()
 
 with c_l2:
-    # --- 核心改進點：智能化大小寫合併邏輯 ---
     with st.expander("📜 休假公報", expanded=False):
         l_d = st.session_state.data.get("leaves", {})
         if any(l_d.values()):
-            # 建立大小寫合併地圖
-            combined_leaves = {}
-            name_map = {} # 用來記錄要顯示哪一個版本的大寫
-            for original_name, months in l_d.items():
-                lower_name = original_name.lower()
-                if lower_name not in combined_leaves:
-                    combined_leaves[lower_name] = set()
-                    name_map[lower_name] = original_name # 預設使用第一個遇到的名字版本
-                combined_leaves[lower_name].update(months)
+            # --- 智能化大小寫合併邏輯 ---
+            comb_l = {}
+            n_map = {}
+            for o_n, mons in l_d.items():
+                low_n = o_n.lower()
+                if low_n not in comb_l:
+                    comb_l[low_n] = set()
+                    n_map[low_n] = o_n
+                comb_l[low_n].update(mons)
             
-            # 渲染合併後的清單
-            for lower_name in sorted(combined_leaves.keys()):
-                display_name = name_map[lower_name]
-                merged_months = sorted(list(combined_leaves[lower_name]))
-                col_info, col_manage = st.columns([0.82, 0.18])
-                with col_info:
-                    st.markdown(f"**👤 {display_name}**: {', '.join(merged_months)}")
-                with col_manage:
+            for low_n in sorted(comb_l.keys()):
+                disp_n = n_map[low_n]
+                m_list = sorted(list(comb_l[low_n]))
+                col_i, col_m = st.columns([0.8, 0.2])
+                with col_i:
+                    st.markdown(f"**👤 {disp_n}**: {', '.join(m_list)}")
+                with col_m:
                     with st.popover("🗑️"):
-                        st.write(f"管理 {display_name} 的假單：")
-                        for m_item in merged_months:
-                            if st.button(f"刪除 {m_item}", key=f"del_final_{lower_name}_{m_item}"):
+                        st.write(f"管理 {disp_n} 的假單：")
+                        # 處理正常有月份的刪除
+                        for m_i in m_list:
+                            if st.button(f"刪除 {m_i}", key=f"dl_{low_n}_{m_i}"):
                                 cur = load_data()
-                                # 遍歷資料庫中所有大小寫版本，只要符合就刪除該月
-                                for orig_key in list(cur["leaves"].keys()):
-                                    if orig_key.lower() == lower_name:
-                                        if m_item in cur["leaves"][orig_key]:
-                                            cur["leaves"][orig_key].remove(m_item)
-                                            if not cur["leaves"][orig_key]: del cur["leaves"][orig_key]
-                                save_data(cur); st.toast(f"🗑️ 已移除 {m_item}"); time.sleep(0.5); st.rerun()
+                                for ok in list(cur["leaves"].keys()):
+                                    if ok.lower() == low_n and m_i in cur["leaves"][ok]:
+                                        cur["leaves"][ok].remove(m_i)
+                                        if not cur["leaves"][ok]: del cur["leaves"][ok]
+                                save_data(cur); st.toast(f"🗑️ 已移除 {m_i}"); time.sleep(0.5); st.rerun()
+                        # --- 🚨 新增：針對「R:」這種無月份異常紀錄的保險按鈕 ---
+                        st.divider()
+                        if st.button("🚨 強制刪除此人", key=f"f_dl_{low_n}", type="secondary"):
+                            cur = load_data()
+                            for ok in list(cur["leaves"].keys()):
+                                if ok.lower() == low_n: del cur["leaves"][ok]
+                            save_data(cur); st.toast("🗑️ 已強制移除"); time.sleep(0.5); st.rerun()
         else: st.info("目前無人請假")
 
-# 場次顯示 (絕對不動)
+# 場次顯示
 all_d = sorted(st.session_state.data["sessions"].keys())
 h_d = st.session_state.data.get("hidden", [])
 dates = [d for d in all_d if d not in h_d]
@@ -287,9 +291,10 @@ else:
             c_c = len([x for x in main if x.get('occupyCourt')])
             pct = min(100, (curr/MAX_CAPACITY)*100)
             
-            prog_col = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
+            # --- 精確修復 275 行語法錯誤 ---
+            c_code = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
             p_html = f'<div class="progress-info"><span>正選 ({curr}/{MAX_CAPACITY})</span><span>候補: {len(wait)}</span></div>'
-            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {prog_col};"></div></div>'
+            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {c_code};"></div></div>'
             s_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
             st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_html}{b_html}</div>{s_html}', unsafe_allow_html=True)
 
@@ -308,15 +313,15 @@ else:
                             st.error("❌ 請輸入『團員姓名』並使用下方『報名人數』來幫朋友報名。")
                         elif name:
                             lat = load_data(); cur_p = lat["sessions"].get(dk, [])
-                            num_rel = len([x for x in cur_p if name in x['name']])
-                            if num_rel == 0 and not im: st.error("❌ 第一次報名需勾選「⭐晴女」")
-                            elif num_rel > 0 and im: st.error("❌ 加報朋友請勿重複勾選晴女")
-                            elif num_rel + tot > 3: st.error("❌ 每人上限 3 位")
+                            rel = [x for x in cur_p if x['name'] == name or x['name'].startswith(f"{name} (友") or x['name'].startswith(f"{name} （友") or x['name'] == f"{name}之友"]
+                            if not rel and not im: st.error("❌ 第一次報名需勾選「⭐晴女」")
+                            elif rel and im: st.error("❌ 加報朋友請勿重複勾選晴女")
+                            elif len(rel) + tot > 3: st.error("❌ 每人上限 3 位")
                             else:
                                 ts = time.time(); new_li = []
                                 for k in range(tot):
-                                    is_m = (k==0 and num_rel == 0)
-                                    fn = name if is_m else f"{name} (友{num_rel+k})"
+                                    is_m = (k==0 and not [x for x in cur_p if x['name']==name])
+                                    fn = name if is_m else f"{name} (友{len(rel)+k})"
                                     new_li.append({"id": str(uuid.uuid4()),"name": fn,"count": (0 if ev and is_m else 1),"isMember": (im if is_m else False),"bringBall": (bb if is_m else False),"occupyCourt": (oc if is_m else False),"timestamp": ts + (k*0.01)})
                                 lat["sessions"][dk].extend(new_li); save_data(lat); st.balloons(); st.toast("🎉 報名成功！"); time.sleep(2); st.rerun()
 
@@ -337,7 +342,7 @@ else:
                 render_list(wait, dk, True, can_edit, st.session_state.is_admin)
 
 # ==========================================
-# 5. 管理員專區 (絕對不動)
+# 5. 管理員專區
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
