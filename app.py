@@ -7,7 +7,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ==========================================
-# 0. 設定區
+# 0. 設定區 (絕對不動)
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 SHEET_NAME = "basketball_db" 
@@ -15,7 +15,7 @@ MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線與資料處理
+# 1. 資料庫連線 (絕對不動)
 # ==========================================
 @st.cache_resource
 def get_db_connection():
@@ -53,7 +53,7 @@ def save_data(data):
         st.error(f"❌ 資料儲存失敗：{e}")
 
 # ==========================================
-# 2. 功能工具箱
+# 2. 功能工具箱 (絕對不動)
 # ==========================================
 def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
@@ -156,7 +156,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                                 delete_player(pid=p['id'], d=date_key)
 
 # ==========================================
-# 3. 初始化 & CSS
+# 3. 初始化 & CSS (絕對不動)
 # ==========================================
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
@@ -229,7 +229,6 @@ with c_l2:
     with st.expander("📜 休假公報", expanded=False):
         l_d = st.session_state.data.get("leaves", {})
         if any(l_d.values()):
-            # --- 智能化大小寫合併邏輯 ---
             comb_l = {}
             n_map = {}
             for o_n, mons in l_d.items():
@@ -242,22 +241,20 @@ with c_l2:
             for low_n in sorted(comb_l.keys()):
                 disp_n = n_map[low_n]
                 m_list = sorted(list(comb_l[low_n]))
-                col_i, col_m = st.columns([0.8, 0.2])
-                with col_i:
+                col_info, col_manage = st.columns([0.82, 0.18])
+                with col_info:
                     st.markdown(f"**👤 {disp_n}**: {', '.join(m_list)}")
-                with col_m:
+                with col_manage:
                     with st.popover("🗑️"):
                         st.write(f"管理 {disp_n} 的假單：")
-                        # 處理正常有月份的刪除
-                        for m_i in m_list:
-                            if st.button(f"刪除 {m_i}", key=f"dl_{low_n}_{m_i}"):
+                        for m_item in m_list:
+                            if st.button(f"刪除 {m_item}", key=f"del_f_{low_n}_{m_item}"):
                                 cur = load_data()
                                 for ok in list(cur["leaves"].keys()):
-                                    if ok.lower() == low_n and m_i in cur["leaves"][ok]:
-                                        cur["leaves"][ok].remove(m_i)
+                                    if ok.lower() == low_n and m_item in cur["leaves"][ok]:
+                                        cur["leaves"][ok].remove(m_item)
                                         if not cur["leaves"][ok]: del cur["leaves"][ok]
-                                save_data(cur); st.toast(f"🗑️ 已移除 {m_i}"); time.sleep(0.5); st.rerun()
-                        # --- 🚨 新增：針對「R:」這種無月份異常紀錄的保險按鈕 ---
+                                save_data(cur); st.toast(f"🗑️ 已移除 {m_item}"); time.sleep(0.5); st.rerun()
                         st.divider()
                         if st.button("🚨 強制刪除此人", key=f"f_dl_{low_n}", type="secondary"):
                             cur = load_data()
@@ -291,10 +288,9 @@ else:
             c_c = len([x for x in main if x.get('occupyCourt')])
             pct = min(100, (curr/MAX_CAPACITY)*100)
             
-            # --- 精確修復 275 行語法錯誤 ---
-            c_code = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
+            color_code = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
             p_html = f'<div class="progress-info"><span>正選 ({curr}/{MAX_CAPACITY})</span><span>候補: {len(wait)}</span></div>'
-            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {c_code};"></div></div>'
+            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_code};"></div></div>'
             s_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
             st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_html}{b_html}</div>{s_html}', unsafe_allow_html=True)
 
@@ -313,15 +309,15 @@ else:
                             st.error("❌ 請輸入『團員姓名』並使用下方『報名人數』來幫朋友報名。")
                         elif name:
                             lat = load_data(); cur_p = lat["sessions"].get(dk, [])
-                            rel = [x for x in cur_p if x['name'] == name or x['name'].startswith(f"{name} (友") or x['name'].startswith(f"{name} （友") or x['name'] == f"{name}之友"]
-                            if not rel and not im: st.error("❌ 第一次報名需勾選「⭐晴女」")
-                            elif rel and im: st.error("❌ 加報朋友請勿重複勾選晴女")
-                            elif len(rel) + tot > 3: st.error("❌ 每人上限 3 位")
+                            num_rel = len([x for x in cur_p if name in x['name']])
+                            if num_rel == 0 and not im: st.error("❌ 第一次報名需勾選「⭐晴女」")
+                            elif num_rel > 0 and im: st.error("❌ 加報朋友請勿重複勾選晴女")
+                            elif num_rel + tot > 3: st.error("❌ 每人上限 3 位")
                             else:
                                 ts = time.time(); new_li = []
                                 for k in range(tot):
-                                    is_m = (k==0 and not [x for x in cur_p if x['name']==name])
-                                    fn = name if is_m else f"{name} (友{len(rel)+k})"
+                                    is_m = (k==0 and num_rel == 0)
+                                    fn = name if is_m else f"{name} (友{num_rel+k})"
                                     new_li.append({"id": str(uuid.uuid4()),"name": fn,"count": (0 if ev and is_m else 1),"isMember": (im if is_m else False),"bringBall": (bb if is_m else False),"occupyCourt": (oc if is_m else False),"timestamp": ts + (k*0.01)})
                                 lat["sessions"][dk].extend(new_li); save_data(lat); st.balloons(); st.toast("🎉 報名成功！"); time.sleep(2); st.rerun()
 
@@ -342,7 +338,7 @@ else:
                 render_list(wait, dk, True, can_edit, st.session_state.is_admin)
 
 # ==========================================
-# 5. 管理員專區
+# 5. 管理員專區 (出席統計優化版)
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
@@ -364,23 +360,65 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             h_s = st.multiselect("隱藏場次", all_s, default=st.session_state.data.get("hidden", []))
             if st.button("更新隱藏"):
                 cur = load_data(); cur["hidden"] = h_s; save_data(cur); st.rerun()
+        
         st.subheader("出席統計")
         if st.button("📊 產生報表"):
             try:
-                ls = {}; d_m = st.session_state.data
+                d_m = st.session_state.data
+                stats = {} # key: lower_name, value: {display_name, last_date, leave_months}
+                
+                # 處理場次 (收集出席資料)
                 for ds, pl in d_m["sessions"].items():
                     do = datetime.strptime(ds, "%Y-%m-%d").date()
                     if do <= date.today():
                         for p in pl:
-                            if "友" not in p['name']:
-                                if p['name'] not in ls or do > ls[p['name']]: ls[p['name']] = do
+                            pname = p['name']
+                            if "友" not in pname:
+                                low_n = pname.lower()
+                                if low_n not in stats:
+                                    stats[low_n] = {"name": pname, "last_date": do, "leaves": set()}
+                                else:
+                                    if do > stats[low_n]["last_date"]:
+                                        stats[low_n]["last_date"] = do
+                                        stats[low_n]["name"] = pname
+                
+                # 處理請假 (確保有請假的人都被列入)
+                for lname, l_months in d_m["leaves"].items():
+                    low_n = lname.lower()
+                    if low_n not in stats:
+                        stats[low_n] = {"name": lname, "last_date": None, "leaves": set(l_months)}
+                    else:
+                        stats[low_n]["leaves"].update(l_months)
+
                 rep = []
-                for n, do in ls.items():
-                    df = (date.today() - do).days
-                    onl = any(m in d_m["leaves"].get(n, []) for m in [date.today().strftime("%Y-%m")])
-                    rep.append({"姓名": n, "最後出席": str(do), "未出席天數": df, "狀態": "🏖️ 請假" if onl else "🔴 警告" if df > 60 else "🟢 活躍"})
+                curr_m = date.today().strftime("%Y-%m")
+                for ln in sorted(stats.keys()):
+                    item = stats[ln]
+                    name = item["name"]
+                    ld = item["last_date"]
+                    l_mons = sorted(list(item["leaves"]))
+                    
+                    is_on_leave = curr_m in l_mons
+                    
+                    if ld:
+                        days = (date.today() - ld).days
+                        ld_str = str(ld)
+                    else:
+                        days = 999
+                        ld_str = "無紀錄"
+                    
+                    status = "🏖️ 請假中" if is_on_leave else "🔴 警告" if days > 60 else "🟢 活躍"
+                    
+                    rep.append({
+                        "姓名": name,
+                        "最後出席": ld_str,
+                        "未出席天數": "N/A" if ld_str == "無紀錄" else days,
+                        "請假紀錄": ", ".join(l_mons) if l_mons else "無",
+                        "狀態": status
+                    })
                 st.table(rep)
-            except: st.error("統計失敗")
+            except:
+                st.error("統計失敗")
 
         st.divider()
         if st.button("🧹 一鍵清洗現有錯誤標籤"):
