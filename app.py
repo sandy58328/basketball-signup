@@ -7,7 +7,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ==========================================
-# 0. 設定區 (絕對不動)
+# 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 SHEET_NAME = "basketball_db" 
@@ -15,7 +15,7 @@ MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線 (絕對不動)
+# 1. 資料庫連線與資料處理
 # ==========================================
 @st.cache_resource
 def get_db_connection():
@@ -53,7 +53,7 @@ def save_data(data):
         st.error(f"❌ 資料儲存失敗：{e}")
 
 # ==========================================
-# 2. 功能工具箱 (絕對不動)
+# 2. 功能工具箱
 # ==========================================
 def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
@@ -87,22 +87,21 @@ def delete_player(pid, d):
         st.rerun()
 
 def promote_player(wid, d):
+    # 此功能保留給管理員手動微調優先級使用
     current_data = load_data()
-    _players = sorted(current_data["sessions"][d], key=lambda x: x.get('timestamp', 0))
-    _main, _ = [], []
-    _c = 0
-    for _p in _players:
-        if _c + _p.get('count', 1) <= MAX_CAPACITY: _main.append(_p); _c += _p.get('count', 1)
-    w = next((p for p in current_data["sessions"][d] if p['id']==wid), None)
-    tg = next((p for p in reversed(_main) if "友" in p['name'] and next((x for x in current_data["sessions"][d] if x['id']==p['id']), None)), None) 
-    if w and tg:
-       tg_ref = next((p for p in current_data["sessions"][d] if p['id']==tg['id']), None)
-       cutoff = _main[-1]['timestamp']
-       w['timestamp'] = tg_ref['timestamp'] - 1.0
-       tg_ref['timestamp'] = cutoff + 1.0
-       save_data(current_data)
-       st.balloons(); st.toast("🎉 遞補成功！"); time.sleep(2); st.rerun()
-    else: st.error("無可遞補對象")
+    p_l = current_data["sessions"][d]
+    w = next((p for p in p_l if p['id']==wid), None)
+    if not w: return
+    
+    # 尋找正選中最後一個非晴女(朋友)
+    main_friends = sorted([p for p in p_l if not p.get('isMember') and p.get('count', 1) > 0], key=lambda x: x.get('timestamp', 0))
+    if w and main_friends:
+        tg = main_friends[-1]
+        w_ts = w['timestamp']
+        w['timestamp'] = tg['timestamp'] - 0.001
+        save_data(current_data)
+        st.balloons(); st.toast("🎉 調整成功！"); time.sleep(1); st.rerun()
+    else: st.error("無可手動調整對象")
 
 def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mode=False):
     if not lst:
@@ -156,7 +155,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                                 delete_player(pid=p['id'], d=date_key)
 
 # ==========================================
-# 3. 初始化 & CSS (絕對不動)
+# 3. 初始化 & CSS (不變)
 # ==========================================
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
@@ -251,9 +250,10 @@ with c_l2:
                             if st.button(f"刪除 {m_item}", key=f"del_final_{low_n}_{m_item}"):
                                 cur = load_data()
                                 for ok in list(cur["leaves"].keys()):
-                                    if ok.lower() == low_n and m_item in cur["leaves"][ok]:
-                                        cur["leaves"][ok].remove(m_item)
-                                        if not cur["leaves"][ok]: del cur["leaves"][ok]
+                                    if ok.lower() == lower_name:
+                                        if m_item in cur["leaves"][ok]:
+                                            cur["leaves"][ok].remove(m_item)
+                                            if not cur["leaves"][ok]: del cur["leaves"][ok]
                                 save_data(cur); st.toast(f"🗑️ 已移除 {m_item}"); time.sleep(0.5); st.rerun()
                         st.divider()
                         if st.button("🚨 強制刪除此人", key=f"f_dl_{low_n}", type="secondary"):
@@ -278,19 +278,30 @@ else:
                 locked = datetime.now() > (dt - timedelta(days=1)).replace(hour=12, minute=0)
             except: locked = False
             can_edit = st.session_state.is_admin or (not locked)
-            p_l = sorted(st.session_state.data["sessions"][dk], key=lambda x: x.get('timestamp', 0))
+            
+            # --- 核心改進：排序邏輯優先排「晴女」，其次排「時間」 ---
+            p_l = sorted(st.session_state.data["sessions"][dk], 
+                         key=lambda x: (0 if x.get('isMember') else 1, x.get('timestamp', 0)))
+            
             main, wait, curr = [], [], 0
             for p in p_l:
-                if curr + p.get('count', 1) <= MAX_CAPACITY: main.append(p); curr += p.get('count', 1)
-                else: wait.append(p)
+                p_count = p.get('count', 1)
+                # 加油團 (count=0) 永遠顯示在正選名單中且不佔名額
+                if p_count == 0:
+                    main.append(p)
+                elif curr + p_count <= MAX_CAPACITY:
+                    main.append(p)
+                    curr += p_count
+                else:
+                    wait.append(p)
             
             b_c = len([x for x in main if x.get('bringBall')])
             c_c = len([x for x in main if x.get('occupyCourt')])
             pct = min(100, (curr/MAX_CAPACITY)*100)
             
-            color_code = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
+            prog_color = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
             p_html = f'<div class="progress-info"><span>正選 ({curr}/{MAX_CAPACITY})</span><span>候補: {len(wait)}</span></div>'
-            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_code};"></div></div>'
+            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {prog_color};"></div></div>'
             s_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
             st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_html}{b_html}</div>{s_html}', unsafe_allow_html=True)
 
@@ -338,7 +349,7 @@ else:
                 render_list(wait, dk, True, can_edit, st.session_state.is_admin)
 
 # ==========================================
-# 5. 管理員專區 (優化報表邏輯)
+# 5. 管理員專區
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
@@ -366,8 +377,6 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             try:
                 d_m = st.session_state.data
                 stats = {} 
-                
-                # 處理場次 (收集出席資料)
                 for ds, pl in d_m["sessions"].items():
                     do = datetime.strptime(ds, "%Y-%m-%d").date()
                     if do <= date.today():
@@ -382,15 +391,12 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                                     if do > stats[low_n]["last_date"]:
                                         stats[low_n]["last_date"] = do
                                         stats[low_n]["name"] = pname
-                
-                # 處理請假
                 for lname, l_months in d_m["leaves"].items():
                     low_n = lname.lower()
                     if low_n not in stats:
                         stats[low_n] = {"name": lname, "last_date": None, "leaves": set(l_months), "attend_count": 0}
                     else:
                         stats[low_n]["leaves"].update(l_months)
-
                 rep = []
                 curr_m = date.today().strftime("%Y-%m")
                 for ln in sorted(stats.keys()):
@@ -399,34 +405,22 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     ld = item["last_date"]
                     l_mons = sorted(list(item["leaves"]))
                     is_on_leave = curr_m in l_mons
-                    
                     if ld:
                         days = (date.today() - ld).days
                         ld_str = str(ld)
                     else:
                         days = 999
                         ld_str = "無出席紀錄"
-                    
-                    # 智能化狀態判斷
-                    if is_on_leave:
-                        status = "🏖️ 請假中"
-                    elif days > 60:
-                        status = "🔴 逾期 (2個月未出席)"
-                    elif days > 45:
-                        status = "🟡 預警 (本月需出席)"
-                    else:
-                        status = "🟢 活躍"
-                    
-                    # 檢查連續請假月份 (長假限制)
-                    leave_count = len(l_mons)
-                    leave_warning = "⚠️ 超過2月" if leave_count > 2 else "正常"
-
+                    if is_on_leave: status = "🏖️ 請假中"
+                    elif days > 60: status = "🔴 逾期 (2個月未出席)"
+                    elif days > 45: status = "🟡 預警 (本月需出席)"
+                    else: status = "🟢 活躍"
                     rep.append({
                         "姓名": name,
                         "最後出席": ld_str,
                         "缺席天數": days if ld else "N/A",
                         "請假月份": ", ".join(l_mons) if l_mons else "無",
-                        "累計請假月數": leave_count,
+                        "累計請假月數": len(l_mons),
                         "狀態": status
                     })
                 st.table(rep)
