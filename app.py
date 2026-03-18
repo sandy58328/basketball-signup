@@ -87,27 +87,22 @@ def delete_player(pid, d):
         st.rerun()
 
 def promote_player(wid, d):
-    # 此功能保留給管理員手動微調優先級使用
+    # 手動微調優先級邏輯
     current_data = load_data()
     p_l = current_data["sessions"][d]
     w = next((p for p in p_l if p['id']==wid), None)
     if not w: return
-    
-    # 尋找正選中最後一個非晴女(朋友)
-    main_friends = sorted([p for p in p_l if not p.get('isMember') and p.get('count', 1) > 0], key=lambda x: x.get('timestamp', 0))
-    if w and main_friends:
-        tg = main_friends[-1]
-        w_ts = w['timestamp']
-        w['timestamp'] = tg['timestamp'] - 0.001
-        save_data(current_data)
-        st.balloons(); st.toast("🎉 調整成功！"); time.sleep(1); st.rerun()
-    else: st.error("無可手動調整對象")
+    w['timestamp'] = time.time() - 3600 # 往前移一小時
+    save_data(current_data)
+    st.balloons(); st.toast("🎉 已提前順序"); time.sleep(1); st.rerun()
 
 def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mode=False):
     if not lst:
         if not is_wait: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
         return
-    for idx, p in enumerate(lst):
+    # 無論內部邏輯如何，畫面上統一按時間顯示，讓使用者覺得順序是正常的
+    display_lst = sorted(lst, key=lambda x: x.get('timestamp', 0))
+    for idx, p in enumerate(display_lst):
         is_f = p.get('count', 1) > 0
         idx_str = f"{idx+1}." if is_f else "🌸"
         idx_cls = "list-index" if is_f else "list-index-flower"
@@ -155,7 +150,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                                 delete_player(pid=p['id'], d=date_key)
 
 # ==========================================
-# 3. 初始化 & CSS (不變)
+# 3. 初始化 & CSS
 # ==========================================
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
@@ -247,13 +242,12 @@ with c_l2:
                     with st.popover("🗑️"):
                         st.write(f"管理 {disp_n} 的假單：")
                         for m_item in m_list:
-                            if st.button(f"刪除 {m_item}", key=f"del_final_{low_n}_{m_item}"):
+                            if st.button(f"刪除 {m_item}", key=f"del_f_{low_n}_{m_item}"):
                                 cur = load_data()
                                 for ok in list(cur["leaves"].keys()):
-                                    if ok.lower() == lower_name:
-                                        if m_item in cur["leaves"][ok]:
-                                            cur["leaves"][ok].remove(m_item)
-                                            if not cur["leaves"][ok]: del cur["leaves"][ok]
+                                    if ok.lower() == low_n and m_item in cur["leaves"][ok]:
+                                        cur["leaves"][ok].remove(m_item)
+                                        if not cur["leaves"][ok]: del cur["leaves"][ok]
                                 save_data(cur); st.toast(f"🗑️ 已移除 {m_item}"); time.sleep(0.5); st.rerun()
                         st.divider()
                         if st.button("🚨 強制刪除此人", key=f"f_dl_{low_n}", type="secondary"):
@@ -279,29 +273,29 @@ else:
             except: locked = False
             can_edit = st.session_state.is_admin or (not locked)
             
-            # --- 核心改進：排序邏輯優先排「晴女」，其次排「時間」 ---
-            p_l = sorted(st.session_state.data["sessions"][dk], 
-                         key=lambda x: (0 if x.get('isMember') else 1, x.get('timestamp', 0)))
+            # --- 核心邏輯：計算正選與候補 ---
+            all_players = st.session_state.data["sessions"][dk]
+            non_players = [p for p in all_players if p.get('count', 1) == 0]
+            active_players = [p for p in all_players if p.get('count', 1) > 0]
             
-            main, wait, curr = [], [], 0
-            for p in p_l:
-                p_count = p.get('count', 1)
-                # 加油團 (count=0) 永遠顯示在正選名單中且不佔名額
-                if p_count == 0:
-                    main.append(p)
-                elif curr + p_count <= MAX_CAPACITY:
-                    main.append(p)
-                    curr += p_count
-                else:
-                    wait.append(p)
+            # 優先分配邏輯：先排晴女，再排朋友
+            prio_p = sorted(active_players, key=lambda x: (0 if x.get('isMember') else 1, x.get('timestamp', 0)))
             
-            b_c = len([x for x in main if x.get('bringBall')])
-            c_c = len([x for x in main if x.get('occupyCourt')])
-            pct = min(100, (curr/MAX_CAPACITY)*100)
+            main_active = prio_p[:MAX_CAPACITY]
+            wait_active = prio_p[MAX_CAPACITY:]
             
-            prog_color = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
-            p_html = f'<div class="progress-info"><span>正選 ({curr}/{MAX_CAPACITY})</span><span>候補: {len(wait)}</span></div>'
-            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {prog_color};"></div></div>'
+            # 顯示用的正選名單 = 正選球員 + 加油團，並按「時間」排序確保畫面自然
+            main_list = sorted(main_active + non_players, key=lambda x: x.get('timestamp', 0))
+            wait_list = sorted(wait_active, key=lambda x: x.get('timestamp', 0))
+            
+            curr_count = len(main_active)
+            b_c = len([x for x in main_active if x.get('bringBall')])
+            c_c = len([x for x in main_active if x.get('occupyCourt')])
+            pct = min(100, (curr_count/MAX_CAPACITY)*100)
+            
+            color_code = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
+            p_html = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
+            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_code};"></div></div>'
             s_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
             st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_html}{b_html}</div>{s_html}', unsafe_allow_html=True)
 
@@ -337,16 +331,16 @@ else:
                     <div class="rules-header">📌 報名須知</div>
                     <div class="rules-row"><span class="rules-icon">🔴</span><div class="rules-content"><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名。欲事後補報朋友，請用原名再次填寫即可 (含自己上限3位)。</div></div>
                     <div class="rules-row"><span class="rules-icon">🟡</span><div class="rules-content"><b>📣加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div>
-                    <div class="rules-row"><span class="rules-icon">🟢</span><div class="rules-content"><b>遞補機制</b>：正選 20 人。候補名單中之 <b>⭐晴女</b>，享有優先遞補「非晴女」之權利。</div></div>
+                    <div class="rules-row"><span class="rules-icon">🟢</span><div class="rules-content"><b>優先機制</b>：正選 20 人。當人數超過時，<b>⭐晴女</b> 享有進入正選名單之優先權。</div></div>
                     <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                 </div>
                 """, unsafe_allow_html=True)
 
             st.subheader("🏀 報名名單")
-            render_list(main, dk, False, can_edit, st.session_state.is_admin)
-            if wait:
+            render_list(main_list, dk, False, can_edit, st.session_state.is_admin)
+            if wait_list:
                 st.markdown("<br>", unsafe_allow_html=True); st.subheader("⏳ 候補名單")
-                render_list(wait, dk, True, can_edit, st.session_state.is_admin)
+                render_list(wait_list, dk, True, can_edit, st.session_state.is_admin)
 
 # ==========================================
 # 5. 管理員專區
@@ -401,31 +395,19 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 curr_m = date.today().strftime("%Y-%m")
                 for ln in sorted(stats.keys()):
                     item = stats[ln]
-                    name = item["name"]
-                    ld = item["last_date"]
-                    l_mons = sorted(list(item["leaves"]))
+                    name = item["name"]; ld = item["last_date"]; l_mons = sorted(list(item["leaves"]))
                     is_on_leave = curr_m in l_mons
                     if ld:
-                        days = (date.today() - ld).days
-                        ld_str = str(ld)
+                        days = (date.today() - ld).days; ld_str = str(ld)
                     else:
-                        days = 999
-                        ld_str = "無出席紀錄"
+                        days = 999; ld_str = "無出席紀錄"
                     if is_on_leave: status = "🏖️ 請假中"
                     elif days > 60: status = "🔴 逾期 (2個月未出席)"
                     elif days > 45: status = "🟡 預警 (本月需出席)"
                     else: status = "🟢 活躍"
-                    rep.append({
-                        "姓名": name,
-                        "最後出席": ld_str,
-                        "缺席天數": days if ld else "N/A",
-                        "請假月份": ", ".join(l_mons) if l_mons else "無",
-                        "累計請假月數": len(l_mons),
-                        "狀態": status
-                    })
+                    rep.append({"姓名": name,"最後出席": ld_str,"缺席天數": days if ld else "N/A","請假月份": ", ".join(l_mons) if l_mons else "無","累計請假月數": len(l_mons),"狀態": status})
                 st.table(rep)
-            except:
-                st.error("統計失敗")
+            except: st.error("統計失敗")
 
         st.divider()
         if st.button("🧹 一鍵清洗現有錯誤標籤"):
