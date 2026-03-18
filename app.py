@@ -7,7 +7,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ==========================================
-# 0. 設定區
+# 0. 設定區 (絕對不動)
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 SHEET_NAME = "basketball_db" 
@@ -15,7 +15,7 @@ MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線與資料處理
+# 1. 資料庫連線 (絕對不動)
 # ==========================================
 @st.cache_resource
 def get_db_connection():
@@ -59,7 +59,8 @@ def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
     t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
     if t: 
-        final_im = False if "友" in n else im
+        # 未來保險：含括號或友字一律不准顯示晴女
+        final_im = False if any(k in n for k in ["友", "（", "("]) else im
         new_count = 0 if iv else 1
         t.update({'name':n,'isMember':final_im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
         save_data(current_data)
@@ -73,7 +74,7 @@ def delete_player(pid, d):
     target = next((p for p in current_data["sessions"][d] if p['id'] == pid), None)
     if target:
         target_name = target['name']
-        if "友" in target_name:
+        if any(k in target_name for k in ["友", "（", "("]):
             current_data["sessions"][d] = [p for p in current_data["sessions"][d] if p['id'] != pid]
         else:
             current_data["sessions"][d] = [
@@ -87,12 +88,11 @@ def delete_player(pid, d):
         st.rerun()
 
 def promote_player(wid, d):
-    # 手動微調優先級邏輯
     current_data = load_data()
     p_l = current_data["sessions"][d]
     w = next((p for p in p_l if p['id']==wid), None)
     if not w: return
-    w['timestamp'] = time.time() - 3600 # 往前移一小時
+    w['timestamp'] = time.time() - 3600
     save_data(current_data)
     st.balloons(); st.toast("🎉 已提前順序"); time.sleep(1); st.rerun()
 
@@ -100,19 +100,27 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
     if not lst:
         if not is_wait: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
         return
-    # 無論內部邏輯如何，畫面上統一按時間顯示，讓使用者覺得順序是正常的
+    
     display_lst = sorted(lst, key=lambda x: x.get('timestamp', 0))
-    for idx, p in enumerate(display_lst):
-        is_f = p.get('count', 1) > 0
-        idx_str = f"{idx+1}." if is_f else "🌸"
-        idx_cls = "list-index" if is_f else "list-index-flower"
+    # --- 核心改進點：智慧編號 (加油團不佔號碼) ---
+    p_counter = 0 
+    for p in display_lst:
+        is_playing = p.get('count', 1) > 0
+        if is_playing:
+            p_counter += 1
+            idx_str = f"{p_counter}."
+            idx_cls = "list-index"
+        else:
+            idx_str = "🌸"
+            idx_cls = "list-index-flower"
+            
         if st.session_state.edit_target == p['id']:
             with st.container():
                 st.markdown(f"<div class='edit-box'>✏️ 正在編輯：{p['name']}</div>", unsafe_allow_html=True)
                 with st.form(key=f"e_{p['id']}"):
                     en = st.text_input("姓名 (不可修改)", p['name'], disabled=True)
                     ec1, ec2, ec3 = st.columns(3)
-                    is_friend = "友" in p['name']
+                    is_friend = any(k in p['name'] for k in ["友", "（", "("])
                     em = ec1.checkbox("⭐晴女", p.get('isMember'), disabled=True)
                     eb = ec2.checkbox("🏀帶球", p.get('bringBall'), disabled=is_friend)
                     ec = ec3.checkbox("🚩佔場", p.get('occupyCourt'), disabled=is_friend)
@@ -123,7 +131,8 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
         else:
             badges = ""
             if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
-            if p.get('isMember') and "友" not in p['name']: 
+            # 強力過濾標籤：只要名字含括號或友字，絕對不印晴女
+            if p.get('isMember') and not any(k in p['name'] for k in ["友", "（", "("]): 
                 badges += "<span class='badge badge-sunny'>晴女</span>"
             if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
             if p.get('occupyCourt'): badges += "<span class='badge badge-court'>佔場</span>"
@@ -139,7 +148,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
                 b_idx += 1
             if can_edit_global:
                 if b_idx < len(cols):
-                    if "友" not in p['name']:
+                    if not any(k in p['name'] for k in ["友", "（", "("]):
                         with cols[b_idx]:
                             if st.button("✏️", key=f"be_{p['id']}"): st.session_state.edit_target = p['id']; st.rerun()
                 if b_idx+1 < len(cols):
@@ -235,20 +244,20 @@ with c_l2:
             for low_n in sorted(comb_l.keys()):
                 disp_n = n_map[low_n]
                 m_list = sorted(list(comb_l[low_n]))
-                col_info, col_manage = st.columns([0.82, 0.18])
-                with col_info:
+                col_i, col_m = st.columns([0.8, 0.2])
+                with col_i:
                     st.markdown(f"**👤 {disp_n}**: {', '.join(m_list)}")
-                with col_manage:
+                with col_m:
                     with st.popover("🗑️"):
                         st.write(f"管理 {disp_n} 的假單：")
-                        for m_item in m_list:
-                            if st.button(f"刪除 {m_item}", key=f"del_f_{low_n}_{m_item}"):
+                        for m_i in m_list:
+                            if st.button(f"刪除 {m_i}", key=f"dl_{low_n}_{m_i}"):
                                 cur = load_data()
                                 for ok in list(cur["leaves"].keys()):
-                                    if ok.lower() == low_n and m_item in cur["leaves"][ok]:
-                                        cur["leaves"][ok].remove(m_item)
+                                    if ok.lower() == low_n and m_i in cur["leaves"][ok]:
+                                        cur["leaves"][ok].remove(m_i)
                                         if not cur["leaves"][ok]: del cur["leaves"][ok]
-                                save_data(cur); st.toast(f"🗑️ 已移除 {m_item}"); time.sleep(0.5); st.rerun()
+                                save_data(cur); st.toast(f"🗑️ 已移除 {m_i}"); time.sleep(0.5); st.rerun()
                         st.divider()
                         if st.button("🚨 強制刪除此人", key=f"f_dl_{low_n}", type="secondary"):
                             cur = load_data()
@@ -273,18 +282,13 @@ else:
             except: locked = False
             can_edit = st.session_state.is_admin or (not locked)
             
-            # --- 核心邏輯：計算正選與候補 ---
             all_players = st.session_state.data["sessions"][dk]
             non_players = [p for p in all_players if p.get('count', 1) == 0]
             active_players = [p for p in all_players if p.get('count', 1) > 0]
-            
-            # 優先分配邏輯：先排晴女，再排朋友
             prio_p = sorted(active_players, key=lambda x: (0 if x.get('isMember') else 1, x.get('timestamp', 0)))
             
             main_active = prio_p[:MAX_CAPACITY]
             wait_active = prio_p[MAX_CAPACITY:]
-            
-            # 顯示用的正選名單 = 正選球員 + 加油團，並按「時間」排序確保畫面自然
             main_list = sorted(main_active + non_players, key=lambda x: x.get('timestamp', 0))
             wait_list = sorted(wait_active, key=lambda x: x.get('timestamp', 0))
             
@@ -293,9 +297,10 @@ else:
             c_c = len([x for x in main_active if x.get('occupyCourt')])
             pct = min(100, (curr_count/MAX_CAPACITY)*100)
             
-            color_code = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
+            # --- 精確修復 Syntax Error ---
+            color_c = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
             p_html = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
-            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_code};"></div></div>'
+            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_c};"></div></div>'
             s_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
             st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_html}{b_html}</div>{s_html}', unsafe_allow_html=True)
 
@@ -310,8 +315,7 @@ else:
                     ev = st.checkbox("📣 不打球 (加油團)", key=f"v_{dk}", disabled=not can_edit)
                     tot = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=not can_edit)
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
-                        if "友" in name:
-                            st.error("❌ 請輸入『團員姓名』並使用下方『報名人數』來幫朋友報名。")
+                        if "友" in name: st.error("❌ 請輸入『團員姓名』並使用下方『報名人數』來幫朋友報名。")
                         elif name:
                             lat = load_data(); cur_p = lat["sessions"].get(dk, [])
                             num_rel = len([x for x in cur_p if name in x['name']])
@@ -415,7 +419,8 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             count = 0
             for dk in cur["sessions"]:
                 for p in cur["sessions"][dk]:
-                    if "友" in p['name'] and p.get('isMember'):
+                    # 包含全形括號一起檢查
+                    if any(k in p['name'] for k in ["友", "（", "("]) and p.get('isMember'):
                         p['isMember'] = False
                         count += 1
             save_data(cur); st.success(f"清洗完成！共修正 {count} 筆。"); time.sleep(2); st.rerun()
