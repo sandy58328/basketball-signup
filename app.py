@@ -53,16 +53,17 @@ def save_data(data):
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
-# --- 強化版姓名標準化邏輯 (處理所有分身) ---
+# --- 終極版姓名標準化邏輯 (處理所有分身與 Emoji) ---
 def normalize_name(name):
     if not name: return ""
     # 移除 Emoji 與符號，轉小寫，移除空格
     clean = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name)
     clean = clean.replace(" ", "").lower()
     
-    # 分身合併地圖
+    # 分身合併地圖 (只要包含關鍵字就歸類為同一人)
     if "金閃閃" in clean: return "kingsley金閃閃"
     if "冬青" in clean or "得來速" in clean: return "冬青得來速"
+    if clean == "菜" or clean == "小菜": return "小菜"
     
     return clean
 
@@ -73,6 +74,7 @@ def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
     t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
     if t: 
+        # 未來保險：含括號或「友」字一律強制不為晴女
         final_im = False if any(k in n for k in ["友", "（", "("]) else im
         new_count = 0 if iv else 1
         t.update({'name':n,'isMember':final_im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
@@ -104,7 +106,9 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
     if not lst:
         if not is_wait: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
         return
+    
     display_lst = sorted(lst, key=lambda x: x.get('timestamp', 0))
+    # --- 智慧編號邏輯：加油團不佔號碼 ---
     p_counter = 0 
     for p in display_lst:
         is_playing = p.get('count', 1) > 0
@@ -133,6 +137,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
         else:
             badges = ""
             if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
+            # 標籤過濾：含友字或括號一律不顯示晴女標籤
             if p.get('isMember') and not any(k in p['name'] for k in ["友", "（", "("]): 
                 badges += "<span class='badge badge-sunny'>晴女</span>"
             if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
@@ -281,10 +286,12 @@ else:
             all_players = st.session_state.data["sessions"][dk]
             active_p = [p for p in all_players if p.get('count', 1) > 0]
             non_p = [p for p in all_players if p.get('count', 1) == 0]
-            prio_p = sorted(active_p, key=lambda x: (0 if x.get('isMember') else 1, x.get('timestamp', 0)))
             
+            # 優先機制：先排晴女，再排朋友
+            prio_p = sorted(active_p, key=lambda x: (0 if x.get('isMember') else 1, x.get('timestamp', 0)))
             main_active = prio_p[:MAX_CAPACITY]
             wait_active = prio_p[MAX_CAPACITY:]
+            
             main_list = sorted(main_active + non_p, key=lambda x: x.get('timestamp', 0))
             wait_list = sorted(wait_active, key=lambda x: x.get('timestamp', 0))
             
@@ -293,6 +300,7 @@ else:
             c_c = len([x for x in main_active if x.get('occupyCourt')])
             pct = min(100, (curr_count/MAX_CAPACITY)*100)
             
+            # --- 精確修復 Syntax Error ---
             color_c = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
             p_h = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
             b_h = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_c};"></div></div>'
@@ -310,7 +318,7 @@ else:
                     ev = st.checkbox("📣 不打球 (加油團)", key=f"v_{dk}", disabled=not can_edit)
                     tot = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=not can_edit)
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
-                        if "友" in name: st.error("❌ 請輸入『團員姓名』並使用報名人數來幫朋友報名。")
+                        if "友" in name: st.error("❌ 請輸入『團員姓名』並使用下方報名人數幫朋友報名。")
                         elif name:
                             lat = load_data(); cur_p = lat["sessions"].get(dk, [])
                             num_rel = len([x for x in cur_p if name in x['name']])
@@ -400,7 +408,14 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     elif days > 60: status = "🔴 逾期"
                     elif days > 45: status = "🟡 預警"
                     else: status = "🟢 活躍"
-                    rep.append({"姓名": item["name"],"近期報名": my_signups,"最後出席": ld_str,"請假月份": ", ".join(l_mons) if l_mons else "無","累計月數": len(l_mons),"狀態": status})
+                    rep.append({
+                        "姓名": item["name"],
+                        "近期報名(開放場次)": my_signups,
+                        "最後出席": ld_str,
+                        "請假月份": ", ".join(l_mons) if l_mons else "無",
+                        "累計月數": len(l_mons),
+                        "狀態": status
+                    })
                 st.table(rep)
             except Exception as e: st.error(f"統計失敗: {e}")
 
