@@ -53,7 +53,7 @@ def save_data(data):
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
-# 姓名標準化 (抓出影分身)
+# 姓名標準化
 def normalize_name(name):
     if not name: return ""
     clean = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name).replace(" ", "").lower()
@@ -68,13 +68,24 @@ def normalize_name(name):
 def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
     t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
-    if t: 
+    if t:
+        old_name = t['name']
         final_im = False if any(k in n for k in ["友", "（", "("]) else im
         new_count = 0 if iv else 1
+        
+        # --- 核心改進：管理員修改姓名時連動修改朋友名字 ---
+        if st.session_state.is_admin and im and old_name != n:
+            for p_in_session in current_data["sessions"][d]:
+                # 找出所有開頭是「舊姓名 (友」或「舊姓名 （友」的紀錄
+                prefix1 = f"{old_name} ("
+                prefix2 = f"{old_name} （"
+                if p_in_session['name'].startswith(prefix1) or p_in_session['name'].startswith(prefix2):
+                    p_in_session['name'] = p_in_session['name'].replace(old_name, n, 1)
+
         t.update({'name':n,'isMember':final_im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
         save_data(current_data)
         st.session_state.edit_target = None
-        st.toast("✅ 資料已更新")
+        st.toast("✅ 資料已連動更新")
         time.sleep(0.5)
         st.rerun()
 
@@ -88,7 +99,7 @@ def delete_player(pid, d):
         else:
             current_data["sessions"][d] = [
                 p for p in current_data["sessions"][d] 
-                if p['id'] != pid and not (p['name'].startswith(f"{target_name} (友") or p['name'].startswith(f"{target_name} （友") or p['name'] == f"{target_name}之友")
+                if p['id'] != pid and not (p['name'].startswith(f"{target_name} (") or p['name'].startswith(f"{target_name} （") or p['name'] == f"{target_name}之友")
             ]
         if st.session_state.edit_target == pid: st.session_state.edit_target = None
         save_data(current_data)
@@ -114,7 +125,6 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
             with st.container():
                 st.markdown(f"<div class='edit-box'>✏️ 正在編輯：{p['name']}</div>", unsafe_allow_html=True)
                 with st.form(key=f"e_{p['id']}"):
-                    # 管理員特權：此處姓名不再鎖死
                     en = st.text_input("姓名", p['name'], disabled=not is_admin_mode)
                     ec1, ec2, ec3 = st.columns(3)
                     is_friend = any(k in p['name'] for k in ["友", "（", "("])
@@ -289,7 +299,6 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             if st.button("更新隱藏設定"):
                 cur = load_data(); cur["hidden"] = h_s; save_data(cur); st.rerun()
 
-        # --- 管理員特權：編輯隱藏場次 ---
         st.divider()
         st.subheader("🕵️ 編輯隱藏場次資料")
         hidden_dates = st.session_state.data.get("hidden", [])
