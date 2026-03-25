@@ -2,12 +2,13 @@ import streamlit as st
 import json
 import time
 import uuid
+import re
 from datetime import datetime, date, timedelta
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ==========================================
-# 0. 設定區 (絕對不動)
+# 0. 設定區
 # ==========================================
 ADMIN_PASSWORD = "sunny"
 SHEET_NAME = "basketball_db" 
@@ -15,7 +16,7 @@ MAX_CAPACITY = 20
 APP_URL = "https://sunny-girls-basketball.streamlit.app" 
 
 # ==========================================
-# 1. 資料庫連線 (絕對不動)
+# 1. 資料庫連線與資料處理
 # ==========================================
 @st.cache_resource
 def get_db_connection():
@@ -52,6 +53,13 @@ def save_data(data):
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
+# 標準化姓名邏輯 (移除 Emoji 與空白)
+def normalize_name(name):
+    if not name: return ""
+    # 移除所有非字母數字與中文字符
+    clean = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name)
+    return clean.strip().lower()
+
 # ==========================================
 # 2. 功能工具箱
 # ==========================================
@@ -59,7 +67,6 @@ def update_player(pid, d, n, im, bb, oc, iv):
     current_data = load_data()
     t = next((p for p in current_data["sessions"][d] if p['id']==pid), None)
     if t: 
-        # 未來保險：含括號或友字一律不准顯示晴女
         final_im = False if any(k in n for k in ["友", "（", "("]) else im
         new_count = 0 if iv else 1
         t.update({'name':n,'isMember':final_im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
@@ -102,7 +109,6 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
         return
     
     display_lst = sorted(lst, key=lambda x: x.get('timestamp', 0))
-    # --- 核心改進點：智慧編號 (加油團不佔號碼) ---
     p_counter = 0 
     for p in display_lst:
         is_playing = p.get('count', 1) > 0
@@ -131,7 +137,6 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
         else:
             badges = ""
             if p.get('count') == 0: badges += "<span class='badge badge-visit'>📣加油團</span>"
-            # 強力過濾標籤：只要名字含括號或友字，絕對不印晴女
             if p.get('isMember') and not any(k in p['name'] for k in ["友", "（", "("]): 
                 badges += "<span class='badge badge-sunny'>晴女</span>"
             if p.get('bringBall'): badges += "<span class='badge badge-ball'>帶球</span>"
@@ -235,7 +240,7 @@ with c_l2:
             comb_l = {}
             n_map = {}
             for o_n, mons in l_d.items():
-                low_n = o_n.lower()
+                low_n = normalize_name(o_n)
                 if low_n not in comb_l:
                     comb_l[low_n] = set()
                     n_map[low_n] = o_n
@@ -254,7 +259,7 @@ with c_l2:
                             if st.button(f"刪除 {m_i}", key=f"dl_{low_n}_{m_i}"):
                                 cur = load_data()
                                 for ok in list(cur["leaves"].keys()):
-                                    if ok.lower() == low_n and m_i in cur["leaves"][ok]:
+                                    if normalize_name(ok) == low_n and m_i in cur["leaves"][ok]:
                                         cur["leaves"][ok].remove(m_i)
                                         if not cur["leaves"][ok]: del cur["leaves"][ok]
                                 save_data(cur); st.toast(f"🗑️ 已移除 {m_i}"); time.sleep(0.5); st.rerun()
@@ -262,7 +267,7 @@ with c_l2:
                         if st.button("🚨 強制刪除此人", key=f"f_dl_{low_n}", type="secondary"):
                             cur = load_data()
                             for ok in list(cur["leaves"].keys()):
-                                if ok.lower() == low_n: del cur["leaves"][ok]
+                                if normalize_name(ok) == low_n: del cur["leaves"][ok]
                             save_data(cur); st.toast("🗑️ 已強制移除"); time.sleep(0.5); st.rerun()
         else: st.info("目前無人請假")
 
@@ -297,12 +302,12 @@ else:
             c_c = len([x for x in main_active if x.get('occupyCourt')])
             pct = min(100, (curr_count/MAX_CAPACITY)*100)
             
-            # --- 精確修復 Syntax Error ---
-            color_c = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
-            p_html = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
-            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_c};"></div></div>'
-            s_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
-            st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_html}{b_html}</div>{s_html}', unsafe_allow_html=True)
+            color_code = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
+            # 修正 SyntaxError 字串拼接
+            p_h = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
+            b_h = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_code};"></div></div>'
+            s_h = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
+            st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_h}{b_h}</div>{s_h}', unsafe_allow_html=True)
 
             with st.expander("📝 點擊報名 / 規則說明", expanded=not locked):
                 if locked and not st.session_state.is_admin: st.warning("⛔ 已截止報名")
@@ -375,41 +380,62 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             try:
                 d_m = st.session_state.data
                 stats = {} 
+                
+                # 找出最近場次
+                latest_session = dates[-1] if dates else None
+                latest_signups = set()
+                if latest_session:
+                    latest_signups = {normalize_name(p['name']) for p in d_m["sessions"][latest_session]}
+                
                 for ds, pl in d_m["sessions"].items():
                     do = datetime.strptime(ds, "%Y-%m-%d").date()
                     if do <= date.today():
                         for p in pl:
                             pname = p['name']
                             if "友" not in pname:
-                                low_n = pname.lower()
+                                low_n = normalize_name(pname)
                                 if low_n not in stats:
-                                    stats[low_n] = {"name": pname, "last_date": do, "leaves": set(), "attend_count": 1}
+                                    stats[low_n] = {"name": pname, "last_date": do, "leaves": set()}
                                 else:
-                                    stats[low_n]["attend_count"] += 1
                                     if do > stats[low_n]["last_date"]:
                                         stats[low_n]["last_date"] = do
                                         stats[low_n]["name"] = pname
                 for lname, l_months in d_m["leaves"].items():
-                    low_n = lname.lower()
+                    low_n = normalize_name(lname)
                     if low_n not in stats:
-                        stats[low_n] = {"name": lname, "last_date": None, "leaves": set(l_months), "attend_count": 0}
+                        stats[low_n] = {"name": lname, "last_date": None, "leaves": set(l_months)}
                     else:
                         stats[low_n]["leaves"].update(l_months)
+                
                 rep = []
                 curr_m = date.today().strftime("%Y-%m")
                 for ln in sorted(stats.keys()):
                     item = stats[ln]
-                    name = item["name"]; ld = item["last_date"]; l_mons = sorted(list(item["leaves"]))
+                    name = item["name"]
+                    ld = item["last_date"]
+                    l_mons = sorted(list(item["leaves"]))
                     is_on_leave = curr_m in l_mons
+                    is_signed_latest = ln in latest_signups
+                    
                     if ld:
-                        days = (date.today() - ld).days; ld_str = str(ld)
+                        days = (date.today() - ld).days
+                        ld_str = str(ld)
                     else:
                         days = 999; ld_str = "無出席紀錄"
+                    
                     if is_on_leave: status = "🏖️ 請假中"
-                    elif days > 60: status = "🔴 逾期 (2個月未出席)"
-                    elif days > 45: status = "🟡 預警 (本月需出席)"
+                    elif days > 60: status = "🔴 逾期"
+                    elif days > 45: status = "🟡 預警"
                     else: status = "🟢 活躍"
-                    rep.append({"姓名": name,"最後出席": ld_str,"缺席天數": days if ld else "N/A","請假月份": ", ".join(l_mons) if l_mons else "無","累計請假月數": len(l_mons),"狀態": status})
+                    
+                    rep.append({
+                        "姓名": name,
+                        "近期報名": "✅ 已報名" if is_signed_latest else "—",
+                        "最後出席": ld_str,
+                        "請假月份": ", ".join(l_mons) if l_mons else "無",
+                        "累計月數": len(l_mons),
+                        "狀態": status
+                    })
                 st.table(rep)
             except: st.error("統計失敗")
 
@@ -419,7 +445,6 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             count = 0
             for dk in cur["sessions"]:
                 for p in cur["sessions"][dk]:
-                    # 包含全形括號一起檢查
                     if any(k in p['name'] for k in ["友", "（", "("]) and p.get('isMember'):
                         p['isMember'] = False
                         count += 1
