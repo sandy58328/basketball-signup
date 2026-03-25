@@ -53,18 +53,14 @@ def save_data(data):
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
-# --- 強化版姓名標準化邏輯 ---
+# 姓名標準化邏輯 (處理亂寫名字與 Emoji)
 def normalize_name(name):
     if not name: return ""
-    # 1. 移除表情符號與標點符號
+    # 移除 Emoji 與符號，轉小寫，移除空格
     clean = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name)
-    # 2. 移除空格並轉小寫
     clean = clean.replace(" ", "").lower()
-    
-    # 3. 針對「金閃閃」這位球員的特別對策
-    if "金閃閃" in clean:
-        return "kingsley金閃閃" # 統一回傳一個固定的識別碼
-    
+    # 針對「金閃閃」的專屬合併邏輯
+    if "金閃閃" in clean: return "kingsley金閃閃"
     return clean
 
 # ==========================================
@@ -105,7 +101,6 @@ def render_list(lst, date_key, is_wait=False, can_edit_global=True, is_admin_mod
     if not lst:
         if not is_wait: st.markdown("""<div style="text-align: center; padding: 40px; color: #cbd5e1; opacity:0.8;"><div style="font-size: 36px; margin-bottom: 8px;">🏀</div><p style="font-size: 0.85rem; font-weight:500;">場地空蕩蕩...<br>快來當第一位！</p></div>""", unsafe_allow_html=True)
         return
-    
     display_lst = sorted(lst, key=lambda x: x.get('timestamp', 0))
     p_counter = 0 
     for p in display_lst:
@@ -234,7 +229,6 @@ with c_l2:
             comb_l = {}
             n_map = {}
             for o_n, mons in l_d.items():
-                # 使用強化版標準化
                 low_n = normalize_name(o_n)
                 if low_n not in comb_l:
                     comb_l[low_n] = set()
@@ -284,12 +278,10 @@ else:
             all_players = st.session_state.data["sessions"][dk]
             active_p = [p for p in all_players if p.get('count', 1) > 0]
             non_p = [p for p in all_players if p.get('count', 1) == 0]
-            
-            # 優先機制分配
             prio_p = sorted(active_p, key=lambda x: (0 if x.get('isMember') else 1, x.get('timestamp', 0)))
+            
             main_active = prio_p[:MAX_CAPACITY]
             wait_active = prio_p[MAX_CAPACITY:]
-            
             main_list = sorted(main_active + non_p, key=lambda x: x.get('timestamp', 0))
             wait_list = sorted(wait_active, key=lambda x: x.get('timestamp', 0))
             
@@ -299,10 +291,11 @@ else:
             pct = min(100, (curr_count/MAX_CAPACITY)*100)
             
             color_c = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
-            p_html = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
-            b_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_c};"></div></div>'
-            s_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
-            st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_html}{b_html}</div>{s_html}', unsafe_allow_html=True)
+            # 修復語法並渲染進度條
+            prog_html = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
+            bar_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_c};"></div></div>'
+            stat_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
+            st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{prog_html}{bar_html}</div>{stat_html}', unsafe_allow_html=True)
 
             with st.expander("📝 點擊報名 / 規則說明", expanded=not locked):
                 if locked and not st.session_state.is_admin: st.warning("⛔ 已截止報名")
@@ -315,7 +308,7 @@ else:
                     ev = st.checkbox("📣 不打球 (加油團)", key=f"v_{dk}", disabled=not can_edit)
                     tot = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=not can_edit)
                     if st.form_submit_button("送出報名", disabled=not can_edit, type="primary"):
-                        if "友" in name: st.error("❌ 請輸入『團員姓名』並使用下方『報名人數』來幫朋友報名。")
+                        if "友" in name: st.error("❌ 請輸入『團員姓名』並使用報名人數來幫朋友報名。")
                         elif name:
                             lat = load_data(); cur_p = lat["sessions"].get(dk, [])
                             num_rel = len([x for x in cur_p if name in x['name']])
@@ -356,14 +349,26 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             del_s = st.selectbox("刪除場次", all_s)
             if st.button("確認刪除"):
                 cur = load_data(); del cur["sessions"][del_s]; save_data(cur); st.rerun()
+            h_s = st.multiselect("隱藏場次", all_s, default=st.session_state.data.get("hidden", []))
+            if st.button("更新隱藏"):
+                cur = load_data(); cur["hidden"] = h_s; save_data(cur); st.rerun()
         
         st.subheader("出席統計")
         if st.button("📊 產生報表"):
             try:
                 d_m = st.session_state.data
                 stats = {} 
-                latest_s = dates[-1] if dates else None
-                latest_signups = {normalize_name(p['name']) for p in d_m["sessions"][latest_s]} if latest_s else set()
+                
+                # --- 預處理：掃描所有「未隱藏」的開放場次 ---
+                open_sessions = dates # 這是目前前端看得見的日期清單
+                member_signups = {} # normalized_name -> list of formatted_dates
+                for os_date in open_sessions:
+                    f_date = f"{int(os_date.split('-')[1])}/{int(os_date.split('-')[2])}"
+                    for p in d_m["sessions"].get(os_date, []):
+                        if "友" not in p['name']:
+                            norm = normalize_name(p['name'])
+                            if norm not in member_signups: member_signups[norm] = []
+                            member_signups[norm].append(f_date)
                 
                 for ds, pl in d_m["sessions"].items():
                     do = datetime.strptime(ds, "%Y-%m-%d").date()
@@ -384,18 +389,31 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 curr_m = date.today().strftime("%Y-%m")
                 for ln in sorted(stats.keys()):
                     item = stats[ln]
-                    name = item["name"]; ld = item["last_date"]; l_mons = sorted(list(item["leaves"]))
+                    ld = item["last_date"]; l_mons = sorted(list(item["leaves"]))
                     is_on_leave = curr_m in l_mons
-                    is_signed = ln in latest_signups
-                    if ld: days = (date.today() - ld).days; ld_str = str(ld)
-                    else: days = 999; ld_str = "無出席紀錄"
+                    # 從預處理的清單中抓取報名場次
+                    my_signups = ", ".join(member_signups.get(ln, [])) if member_signups.get(ln) else "—"
+                    
+                    if ld:
+                        days = (date.today() - ld).days; ld_str = str(ld)
+                    else:
+                        days = 999; ld_str = "無紀錄"
+                    
                     if is_on_leave: status = "🏖️ 請假中"
                     elif days > 60: status = "🔴 逾期"
                     elif days > 45: status = "🟡 預警"
                     else: status = "🟢 活躍"
-                    rep.append({"姓名": name,"近期報名": "✅ 已報名" if is_signed else "—","最後出席": ld_str,"請假月份": ", ".join(l_mons) if l_mons else "無","累計月數": len(l_mons),"狀態": status})
+                    
+                    rep.append({
+                        "姓名": item["name"],
+                        "近期報名(開放場次)": my_signups,
+                        "最後出席": ld_str,
+                        "請假月份": ", ".join(l_mons) if l_mons else "無",
+                        "累計月數": len(l_mons),
+                        "狀態": status
+                    })
                 st.table(rep)
-            except: st.error("統計失敗")
+            except Exception as e: st.error(f"統計失敗: {e}")
 
         st.divider()
         if st.button("🧹 一鍵清洗現有錯誤標籤"):
