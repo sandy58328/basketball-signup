@@ -53,14 +53,17 @@ def save_data(data):
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
-# 姓名標準化邏輯 (處理亂寫名字與 Emoji)
+# --- 強化版姓名標準化邏輯 (處理所有分身) ---
 def normalize_name(name):
     if not name: return ""
     # 移除 Emoji 與符號，轉小寫，移除空格
     clean = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name)
     clean = clean.replace(" ", "").lower()
-    # 針對「金閃閃」的專屬合併邏輯
+    
+    # 分身合併地圖
     if "金閃閃" in clean: return "kingsley金閃閃"
+    if "冬青" in clean or "得來速" in clean: return "冬青得來速"
+    
     return clean
 
 # ==========================================
@@ -291,11 +294,10 @@ else:
             pct = min(100, (curr_count/MAX_CAPACITY)*100)
             
             color_c = '#4ade80' if pct < 50 else '#fbbf24' if pct < 85 else '#f87171'
-            # 修復語法並渲染進度條
-            prog_html = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
-            bar_html = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_c};"></div></div>'
-            stat_html = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
-            st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{prog_html}{bar_html}</div>{stat_html}', unsafe_allow_html=True)
+            p_h = f'<div class="progress-info"><span>正選 ({curr_count}/{MAX_CAPACITY})</span><span>候補: {len(wait_list)}</span></div>'
+            b_h = f'<div class="progress-container"><div class="progress-bar" style="width: {pct}%; background: {color_c};"></div></div>'
+            s_h = f'<div style="display: flex; justify-content: flex-end; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 25px; font-weight: 500; padding-right: 5px;"><span>🏀 帶球：<b>{b_c}</b></span><span>🚩 佔場：<b>{c_c}</b></span></div>'
+            st.markdown(f'<div style="margin-bottom: 5px; padding: 0 4px;">{p_h}{b_h}</div>{s_h}', unsafe_allow_html=True)
 
             with st.expander("📝 點擊報名 / 規則說明", expanded=not locked):
                 if locked and not st.session_state.is_admin: st.warning("⛔ 已截止報名")
@@ -358,10 +360,8 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             try:
                 d_m = st.session_state.data
                 stats = {} 
-                
-                # --- 預處理：掃描所有「未隱藏」的開放場次 ---
-                open_sessions = dates # 這是目前前端看得見的日期清單
-                member_signups = {} # normalized_name -> list of formatted_dates
+                open_sessions = dates 
+                member_signups = {} 
                 for os_date in open_sessions:
                     f_date = f"{int(os_date.split('-')[1])}/{int(os_date.split('-')[2])}"
                     for p in d_m["sessions"].get(os_date, []):
@@ -391,27 +391,16 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     item = stats[ln]
                     ld = item["last_date"]; l_mons = sorted(list(item["leaves"]))
                     is_on_leave = curr_m in l_mons
-                    # 從預處理的清單中抓取報名場次
                     my_signups = ", ".join(member_signups.get(ln, [])) if member_signups.get(ln) else "—"
-                    
                     if ld:
                         days = (date.today() - ld).days; ld_str = str(ld)
                     else:
                         days = 999; ld_str = "無紀錄"
-                    
                     if is_on_leave: status = "🏖️ 請假中"
                     elif days > 60: status = "🔴 逾期"
                     elif days > 45: status = "🟡 預警"
                     else: status = "🟢 活躍"
-                    
-                    rep.append({
-                        "姓名": item["name"],
-                        "近期報名(開放場次)": my_signups,
-                        "最後出席": ld_str,
-                        "請假月份": ", ".join(l_mons) if l_mons else "無",
-                        "累計月數": len(l_mons),
-                        "狀態": status
-                    })
+                    rep.append({"姓名": item["name"],"近期報名": my_signups,"最後出席": ld_str,"請假月份": ", ".join(l_mons) if l_mons else "無","累計月數": len(l_mons),"狀態": status})
                 st.table(rep)
             except Exception as e: st.error(f"統計失敗: {e}")
 
