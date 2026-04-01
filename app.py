@@ -53,7 +53,6 @@ def save_data(data):
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
-# 姓名標準化 (處理分身)
 def normalize_name(name):
     if not name: return ""
     clean = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name).replace(" ", "").lower()
@@ -72,16 +71,12 @@ def update_player(pid, d, n, im, bb, oc, iv):
         old_name = t['name']
         final_im = False if any(k in n for k in ["友", "（", "("]) else im
         new_count = 0 if iv else 1
-        
-        # 連動修改朋友名字
         if st.session_state.is_admin and im and old_name != n:
             for p_in_s in current_data["sessions"][d]:
                 if p_in_s['name'].startswith(f"{old_name} (") or p_in_s['name'].startswith(f"{old_name} （"):
                     p_in_s['name'] = p_in_s['name'].replace(old_name, n, 1)
-
         t.update({'name':n,'isMember':final_im,'bringBall':bb,'occupyCourt':oc, 'count': new_count})
-        save_data(current_data)
-        st.session_state.edit_target = None
+        save_data(current_data); st.session_state.edit_target = None
         st.toast("✅ 資料已更新"); time.sleep(0.5); st.rerun()
 
 def delete_player(pid, d):
@@ -139,7 +134,7 @@ def render_list(lst, date_key, is_wait=False, can_edit_now=True, is_admin_mode=F
                         if st.button("確認刪除", key=f"conf_del_{p['id']}", type="primary"): delete_player(p['id'], date_key)
 
 # ==========================================
-# 3. 初始化 & CSS
+# 3. 初始化 & CSS (不變)
 # ==========================================
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
@@ -213,7 +208,6 @@ else:
     tabs = st.tabs([f"{int(d.split('-')[1])}/{int(d.split('-')[2])}" for d in dates])
     for i, dk in enumerate(dates):
         with tabs[i]:
-            # 時間鎖定邏輯
             dt_obj = datetime.strptime(dk, "%Y-%m-%d")
             cutoff_time = (dt_obj - timedelta(days=1)).replace(hour=12, minute=0, second=0)
             is_expired = datetime.now() > cutoff_time
@@ -242,7 +236,6 @@ else:
             with st.expander("📝 點擊報名 / 規則說明", expanded=not is_expired):
                 if is_expired and not st.session_state.is_admin:
                     st.warning("⛔ 本場次已截止報名與修改 (前一日 12:00)")
-                
                 with st.form(f"f_{dk}", clear_on_submit=True):
                     name = st.text_input("球員姓名", disabled=not can_operate)
                     c1, c2, c3 = st.columns(3)
@@ -274,7 +267,7 @@ else:
                 render_list(wait_list, dk, True, can_operate, st.session_state.is_admin)
 
 # ==========================================
-# 5. 管理員專區
+# 5. 管理員專區 (優化編輯隱藏場次為折疊選單)
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True); st.divider()
 st.markdown("<div style='text-align: center; color: #cbd5e1; font-size: 0.8rem;'>▼ 管理員專用通道 ▼</div>", unsafe_allow_html=True)
@@ -295,18 +288,20 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             h_s = st.multiselect("隱藏場次", all_s, default=st.session_state.data.get("hidden", []))
             if st.button("更新隱藏設定"): cur = load_data(); cur["hidden"] = h_s; save_data(cur); st.rerun()
 
-        st.divider(); st.subheader("🕵️ 編輯隱藏場次資料")
-        hidden_dates = st.session_state.data.get("hidden", [])
-        if hidden_dates:
-            target_h_date = st.selectbox("選擇日期", sorted(hidden_dates))
-            if target_h_date: render_list(st.session_state.data["sessions"].get(target_h_date, []), target_h_date, is_admin_mode=True)
-        else: st.write("目前無隱藏場次")
+        # --- 核心改進：編輯隱藏場次改為 Expander 預設縮小 ---
+        st.divider()
+        with st.expander("🕵️ 編輯隱藏場次資料", expanded=False):
+            hidden_dates = st.session_state.data.get("hidden", [])
+            if hidden_dates:
+                target_h_date = st.selectbox("選擇日期", sorted(hidden_dates))
+                if target_h_date: render_list(st.session_state.data["sessions"].get(target_h_date, []), target_h_date, is_admin_mode=True)
+            else: st.write("目前無隱藏場次")
 
         st.divider(); st.subheader("📊 出席統計報表")
         if st.button("產生統計"):
             try:
-                d_m, stats, open_s, member_signups = st.session_state.data, {}, dates, {} 
-                for osd in open_s:
+                d_m, stats, member_signups = st.session_state.data, {}, {} 
+                for osd in dates:
                     f_d = f"{int(osd.split('-')[1])}/{int(osd.split('-')[2])}"
                     for p in d_m["sessions"].get(osd, []):
                         if "友" not in p['name']:
