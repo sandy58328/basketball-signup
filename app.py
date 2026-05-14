@@ -818,7 +818,12 @@ else:
                                 elif player_name:
                                     latest        = load_data()
                                     existing      = latest["sessions"].get(dk, [])
-                                    related_count = len([x for x in existing if player_name in x['name']])
+                                    related_count = len([
+                                        x for x in existing
+                                        if x['name'] == player_name
+                                        or x['name'].startswith(f"{player_name} (")
+                                        or x['name'].startswith(f"{player_name} （")
+                                    ])
                                     if related_count == 0 and not is_member:
                                         st.error("❌ 第一次報名需勾選「⭐ 晴女成員」")
                                     elif related_count > 0 and is_member:
