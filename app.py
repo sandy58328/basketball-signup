@@ -47,7 +47,7 @@ def load_css():
     html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown {
         font-family: 'Noto Sans TC', sans-serif; color: #334155 !important;
     }
-    .block-container { padding-top: 4rem !important; padding-bottom: 5rem !important; }
+    .block-container { padding-top: 3rem !important; padding-bottom: 5rem !important; }
     header { background: transparent !important; }
     [data-testid="stDecoration"], [data-testid="stToolbar"], [data-testid="stStatusWidget"],
     footer, #MainMenu, .stDeployButton { display: none !important; }
@@ -82,18 +82,18 @@ def load_css():
     /* ── 名單列表 ── */
     .player-row {
         background: white; border: 1px solid #f1f5f9; border-radius: 12px;
-        padding: 8px 10px; margin-bottom: 8px;
+        padding: 10px 12px; margin-bottom: 8px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-        display: flex; align-items: center; width: 100%; min-height: 40px;
+        display: flex; align-items: center; width: 100%; min-height: 48px;
     }
-    .player-row-expired { border-left: 3px solid #fca5a5 !important; }
-    .list-index        { color: #cbd5e1 !important; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 20px; text-align: right; }
-    .list-index-flower { color: #f472b6 !important; font-weight: 700; font-size: 1rem;  margin-right: 12px; min-width: 20px; text-align: right; }
-    .list-name         { color: #334155 !important; font-weight: 700; font-size: 1.15rem; flex-grow: 1; line-height: 1.2; }
-    .list-time         { color: #cbd5e1 !important; font-size: 0.7rem; font-weight: 500; white-space: nowrap; }
+    .wait-row { background: #fffbf0 !important; border-color: #fde68a !important; border-left: 3px solid #fbbf24 !important; }
+    .list-index        { color: #cbd5e1 !important; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 22px; text-align: right; flex-shrink: 0; }
+    .list-index-flower { color: #f472b6 !important; font-weight: 700; font-size: 1rem;  margin-right: 12px; min-width: 22px; text-align: right; flex-shrink: 0; }
+    .list-name         { color: #334155 !important; font-weight: 700; font-size: 1.1rem; flex-grow: 1; line-height: 1.3; }
+    .list-time         { color: #cbd5e1 !important; font-size: 0.7rem; font-weight: 500; white-space: nowrap; margin-left: 4px; }
 
     /* ── 標籤 ── */
-    .badge        { padding: 2px 6px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; }
+    .badge        { padding: 3px 7px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; }
     .badge-sunny  { background: #fffbeb; color: #d97706 !important; }
     .badge-ball   { background: #fff7ed; color: #c2410c !important; }
     .badge-court  { background: #eff6ff; color: #1d4ed8 !important; }
@@ -101,21 +101,48 @@ def load_css():
     .badge-rain   { background: #f0f9ff; color: #0369a1 !important; border: 1px solid #bae6fd; }
 
     /* ── 進度條 ── */
-    .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 6px; margin-top: 8px; overflow: hidden; }
+    .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 8px; margin-top: 8px; overflow: hidden; }
     .progress-bar       { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
-    .progress-info      { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b !important; margin-bottom: 2px; font-weight: 600; }
+    .progress-info      { display: flex; justify-content: space-between; font-size: 0.82rem; color: #64748b !important; margin-bottom: 4px; font-weight: 600; }
+
+    /* ── 報名表單 ── */
+    .form-box {
+        background: white; border: 1px solid #f1f5f9; border-radius: 16px;
+        padding: 18px 16px; margin-bottom: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    }
+    .form-title { font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 14px; }
+
+    /* 人數選擇大按鈕 */
+    .total-btn-wrap { display: flex; gap: 8px; margin: 8px 0 4px; }
+    .total-btn {
+        flex: 1; padding: 10px 4px; border-radius: 10px; border: 2px solid #e2e8f0;
+        background: white; font-size: 0.9rem; font-weight: 700; color: #64748b !important;
+        text-align: center; cursor: pointer; transition: all 0.15s;
+    }
+    .total-btn-active {
+        border-color: #6366f1 !important; background: #eef2ff !important;
+        color: #4338ca !important;
+    }
+
+    /* ── 規則說明（折疊）── */
+    .rules-box    { background-color: #f8fafc; border-radius: 14px; padding: 16px; border: 1px solid #f1f5f9; margin-top: 8px; }
+    .rules-header { font-size: 0.9rem; font-weight: 800; color: #334155 !important; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+    .rules-row    { display: flex; align-items: flex-start; margin-bottom: 10px; }
+    .rules-icon   { font-size: 1rem; margin-right: 10px; line-height: 1.5; flex-shrink: 0; }
+    .rules-content   { font-size: 0.85rem; color: #64748b !important; line-height: 1.5; }
+    .rules-content b { color: #475569 !important; font-weight: 700; }
+    .rules-footer    { margin-top: 12px; font-size: 0.8rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
+
+    /* ── 候補區塊 ── */
+    .wait-section {
+        background: #fffbf0; border: 1px solid #fde68a; border-radius: 14px;
+        padding: 14px 12px; margin-top: 16px;
+    }
+    .wait-title { font-size: 0.85rem; font-weight: 800; color: #92400e !important; margin-bottom: 10px; }
 
     /* ── 編輯框 ── */
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
-
-    /* ── 規則說明 ── */
-    .rules-box    { background-color: white; border-radius: 16px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-top: 15px; }
-    .rules-header { font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; }
-    .rules-row    { display: flex; align-items: flex-start; margin-bottom: 12px; }
-    .rules-icon   { font-size: 1.1rem; margin-right: 12px; line-height: 1.4; }
-    .rules-content   { font-size: 0.9rem; color: #64748b !important; line-height: 1.5; }
-    .rules-content b { color: #475569 !important; font-weight: 700; }
-    .rules-footer    { margin-top: 15px; font-size: 0.85rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
 
     /* ── 統計報表 ── */
     .stat-row         { background: white; border: 1px solid #f1f5f9; border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
@@ -127,32 +154,13 @@ def load_css():
     .stat-detail      { font-size: 0.78rem; color: #94a3b8 !important; margin-top: 2px; }
 
     /* ── 統計總覽卡片 ── */
-    .stat-summary {
-        display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
-    }
-    .stat-card {
-        flex: 1; min-width: 70px; background: white; border: 1px solid #f1f5f9;
-        border-radius: 12px; padding: 10px 8px; text-align: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-    }
-    .stat-card-num  { font-size: 1.5rem; font-weight: 900; line-height: 1; }
-    .stat-card-lbl  { font-size: 0.7rem; color: #94a3b8 !important; margin-top: 3px; font-weight: 600; }
-    .stat-card-red    .stat-card-num { color: #ef4444 !important; }
-    .stat-card-yellow .stat-card-num { color: #f59e0b !important; }
-    .stat-card-green  .stat-card-num { color: #22c55e !important; }
-    .stat-card-blue   .stat-card-num { color: #3b82f6 !important; }
     .stat-group-header { font-size: 0.8rem; font-weight: 800; color: #94a3b8 !important;
-                         letter-spacing: 1px; margin: 16px 0 8px 4px; text-transform: uppercase; }
-    /* 統計卡片按鈕客製化 */
+                         letter-spacing: 1px; margin: 16px 0 8px 4px; }
     div[data-testid="stButton"] button[kind="secondary"] {
-        background: white !important;
-        border: 1px solid #f1f5f9 !important;
-        border-radius: 12px !important;
-        padding: 10px 8px !important;
-        height: auto !important;
-        min-height: 64px !important;
-        white-space: pre-line !important;
-        font-family: 'Noto Sans TC', sans-serif !important;
+        background: white !important; border: 1px solid #f1f5f9 !important;
+        border-radius: 12px !important; padding: 10px 8px !important;
+        height: auto !important; min-height: 64px !important;
+        white-space: pre-line !important; font-family: 'Noto Sans TC', sans-serif !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.03) !important;
         transition: transform 0.15s, box-shadow 0.15s !important;
     }
@@ -162,24 +170,24 @@ def load_css():
     }
 
     /* ── 管理員區塊 ── */
-    .admin-section {
-        background: white; border: 1px solid #f1f5f9; border-radius: 14px;
-        padding: 14px 16px; margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-    }
-    .admin-section-title {
-        font-size: 0.85rem; font-weight: 800; color: #475569 !important;
-        margin-bottom: 10px; letter-spacing: 0.3px;
-    }
+    .admin-section { background: white; border: 1px solid #f1f5f9; border-radius: 14px;
+                     padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .admin-section-title { font-size: 0.85rem; font-weight: 800; color: #475569 !important;
+                           margin-bottom: 10px; letter-spacing: 0.3px; }
 
     /* ── 天氣取消 ── */
-    .rain-banner {
-        background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px;
-        padding: 8px 14px; margin-bottom: 12px;
-        font-size: 0.88rem; color: #0369a1 !important; font-weight: 600;
+    .rain-banner { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px;
+                   padding: 8px 14px; margin-bottom: 12px;
+                   font-size: 0.88rem; color: #0369a1 !important; font-weight: 600; }
+
+    /* ── 手機優化：加大可點擊區域 ── */
+    @media (max-width: 768px) {
+        .block-container { padding-left: 12px !important; padding-right: 12px !important; }
+        .list-name { font-size: 1.05rem !important; }
+        button[data-testid="stBaseButton-secondary"] { min-height: 44px !important; }
     }
 
-    button[data-testid="stBaseButton-secondary"] { width: 100% !important; height: 36px !important; padding: 0 !important; }
+    button[data-testid="stBaseButton-secondary"] { width: 100% !important; min-height: 40px !important; padding: 0 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -270,7 +278,6 @@ def is_friend(name: str) -> bool:
     return any(k in name for k in ["友", "（", "("])
 
 def format_timestamp(ts: float) -> str:
-    """把 unix timestamp 轉成易讀時間（今天/昨天/日期）。"""
     if not ts:
         return ""
     dt    = datetime.fromtimestamp(ts)
@@ -284,12 +291,6 @@ def format_timestamp(ts: float) -> str:
         return dt.strftime("%-m/%-d %H:%M")
 
 def compute_status(last_date: date | None, leave_months: set[str]) -> str:
-    """
-    計算出席狀態。
-    - 請假月份最多豁免 MAX_LEAVE_EXEMPT 個月
-    - 天氣取消場次不給豁免：有報名的人 last_date 已自然更新，
-      沒報名的人該月照樣算空窗，對兩者才公平
-    """
     today             = date.today()
     current_month_str = today.strftime("%Y-%m")
     if last_date is None:
@@ -410,15 +411,14 @@ def render_list(players, date_key, is_wait=False, can_edit=True, is_admin_mode=F
             if p.get('bringBall'):    badges += "<span class='badge badge-ball'>帶球</span>"
             if p.get('occupyCourt'):  badges += "<span class='badge badge-court'>佔場</span>"
 
-            # 管理員模式顯示報名時間
             time_html = ""
             if is_admin_mode and p.get('timestamp'):
                 time_html = f"<span class='list-time'>{format_timestamp(p['timestamp'])}</span>"
 
-            col_w = [5.5, 1, 1, 2] if is_admin_mode else [6, 1, 1, 2]
-            cols  = st.columns(col_w, gap="small")
+            row_extra = " wait-row" if is_wait else ""
+            cols = st.columns([6, 1, 1], gap="small")
             with cols[0]:
-                st.markdown(f"""<div class="player-row">
+                st.markdown(f"""<div class="player-row{row_extra}">
                     <span class="{idx_cls}">{idx_str}</span>
                     <span class="list-name">{p['name']}</span>{badges}{time_html}
                 </div>""", unsafe_allow_html=True)
@@ -429,7 +429,7 @@ def render_list(players, date_key, is_wait=False, can_edit=True, is_admin_mode=F
                         st.rerun()
                 with cols[2]:
                     with st.popover("❌"):
-                        st.write("確定取消報名？")
+                        st.write(f"確定取消「{p['name']}」的報名？")
                         if st.button("確認刪除", key=f"conf_del_{p['id']}", type="primary"):
                             delete_player(p['id'], date_key)
 
@@ -437,7 +437,7 @@ def render_list(players, date_key, is_wait=False, can_edit=True, is_admin_mode=F
 # 6. 出席統計
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
-def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, all_dates_tuple: tuple) -> tuple[dict, dict]:
+def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, all_dates_tuple: tuple) -> tuple[dict, dict, dict]:
     sessions   = json.loads(sessions_json)
     leaves     = json.loads(leaves_json)
     rained_out = set(rained_out_tuple)
@@ -453,10 +453,9 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
     future_signups: dict[str, list] = {}
 
     for sd in all_dates:
-        day = datetime.strptime(sd, "%Y-%m-%d").date()
+        day   = datetime.strptime(sd, "%Y-%m-%d").date()
         label = f"{int(sd.split('-')[1])}/{int(sd.split('-')[2])}"
         if day > date.today():
-            # 未來場次 → 記錄到 future_signups
             for p in sessions.get(sd, []):
                 if not is_friend(p['name']):
                     future_signups.setdefault(get_norm(p['name']), []).append(label)
@@ -489,8 +488,7 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
     return stats, member_signups, future_signups
 
 
-def _render_stat_row(key, item, signups, future_signups, stats_ref=None):
-    """單列統計渲染，抽出來給分組迴圈複用。"""
+def _render_stat_row(key, item, signups, future_signups):
     last          = item["last_date"]
     leaves_sorted = sorted(item["leaves"])
     recent_two    = signups.get(key, [])[-2:]
@@ -563,10 +561,8 @@ def render_stats(raw_data: dict):
     removed     = set(raw_data.get("removed_members", []))
     active_keys = [k for k in sorted(stats.keys()) if k not in removed]
 
-    # ── 先計算每人狀態，分組 ──
     STATUS_ORDER = ["🟢", "🟡", "🔴", "🏖️"]
     STATUS_LABEL = {"🟢": "🟢 活躍", "🟡": "🟡 預警", "🔴": "🔴 逾期", "🏖️": "🏖️ 請假中"}
-    STATUS_CARD  = {"🟢": "stat-card-green", "🟡": "stat-card-yellow", "🔴": "stat-card-red", "🏖️": "stat-card-blue"}
 
     groups: dict[str, list] = {"🟢": [], "🟡": [], "🔴": [], "🏖️": []}
     for key in active_keys:
@@ -579,21 +575,21 @@ def render_stats(raw_data: dict):
 
     cnt = {k: len(v) for k, v in groups.items()}
 
-    # ── 篩選狀態（session_state）──
     if "stat_filter" not in st.session_state:
-        st.session_state.stat_filter = None  # None = 全部顯示
+        st.session_state.stat_filter = None
 
-    # ── 總覽卡片（卡片本身即按鈕）──
     cols = st.columns(4, gap="small")
+    card_colors = {"🟢": "stat-card-green", "🟡": "stat-card-yellow", "🔴": "stat-card-red", "🏖️": "stat-card-blue"}
     for ci, sg in enumerate(STATUS_ORDER):
-        is_selected = st.session_state.stat_filter == sg
+        is_selected  = st.session_state.stat_filter == sg
         border_style = "outline:2px solid #6366f1;box-shadow:0 0 0 4px rgba(99,102,241,0.12);" if is_selected else ""
         with cols[ci]:
-            if st.button(
-                f"{cnt[sg]}\n{STATUS_LABEL[sg]}",
-                key=f"filter_btn_{sg}",
-                use_container_width=True,
-            ):
+            st.markdown(f"""<div class="{card_colors[sg]} stat-card" style="{border_style}">
+                <div class="stat-card-num">{cnt[sg]}</div>
+                <div class="stat-card-lbl">{STATUS_LABEL[sg]}</div>
+            </div>""", unsafe_allow_html=True)
+            btn_label = "✕ 取消" if is_selected else STATUS_LABEL[sg].split(" ")[1]
+            if st.button(btn_label, key=f"filter_btn_{sg}", use_container_width=True):
                 st.session_state.stat_filter = None if is_selected else sg
                 st.rerun()
 
@@ -601,9 +597,7 @@ def render_stats(raw_data: dict):
         st.info("目前無統計資料")
         return
 
-    # ── 依篩選決定顯示哪些分組 ──
     show_groups = [st.session_state.stat_filter] if st.session_state.stat_filter else STATUS_ORDER
-
     for sg in show_groups:
         keys_in_group = groups[sg]
         if not keys_in_group:
@@ -647,7 +641,7 @@ def render_stats(raw_data: dict):
 # ==========================================
 if 'is_admin'    not in st.session_state: st.session_state.is_admin    = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
-if 'submitting'  not in st.session_state: st.session_state.submitting  = False
+if 'total_sel'   not in st.session_state: st.session_state.total_sel   = {}  # {date_key: int}
 
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered")
 load_css()
@@ -663,7 +657,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 管理員識別 badge
 if st.session_state.is_admin:
     st.markdown('<div style="text-align:center"><span class="admin-badge">⚙️ 管理員模式</span></div>', unsafe_allow_html=True)
 
@@ -732,7 +725,6 @@ rained_out    = set(st.session_state.data.get("rained_out", []))
 if not visible_dates:
     st.info("👋 目前沒有開放報名的場次")
 else:
-    # Tab 標題：日期 + 人數（管理員看到更多資訊）
     def tab_label(d):
         players    = st.session_state.data["sessions"].get(d, [])
         active_cnt = len([p for p in players if p.get('count', 1) > 0])
@@ -781,80 +773,106 @@ else:
                 </div>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:15px;font-size:0.85rem;
-                        color:#64748b;margin-bottom:25px;font-weight:500;padding-right:5px;">
+                        color:#64748b;margin-bottom:16px;font-weight:500;padding-right:5px;">
                 <span>🏀 帶球：<b>{ball_count}</b></span>
                 <span>🚩 佔場：<b>{court_count}</b></span>
             </div>
             """, unsafe_allow_html=True)
 
-            with st.expander("📝 點擊報名 / 規則說明", expanded=not is_expired):
-                if is_expired and not st.session_state.is_admin:
-                    st.warning("⛔ 本場次已截止報名與修改 (前一日 12:00)")
-                if is_rained_out and not st.session_state.is_admin:
-                    st.warning("⛔ 本場次已因天氣取消，無法報名")
+            # ── 報名表單（截止後自動隱藏，不顯示廢 UI）──
+            submit_disabled = not can_operate or (is_rained_out and not st.session_state.is_admin)
 
-                submit_disabled = not can_operate or (is_rained_out and not st.session_state.is_admin)
+            if not is_expired or st.session_state.is_admin:
+                with st.expander("📝 我要報名", expanded=not is_expired):
+                    if is_rained_out and not st.session_state.is_admin:
+                        st.warning("⛔ 本場次已因天氣取消，無法報名")
+                    else:
+                        with st.form(f"signup_{dk}", clear_on_submit=True):
+                            player_name  = st.text_input("✏️ 球員姓名", placeholder="請輸入你的名字", disabled=submit_disabled)
 
-                with st.form(f"signup_{dk}", clear_on_submit=True):
-                    player_name  = st.text_input("球員姓名", disabled=submit_disabled)
-                    c1, c2, c3   = st.columns(3)
-                    is_member    = c1.checkbox("⭐晴女",           key=f"m_{dk}", disabled=submit_disabled)
-                    bring_ball   = c2.checkbox("🏀帶球",           key=f"b_{dk}", disabled=submit_disabled)
-                    occupy_court = c3.checkbox("🚩佔場",           key=f"c_{dk}", disabled=submit_disabled)
-                    is_visitor   = st.checkbox("📣 不打球 (加油團)", key=f"v_{dk}", disabled=submit_disabled)
-                    total        = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=submit_disabled)
+                            # checkbox 兩列排版，手機不擠
+                            r1c1, r1c2 = st.columns(2)
+                            r2c1, r2c2 = st.columns(2)
+                            is_member    = r1c1.checkbox("⭐ 晴女成員", key=f"m_{dk}", disabled=submit_disabled)
+                            bring_ball   = r1c2.checkbox("🏀 我帶球",   key=f"b_{dk}", disabled=submit_disabled)
+                            occupy_court = r2c1.checkbox("🚩 我佔場",   key=f"c_{dk}", disabled=submit_disabled)
+                            is_visitor   = r2c2.checkbox("📣 加油團（不打球）", key=f"v_{dk}", disabled=submit_disabled)
 
-                    if st.form_submit_button("送出報名", type="primary", disabled=submit_disabled):
-                        submit_key = f"submitted_{dk}_{player_name}"
-                        if st.session_state.get(submit_key):
-                            st.warning("⚠️ 已送出，請勿重複提交")
-                        elif "友" in player_name:
-                            st.error("❌ 請輸入團員姓名")
-                        elif player_name:
-                            latest        = load_data()
-                            existing      = latest["sessions"].get(dk, [])
-                            related_count = len([x for x in existing if player_name in x['name']])
-                            if related_count == 0 and not is_member:
-                                st.error("❌ 第一次報名需勾選「⭐晴女」")
-                            elif related_count > 0 and is_member:
-                                st.error("❌ 加報朋友請勿重複勾選晴女")
-                            elif related_count + total > 3:
-                                st.error("❌ 每人上限 3 位")
-                            else:
-                                st.session_state[submit_key] = True
-                                ts = time.time()
-                                for k in range(total):
-                                    first     = (k == 0 and related_count == 0)
-                                    full_name = player_name if first else f"{player_name} (友{related_count + k})"
-                                    latest["sessions"][dk].append({
-                                        "id": str(uuid.uuid4()), "name": full_name,
-                                        "count": 0 if (is_visitor and first) else 1,
-                                        "isMember": is_member if first else False,
-                                        "bringBall": bring_ball if first else False,
-                                        "occupyCourt": occupy_court if first else False,
-                                        "timestamp": ts + (k * 0.01),
-                                    })
-                                save_data(latest); build_stats.clear()
-                                st.balloons(); st.toast("🎉 報名成功！"); time.sleep(2); st.rerun()
+                            # 人數選擇：三個大按鈕
+                            st.markdown("**報名人數**（含自己）")
+                            sel_key = f"total_{dk}"
+                            if sel_key not in st.session_state:
+                                st.session_state[sel_key] = 1
+                            tc1, tc2, tc3 = st.columns(3)
+                            for col, val in zip([tc1, tc2, tc3], [1, 2, 3]):
+                                is_sel = st.session_state[sel_key] == val
+                                label  = f"{'✓ ' if is_sel else ''}{val} 人"
+                                if col.form_submit_button(label, disabled=submit_disabled):
+                                    st.session_state[sel_key] = val
+                                    st.rerun()
+                            total = st.session_state[sel_key]
 
-                st.markdown("""<div class="rules-box">
-                    <div class="rules-header">📌 報名須知</div>
-                    <div class="rules-row"><span class="rules-icon">🔴</span>
-                        <div class="rules-content"><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名。欲事後補報朋友，請用原名再次填寫即可 (含自己上限3位)。</div></div>
-                    <div class="rules-row"><span class="rules-icon">🟡</span>
-                        <div class="rules-content"><b>📣加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div>
-                    <div class="rules-row"><span class="rules-icon">🟢</span>
-                        <div class="rules-content"><b>優先機制</b>：正選 20 人。當人數超過時，<b>⭐晴女</b> 享有進入正選名單之優先權。</div></div>
-                    <div class="rules-row"><span class="rules-icon">🔵</span>
-                        <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。</div></div>
-                    <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
-                </div>""", unsafe_allow_html=True)
+                            submitted = st.form_submit_button("🏀 送出報名", type="primary", disabled=submit_disabled, use_container_width=True)
+                            if submitted:
+                                submit_key = f"submitted_{dk}_{player_name}"
+                                if st.session_state.get(submit_key):
+                                    st.warning("⚠️ 已送出，請勿重複提交")
+                                elif "友" in player_name:
+                                    st.error("❌ 請輸入團員姓名")
+                                elif player_name:
+                                    latest        = load_data()
+                                    existing      = latest["sessions"].get(dk, [])
+                                    related_count = len([x for x in existing if player_name in x['name']])
+                                    if related_count == 0 and not is_member:
+                                        st.error("❌ 第一次報名需勾選「⭐ 晴女成員」")
+                                    elif related_count > 0 and is_member:
+                                        st.error("❌ 加報朋友請勿重複勾選晴女")
+                                    elif related_count + total > 3:
+                                        st.error("❌ 每人上限 3 位")
+                                    else:
+                                        st.session_state[submit_key] = True
+                                        ts = time.time()
+                                        for k in range(total):
+                                            first     = (k == 0 and related_count == 0)
+                                            full_name = player_name if first else f"{player_name} (友{related_count + k})"
+                                            latest["sessions"][dk].append({
+                                                "id": str(uuid.uuid4()), "name": full_name,
+                                                "count": 0 if (is_visitor and first) else 1,
+                                                "isMember": is_member if first else False,
+                                                "bringBall": bring_ball if first else False,
+                                                "occupyCourt": occupy_court if first else False,
+                                                "timestamp": ts + (k * 0.01),
+                                            })
+                                        save_data(latest); build_stats.clear()
+                                        st.session_state[sel_key] = 1
+                                        st.balloons(); st.toast("🎉 報名成功！"); time.sleep(2); st.rerun()
 
+                # 規則說明獨立折疊，不跟表單混在一起
+                with st.expander("📌 報名規則說明", expanded=False):
+                    st.markdown("""<div class="rules-box">
+                        <div class="rules-header">📌 報名須知</div>
+                        <div class="rules-row"><span class="rules-icon">🔴</span>
+                            <div class="rules-content"><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名。欲事後補報朋友，請用原名再次填寫即可 (含自己上限3位)。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🟡</span>
+                            <div class="rules-content"><b>📣加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🟢</span>
+                            <div class="rules-content"><b>優先機制</b>：正選 20 人。當人數超過時，<b>⭐晴女</b> 享有進入正選名單之優先權。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🔵</span>
+                            <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。</div></div>
+                        <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
+                    </div>""", unsafe_allow_html=True)
+            else:
+                st.caption("⛔ 報名已截止（前一日 12:00）")
+
+            # ── 正選名單 ──
             st.subheader("🏀 報名名單")
             render_list(main_list, dk, False, can_operate, st.session_state.is_admin)
+
+            # ── 候補名單（獨立區塊，黃色背景）──
             if wait_list:
-                st.markdown("<br>", unsafe_allow_html=True)
-                st.subheader("⏳ 候補名單")
+                st.markdown("""<div class="wait-section">
+                    <div class="wait-title">⏳ 候補名單</div>
+                </div>""", unsafe_allow_html=True)
                 render_list(wait_list, dk, True, can_operate, st.session_state.is_admin)
 
 # ==========================================
@@ -870,7 +888,7 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
         if pwd == get_admin_password():
             st.session_state.is_admin = True; st.rerun()
     else:
-        col_logout, col_spacer = st.columns([1, 4])
+        col_logout, _ = st.columns([1, 4])
         with col_logout:
             if st.button("🚪 登出"):
                 st.session_state.is_admin = False; st.rerun()
@@ -887,7 +905,6 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 data = load_data()
                 if str(new_date) not in data["sessions"]:
                     data["sessions"][str(new_date)] = []; save_data(data); st.rerun()
-
         if all_sessions:
             c1, c2 = st.columns([3, 1])
             with c1:
