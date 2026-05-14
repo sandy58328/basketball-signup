@@ -798,19 +798,15 @@ else:
                             occupy_court = r2c1.checkbox("🚩 我佔場",   key=f"c_{dk}", disabled=submit_disabled)
                             is_visitor   = r2c2.checkbox("📣 加油團（不打球）", key=f"v_{dk}", disabled=submit_disabled)
 
-                            # 人數選擇：三個大按鈕
-                            st.markdown("**報名人數**（含自己）")
-                            sel_key = f"total_{dk}"
-                            if sel_key not in st.session_state:
-                                st.session_state[sel_key] = 1
-                            tc1, tc2, tc3 = st.columns(3)
-                            for col, val in zip([tc1, tc2, tc3], [1, 2, 3]):
-                                is_sel = st.session_state[sel_key] == val
-                                label  = f"{'✓ ' if is_sel else ''}{val} 人"
-                                if col.form_submit_button(label, disabled=submit_disabled):
-                                    st.session_state[sel_key] = val
-                                    st.rerun()
-                            total = st.session_state[sel_key]
+                            # 人數選擇：radio 橫排，不會誤觸 submit
+                            total = st.radio(
+                                "**報名人數**（含自己）",
+                                options=[1, 2, 3],
+                                format_func=lambda x: f"{x} 人",
+                                horizontal=True,
+                                key=f"total_{dk}",
+                                disabled=submit_disabled,
+                            )
 
                             submitted = st.form_submit_button("🏀 送出報名", type="primary", disabled=submit_disabled, use_container_width=True)
                             if submitted:
@@ -844,7 +840,6 @@ else:
                                                 "timestamp": ts + (k * 0.01),
                                             })
                                         save_data(latest); build_stats.clear()
-                                        st.session_state[sel_key] = 1
                                         st.balloons(); st.toast("🎉 報名成功！"); time.sleep(2); st.rerun()
 
                 # 規則說明獨立折疊，不跟表單混在一起
