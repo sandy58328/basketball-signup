@@ -136,16 +136,13 @@ def load_css():
     .rules-footer    { margin-top: 12px; font-size: 0.8rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
 
     /* ── 候補區塊 ── */
-    .wait-section {
-        background: #fffbf0; border: 1.5px dashed #fcd34d; border-radius: 14px;
-        padding: 14px 12px; margin-top: 16px;
+    .wait-header { font-size: 0.85rem; font-weight: 800; color: #92400e !important;
+                   margin: 20px 0 10px 4px; }
+    div[data-testid='stVerticalBlockBorderWrapper']:has(.wait-player) {
+        border: 1.5px dashed #fcd34d !important; border-radius: 14px !important;
+        background: #fffbf0 !important; padding: 8px !important; margin-top: 4px !important;
     }
-    .wait-title { font-size: 0.85rem; font-weight: 800; color: #92400e !important;
-                  margin-bottom: 14px; padding-bottom: 8px;
-                  border-bottom: 1px dashed #fcd34d; }
-    .wait-badge { background: #fef3c7; color: #92400e !important; font-size: 0.72rem;
-                  padding: 1px 8px; border-radius: 20px; font-weight: 700; margin-left: 6px; }
-    .wait-section .player-row { background: #fff8e7 !important; border-color: #fde68a !important; }
+    .wait-player .player-row { background: #fff8e7 !important; border-color: #fde68a !important; }
 
     /* ── 編輯框 ── */
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
@@ -353,15 +350,14 @@ def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_v
     st.rerun()
 
 def _set_tab_for_date(date_key: str, data: dict | None = None):
-    """rerun 前呼叫，確保畫面停在 date_key 對應的 tab。
-    傳入最新 data 避免用到 session_state 的舊版本。"""
+    """rerun 前呼叫，確保畫面停在 date_key 對應的 tab。"""
     try:
         d = data if data is not None else st.session_state.data
         all_d   = sorted(d["sessions"].keys())
         hidden  = d.get("hidden", [])
         visible = [x for x in all_d if x not in hidden]
         if date_key in visible:
-            st.query_params['tab'] = str(visible.index(date_key))
+            st.session_state['_tab_jump'] = visible.index(date_key)
     except Exception:
         pass
 
@@ -1031,18 +1027,14 @@ else:
 
     tabs = st.tabs([tab_label(d) for d in visible_dates])
 
-    # tab index：query_params 有值（刪除/報名後 rerun）就直接用
-    # 沒有的話找最近的未來場次
+    # tab index：
+    # - session_state['_tab_jump'] 由操作（刪除/報名）設定，只用一次
+    # - 預設找最近的未來場次
     def _default_tab_idx():
-        qp = st.query_params.get('tab', None)
-        if qp is not None:
-            try:
-                idx = int(qp)
-                if 0 <= idx < len(visible_dates):
-                    return idx
-            except ValueError:
-                pass
-        # 找第一個今天或之後的場次
+        if st.session_state.get('_tab_jump') is not None:
+            idx = st.session_state.pop('_tab_jump')
+            if 0 <= idx < len(visible_dates):
+                return idx
         _today = date.today()
         for j, d in enumerate(visible_dates):
             if datetime.strptime(d, "%Y-%m-%d").date() >= _today:
@@ -1050,19 +1042,19 @@ else:
         return len(visible_dates) - 1
 
     _tab_idx = _default_tab_idx()
-    # 用完就清掉，避免下次誤用舊值
-    if 'tab' in st.query_params:
-        st.query_params.pop('tab', None)
     if _tab_idx > 0:
         components.html(f"""
         <script>
         (function(){{
-            function clickTab() {{
+            function clickTab(tries) {{
                 var btns = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (btns.length > {_tab_idx}) {{ btns[{_tab_idx}].click(); }}
-                else {{ setTimeout(clickTab, 100); }}
+                if (btns.length > {_tab_idx}) {{
+                    btns[{_tab_idx}].click();
+                }} else if (tries > 0) {{
+                    setTimeout(function(){{ clickTab(tries-1); }}, 150);
+                }}
             }}
-            setTimeout(clickTab, 200);
+            setTimeout(function(){{ clickTab(10); }}, 150);
         }})();
         </script>
         """, height=0)
@@ -1178,7 +1170,7 @@ else:
                                                 "timestamp": ts + (k * 0.01),
                                             })
                                         save_data(latest); build_stats.clear()
-                                        st.query_params['tab'] = str(i)
+                                        st.session_state['_tab_jump'] = i
                                         st.session_state['show_basket_anim'] = True
                                         st.rerun()
 
@@ -1205,11 +1197,9 @@ else:
 
             # ── 候補名單（獨立區塊，黃色背景）──
             if wait_list:
-                st.markdown('''<div class="wait-section">
-                    <div class="wait-title">⏳ 候補名單</div>''',
-                    unsafe_allow_html=True)
-                render_list(wait_list, dk, True, can_operate, st.session_state.is_admin)
-                st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown('<div class="wait-header">⏳ 候補名單</div>', unsafe_allow_html=True)
+                with st.container(border=True):
+                    render_list(wait_list, dk, True, can_operate, st.session_state.is_admin)
 
 # ==========================================
 # 9. 管理員專區
