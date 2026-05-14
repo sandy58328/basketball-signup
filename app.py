@@ -431,11 +431,17 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
         return norm_cache[n]
 
     member_signups: dict[str, list] = {}
+    future_signups: dict[str, list] = {}
+
     for sd in all_dates:
         day = datetime.strptime(sd, "%Y-%m-%d").date()
-        if day > date.today():
-            continue
         label = f"{int(sd.split('-')[1])}/{int(sd.split('-')[2])}"
+        if day > date.today():
+            # 未來場次 → 記錄到 future_signups
+            for p in sessions.get(sd, []):
+                if not is_friend(p['name']):
+                    future_signups.setdefault(get_norm(p['name']), []).append(label)
+            continue
         if sd in rained_out:
             label = f"☔{label}"
         for p in sessions.get(sd, []):
@@ -461,14 +467,14 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
         stats.setdefault(key, {"name": raw_name, "last_date": None, "leaves": set()})
         stats[key]["leaves"].update(months)
 
-    return stats, member_signups
+    return stats, member_signups, future_signups
 
 
 def render_stats(raw_data: dict):
     all_dates_tuple  = tuple(sorted(raw_data["sessions"].keys()))
     rained_out_tuple = tuple(raw_data.get("rained_out", []))
 
-    stats, signups = build_stats(
+    stats, signups, future_signups = build_stats(
         sessions_json    = json.dumps(raw_data["sessions"], ensure_ascii=False),
         leaves_json      = json.dumps(raw_data["leaves"],   ensure_ascii=False),
         rained_out_tuple = rained_out_tuple,
@@ -520,6 +526,8 @@ def render_stats(raw_data: dict):
         leaves_sorted = sorted(item["leaves"])
         recent_two    = signups.get(key, [])[-2:]
         signup_str    = ", ".join(recent_two) or "—"
+        future_list   = future_signups.get(key, [])
+        future_str    = "　📅 " + ", ".join(future_list) if future_list else ""
         last_str      = str(last) if last else "無紀錄"
         leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
         status        = compute_status(last, set(leaves_sorted))
@@ -557,7 +565,7 @@ def render_stats(raw_data: dict):
             with cols[0]:
                 st.markdown(f"""<div class="{row_cls}">
                     <div class="stat-name">{status} &nbsp; {item['name']}</div>
-                    <div class="stat-detail">近期：{signup_str}　最後出席：{last_str}{leave_str}</div>
+                    <div class="stat-detail">近期：{signup_str}　最後出席：{last_str}{leave_str}{future_str}</div>
                 </div>""", unsafe_allow_html=True)
             with cols[1]:
                 if st.button("✏️", key=f"stat_btn_edit_{key}"):
