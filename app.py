@@ -153,9 +153,32 @@ def load_data() -> dict:
     if not sheet:
         return _empty_data()
     try:
-        sessions = _read_cell(sheet, 'A1', {})
-        meta     = _read_cell(sheet, 'B1', {})
-        leaves   = _read_cell(sheet, 'C1', {})
+        a1_raw = _read_cell(sheet, 'A1', {})
+
+        # ── 舊格式自動遷移 ──
+        # 舊版把所有資料塞在 A1 一個 dict，裡面有 "sessions"、"leaves" 等 key
+        # 新版 A1 只存 sessions（key 為日期字串，如 "2025-05-01"）
+        if isinstance(a1_raw, dict) and "sessions" in a1_raw:
+            # 偵測到舊格式，自動拆分並寫入新格式
+            old      = a1_raw
+            sessions = old.get("sessions", {})
+            leaves   = old.get("leaves", {})
+            meta     = {
+                "hidden":          old.get("hidden", []),
+                "rained_out":      old.get("rained_out", []),
+                "removed_members": old.get("removed_members", []),
+            }
+            # 回寫新格式
+            try:
+                sheet.update_acell('A1', json.dumps(sessions, ensure_ascii=False))
+                sheet.update_acell('B1', json.dumps(meta,     ensure_ascii=False))
+                sheet.update_acell('C1', json.dumps(leaves,   ensure_ascii=False))
+            except Exception:
+                pass  # 寫入失敗也繼續，下次再遷移
+        else:
+            sessions = a1_raw
+            meta     = _read_cell(sheet, 'B1', {})
+            leaves   = _read_cell(sheet, 'C1', {})
 
         return {
             "sessions":        sessions,
