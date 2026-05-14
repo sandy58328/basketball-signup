@@ -1338,4 +1338,42 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
         st.markdown('<div class="admin-section"><div class="admin-section-title">📊 出席統計報表</div>', unsafe_allow_html=True)
         st.caption("✏️ 改名　🚪 退群（移至下方，可恢復或永久刪除）")
         st.markdown('</div>', unsafe_allow_html=True)
-        render_stats(st.session_state.data)
+        render_stats(st.session_state.data)# ── 成功頁面 ──
+if st.session_state.get('success_page'):
+    st.session_state['success_page'] = False
+    st.markdown("""
+    <style>
+    /* 隱藏 Streamlit 所有其他元素 */
+    header[data-testid='stHeader'],
+    section[data-testid='stSidebar'],
+    div[data-testid='stToolbar'],
+    div[data-testid='stDecoration'],
+    div[data-testid='stStatusWidget'] { display:none !important; }
+    .main .block-container { padding: 0 !important; max-width: 100% !important; }
+    @keyframes bk_fly{
+        0%  { left:8%; top:80%; transform:rotate(0deg); }
+        60% { left:58%; top:20%; transform:rotate(360deg); }
+        80% { left:65%; top:32%; transform:rotate(450deg); }
+        95% { left:65%; top:40%; transform:rotate(500deg); opacity:1; }
+        100%{ left:65%; top:40%; transform:rotate(510deg); opacity:0; }
+    }
+    @keyframes bk_in { from{opacity:0;transform:scale(0.5)} to{opacity:1;transform:scale(1)} }
+    #bk_page { position:fixed; inset:0; background:white; z-index:1000;
+               display:flex; align-items:center; justify-content:center; }
+    #bk_ball { position:fixed; font-size:64px; line-height:1;
+               animation: bk_fly 2s ease-in-out forwards; z-index:1001; }
+    #bk_hoop { position:fixed; right:18%; top:25%; font-size:54px; z-index:1001; }
+    #bk_msg  { position:fixed; top:55%; left:50%; transform:scale(0.5);
+               font-size:32px; font-weight:900; color:#1e293b; white-space:nowrap;
+               opacity:0; animation: bk_in 0.5s 2s forwards; z-index:1001;
+               font-family:'Noto Sans TC',sans-serif; }
+    </style>
+    <div id='bk_page'></div>
+    <div id='bk_hoop'>🏀</div>
+    <div id='bk_ball'>🏀</div>
+    <div id='bk_msg'>🎉 報名成功！</div>
+    """, unsafe_allow_html=True)
+    import time as _t; _t.sleep(3.5)
+    st.rerun()
+
+# ── 請假 / 休假公報 ──
