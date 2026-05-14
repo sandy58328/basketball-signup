@@ -1135,10 +1135,7 @@ else:
 
                             submitted = st.form_submit_button("🏀 送出報名", type="primary", disabled=submit_disabled, use_container_width=True)
                             if submitted:
-                                submit_key = f"submitted_{dk}_{player_name}"
-                                if st.session_state.get(submit_key):
-                                    st.warning("⚠️ 已送出，請勿重複提交")
-                                elif "友" in player_name:
+                                if "友" in player_name:
                                     st.error("❌ 請輸入團員姓名")
                                 elif player_name:
                                     latest        = load_data()
@@ -1156,7 +1153,6 @@ else:
                                     elif related_count + total > 3:
                                         st.error("❌ 每人上限 3 位")
                                     else:
-                                        st.session_state[submit_key] = True
                                         ts = time.time()
                                         for k in range(total):
                                             first     = (k == 0 and related_count == 0)
