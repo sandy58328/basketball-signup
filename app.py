@@ -762,264 +762,167 @@ BASKETBALL_ANIM = """
 <head>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:transparent;overflow:hidden;font-family:'Noto Sans TC',sans-serif;}
-#scene{position:relative;width:100%;height:280px;overflow:hidden;}
-canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
-#msg{position:absolute;bottom:20px;left:50%;transform:translateX(-50%) scale(0);
-  font-size:22px;font-weight:700;color:#1e293b;white-space:nowrap;
-  transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s;
-  opacity:0;}
-#msg.show{transform:translateX(-50%) scale(1);opacity:1;}
+html,body{background:transparent;overflow:hidden;}
+#overlay{
+  position:fixed;inset:0;z-index:99999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(4px);
+  opacity:0;transition:opacity 0.3s;
+  font-family:'Noto Sans TC',sans-serif;
+}
+#overlay.show{opacity:1;}
+canvas{display:block;}
+#msg{
+  font-size:26px;font-weight:900;color:#1e293b;margin-top:16px;
+  transform:scale(0);opacity:0;
+  transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;
+}
+#msg.show{transform:scale(1);opacity:1;}
 </style>
 </head>
 <body>
-<div id="scene">
-  <canvas id="c"></canvas>
+<div id="overlay">
+  <canvas id="c" width="300" height="240"></canvas>
   <div id="msg">🎉 報名成功！</div>
 </div>
 <script>
-var canvas = document.getElementById('c');
-var ctx    = canvas.getContext('2d');
-var msg    = document.getElementById('msg');
-var W, H;
+(function(){
+  var overlay=document.getElementById('overlay');
+  var canvas=document.getElementById('c');
+  var ctx=canvas.getContext('2d');
+  var msg=document.getElementById('msg');
+  var W=300,H=240;
 
-function resize() {
-  W = canvas.width  = canvas.offsetWidth;
-  H = canvas.height = canvas.offsetHeight;
-}
-resize();
+  // 通知父頁面顯示 overlay
+  setTimeout(function(){ overlay.classList.add('show'); },50);
 
-// ─ hoop geometry ─
-var hoopX, hoopY, hoopR = 28;
-function setHoop() {
-  hoopX = W * 0.72;
-  hoopY = H * 0.30;
-}
-setHoop();
+  function easeInOut(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
+  function easeOut(t){return t*(2-t);}
 
-// ─ confetti pool ─
-var confetti = [];
-var COLORS = ['#f97316','#3b82f6','#22c55e','#ec4899','#eab308','#8b5cf6','#ef4444'];
-function spawnConfetti() {
-  for (var i = 0; i < 60; i++) {
-    confetti.push({
-      x: hoopX, y: hoopY,
-      vx: (Math.random() - 0.5) * 14,
-      vy: (Math.random() - 2.5) * 8,
-      w: 5 + Math.random() * 6,
-      h: 3 + Math.random() * 4,
-      rot: Math.random() * Math.PI * 2,
-      rspd: (Math.random() - 0.5) * 0.3,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      life: 1.0,
-      decay: 0.012 + Math.random() * 0.01
+  // hoop
+  var hoopX=W*0.72, hoopY=H*0.30, hoopR=26;
+
+  var confetti=[];
+  var COLORS=['#f97316','#3b82f6','#22c55e','#ec4899','#eab308','#8b5cf6'];
+  function spawnConfetti(){
+    for(var i=0;i<60;i++){
+      (function(i){
+        confetti.push({
+          x:hoopX,y:hoopY,
+          vx:(Math.random()-0.5)*14,
+          vy:(Math.random()-2.5)*8,
+          w:5+Math.random()*6, h:3+Math.random()*4,
+          rot:Math.random()*Math.PI*2,
+          rspd:(Math.random()-0.5)*0.25,
+          color:COLORS[i%COLORS.length],
+          life:1.0, decay:0.012+Math.random()*0.01
+        });
+      })(i);
+    }
+  }
+
+  function drawHoop(){
+    // pole
+    ctx.beginPath();ctx.moveTo(hoopX+hoopR+6,hoopY-28);ctx.lineTo(hoopX+hoopR+6,H*0.95);
+    ctx.strokeStyle='#94a3b8';ctx.lineWidth=3;ctx.stroke();
+    // board
+    ctx.fillStyle='#e2e8f0';ctx.fillRect(hoopX+hoopR+2,hoopY-28,12,44);
+    ctx.strokeStyle='#94a3b8';ctx.lineWidth=1.5;ctx.strokeRect(hoopX+hoopR+2,hoopY-28,12,44);
+    // rim back
+    ctx.beginPath();ctx.arc(hoopX+hoopR,hoopY,5,0,Math.PI*2);
+    ctx.fillStyle='#e04b1a';ctx.fill();
+    // net
+    ctx.strokeStyle='rgba(148,163,184,0.6)';ctx.lineWidth=1;
+    for(var xi=0;xi<=4;xi++){
+      var nx0=hoopX-hoopR+(hoopR*2/4)*xi;
+      var nx1=hoopX-hoopR+4+(hoopR*1.8/4)*xi;
+      ctx.beginPath();ctx.moveTo(nx0,hoopY+2);ctx.lineTo(nx1,hoopY+28);ctx.stroke();
+    }
+    for(var yi=1;yi<=3;yi++){
+      var f=yi/4;
+      ctx.beginPath();ctx.moveTo(hoopX-hoopR+(4*f),hoopY+28*f);
+      ctx.lineTo(hoopX+hoopR-(4*f),hoopY+28*f);ctx.stroke();
+    }
+  }
+  function drawRim(){
+    ctx.beginPath();ctx.arc(hoopX-hoopR,hoopY,5,0,Math.PI*2);
+    ctx.fillStyle='#e04b1a';ctx.fill();
+    ctx.beginPath();ctx.moveTo(hoopX-hoopR,hoopY);ctx.lineTo(hoopX+hoopR,hoopY);
+    ctx.strokeStyle='#e04b1a';ctx.lineWidth=5;ctx.stroke();
+  }
+  function drawBall(x,y,angle){
+    var r=20;
+    ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+    ctx.beginPath();ctx.ellipse(0,r+5,r*0.65,4,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.07)';ctx.fill();
+    ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);
+    ctx.fillStyle='#e07b2a';ctx.fill();
+    ctx.strokeStyle='#b85e1a';ctx.lineWidth=1;ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,0.22)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(-r,0);ctx.lineTo(r,0);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(0,r);ctx.stroke();
+    ctx.beginPath();ctx.arc(-r*0.4,0,r*0.65,-0.6,0.6);ctx.stroke();
+    ctx.beginPath();ctx.arc(r*0.4,0,r*0.65,Math.PI-0.6,Math.PI+0.6);ctx.stroke();
+    ctx.restore();
+  }
+  function drawConfetti(){
+    confetti.forEach(function(c){
+      ctx.save();ctx.globalAlpha=c.life;
+      ctx.translate(c.x,c.y);ctx.rotate(c.rot);
+      ctx.fillStyle=c.color;ctx.fillRect(-c.w/2,-c.h/2,c.w,c.h);
+      ctx.restore();
     });
   }
-}
-
-// ─ easing ─
-function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
-function easeOutBounce(t) {
-  if (t < 1/2.75) return 7.5625*t*t;
-  if (t < 2/2.75) { t -= 1.5/2.75; return 7.5625*t*t+0.75; }
-  if (t < 2.5/2.75) { t -= 2.25/2.75; return 7.5625*t*t+0.9375; }
-  t -= 2.625/2.75; return 7.5625*t*t+0.984375;
-}
-
-// ─ ball path: bezier curve ─
-var DURATION = 1100; // ms
-var startTime = null;
-var phase = 'fly'; // fly → bounce → done
-var bounceStart = null;
-var ballX, ballY, ballAngle = 0;
-
-// start from bottom-left, arc to hoop
-var p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y;
-function initPath() {
-  p0x = W * 0.08; p0y = H * 0.88;
-  p1x = W * 0.10; p1y = H * 0.05;
-  p2x = W * 0.50; p2y = H * 0.02;
-  p3x = hoopX;    p3y = hoopY;
-}
-initPath();
-
-function bezier(t, p0, p1, p2, p3) {
-  var u = 1 - t;
-  return u*u*u*p0 + 3*u*u*t*p1 + 3*u*t*t*p2 + t*t*t*p3;
-}
-
-// ─ draw backboard + hoop + net ─
-function drawHoop() {
-  // backboard
-  ctx.save();
-  ctx.fillStyle = 'rgba(150,150,150,0.25)';
-  ctx.fillRect(hoopX + hoopR + 6, hoopY - 30, 8, 55);
-  ctx.restore();
-
-  // back rim (behind ball)
-  ctx.beginPath();
-  ctx.arc(hoopX + hoopR, hoopY, 5, 0, Math.PI * 2);
-  ctx.fillStyle = '#e04b1a';
-  ctx.fill();
-
-  // net
-  ctx.save();
-  ctx.strokeStyle = 'rgba(160,160,160,0.55)';
-  ctx.lineWidth = 1;
-  var nx = hoopX - hoopR, nw = hoopR * 2, nd = 30;
-  for (var xi = 0; xi <= 4; xi++) {
-    var nx0 = nx + (nw / 4) * xi;
-    var nx1 = nx + 4 + (nw * 0.85 / 4) * xi;
-    ctx.beginPath();
-    ctx.moveTo(nx0, hoopY + 2);
-    ctx.lineTo(nx1, hoopY + nd);
-    ctx.stroke();
+  function updateConfetti(){
+    confetti.forEach(function(c){
+      c.x+=c.vx;c.y+=c.vy;c.vy+=0.3;c.vx*=0.98;
+      c.rot+=c.rspd;c.life-=c.decay;
+    });
+    confetti=confetti.filter(function(c){return c.life>0;});
   }
-  for (var yi = 1; yi <= 3; yi++) {
-    var frac = yi / 4;
-    ctx.beginPath();
-    ctx.moveTo(nx + (4 * frac), hoopY + nd * frac);
-    ctx.lineTo(nx + nw - (4 * frac), hoopY + nd * frac);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
 
-// ─ draw front rim (in front of ball) ─
-function drawRim() {
-  ctx.beginPath();
-  ctx.arc(hoopX - hoopR, hoopY, 5, 0, Math.PI * 2);
-  ctx.fillStyle = '#e04b1a';
-  ctx.fill();
+  var DURATION=1000, startTime=null, phase='fly', bounceStart=null;
+  var ballX,ballY,ballAngle=0;
+  var p0x=W*0.06,p0y=H*0.88,p1x=W*0.08,p1y=H*0.03,p2x=W*0.45,p2y=H*0.01,p3x=hoopX,p3y=hoopY;
+  function bezier(t,p0,p1,p2,p3){var u=1-t;return u*u*u*p0+3*u*u*t*p1+3*u*t*t*p2+t*t*t*p3;}
 
-  // rim bar
-  ctx.beginPath();
-  ctx.moveTo(hoopX - hoopR, hoopY);
-  ctx.lineTo(hoopX + hoopR, hoopY);
-  ctx.strokeStyle = '#e04b1a';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-}
-
-// ─ draw ball ─
-function drawBall(x, y, angle) {
-  var r = 22;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-
-  // shadow
-  ctx.beginPath();
-  ctx.ellipse(0, r + 6, r * 0.7, 5, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.08)';
-  ctx.fill();
-
-  // ball body
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#e07b2a';
-  ctx.fill();
-  ctx.strokeStyle = '#b85e1a';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // seam lines
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(-r, 0); ctx.lineTo(r, 0);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(0, -r); ctx.lineTo(0, r);
-  ctx.stroke();
-  // curved seams
-  ctx.beginPath();
-  ctx.arc(-r*0.4, 0, r*0.65, -0.6, 0.6);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(r*0.4, 0, r*0.65, Math.PI-0.6, Math.PI+0.6);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-// ─ draw confetti ─
-function drawConfetti() {
-  confetti.forEach(function(c) {
-    ctx.save();
-    ctx.globalAlpha = c.life;
-    ctx.translate(c.x, c.y);
-    ctx.rotate(c.rot);
-    ctx.fillStyle = c.color;
-    ctx.fillRect(-c.w/2, -c.h/2, c.w, c.h);
-    ctx.restore();
-  });
-}
-
-function updateConfetti() {
-  confetti.forEach(function(c) {
-    c.x += c.vx;
-    c.y += c.vy;
-    c.vy += 0.35; // gravity
-    c.vx *= 0.98;
-    c.rot += c.rspd;
-    c.life -= c.decay;
-  });
-  confetti = confetti.filter(function(c) { return c.life > 0; });
-}
-
-// ─ main loop ─
-function loop(ts) {
-  ctx.clearRect(0, 0, W, H);
-  drawHoop();
-
-  if (phase === 'fly') {
-    if (!startTime) startTime = ts;
-    var elapsed = ts - startTime;
-    var t = Math.min(elapsed / DURATION, 1);
-    var et = easeInOut(t);
-
-    ballX = bezier(et, p0x, p1x, p2x, p3x);
-    ballY = bezier(et, p0y, p1y, p2y, p3y);
-    ballAngle += 0.06 + t * 0.04;
-
-    drawBall(ballX, ballY, ballAngle);
-    drawRim();
-
-    if (t >= 1) {
-      phase = 'swish';
-      bounceStart = ts;
-      spawnConfetti();
-      setTimeout(function() {
-        msg.classList.add('show');
-      }, 200);
+  function loop(ts){
+    ctx.clearRect(0,0,W,H);
+    drawHoop();
+    if(phase==='fly'){
+      if(!startTime)startTime=ts;
+      var t=Math.min((ts-startTime)/DURATION,1);
+      var et=easeInOut(t);
+      ballX=bezier(et,p0x,p1x,p2x,p3x);
+      ballY=bezier(et,p0y,p1y,p2y,p3y);
+      ballAngle+=0.05+t*0.04;
+      drawBall(ballX,ballY,ballAngle);
+      drawRim();
+      if(t>=1){phase='swish';bounceStart=ts;spawnConfetti();msg.classList.add('show');}
+    } else if(phase==='swish'){
+      var el2=ts-bounceStart,t2=Math.min(el2/350,1);
+      ballX=hoopX+(Math.sin(t2*Math.PI*2)*5*(1-t2));
+      ballY=hoopY+t2*45;
+      ctx.globalAlpha=1-t2;
+      drawBall(ballX,ballY,ballAngle+t2*2);
+      ctx.globalAlpha=1;
+      drawRim();updateConfetti();drawConfetti();
+      if(t2>=1)phase='done';
+    } else {
+      updateConfetti();drawConfetti();drawRim();
     }
-  } else if (phase === 'swish') {
-    // ball drops through net
-    var el2 = ts - bounceStart;
-    var t2  = Math.min(el2 / 400, 1);
-    ballX = hoopX + (Math.sin(t2 * Math.PI * 2) * 6 * (1 - t2));
-    ballY = hoopY + t2 * 50;
-    var alpha = 1 - t2;
-    ctx.globalAlpha = alpha;
-    drawBall(ballX, ballY, ballAngle + t2 * 2);
-    ctx.globalAlpha = 1;
-    drawRim();
-    updateConfetti();
-    drawConfetti();
-    if (t2 >= 1) phase = 'done';
-  } else {
-    updateConfetti();
-    drawConfetti();
-    drawRim();
+    if(phase!=='done'||confetti.length>0){requestAnimationFrame(loop);}
+    else{
+      // 動畫結束，fade out overlay
+      setTimeout(function(){
+        overlay.style.transition='opacity 0.5s';
+        overlay.style.opacity='0';
+      },800);
+    }
   }
-
-  if (phase !== 'done' || confetti.length > 0) {
-    requestAnimationFrame(loop);
-  }
-}
-
-requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
+})();
 </script>
 </body>
 </html>
@@ -1027,7 +930,7 @@ requestAnimationFrame(loop);
 
 # 報名成功動畫
 if st.session_state.get('show_basket_anim'):
-    components.html(BASKETBALL_ANIM, height=280)
+    components.html(BASKETBALL_ANIM, height=1)
     st.toast("🎉 報名成功！")
     st.session_state['show_basket_anim'] = False
 
