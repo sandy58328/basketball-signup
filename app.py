@@ -11,17 +11,32 @@ from oauth2client.service_account import ServiceAccountCredentials
 # ==========================================
 # 0. 設定區
 # ==========================================
-MAX_CAPACITY      = 20
-APP_URL           = "https://sunny-girls-basketball.streamlit.app"
-SHEET_NAME        = "basketball_db"
+MAX_CAPACITY         = 20
+APP_URL              = "https://sunny-girls-basketball.streamlit.app"
+SHEET_NAME           = "basketball_db"
 ABSENCE_LIMIT_MONTHS = 2   # 幾個月內至少出席一次
-MAX_LEAVE_EXEMPT  = 2      # 請假最多可延幾個月
+MAX_LEAVE_EXEMPT     = 2   # 請假最多可延幾個月
 
-def get_admin_password():
+def get_admin_password() -> str:
     try:
         return st.secrets["admin_password"]
     except Exception:
         return "sunny"
+
+def get_name_aliases() -> dict[str, str]:
+    """從 secrets 讀取 alias，方便日後不改 code 就能維護。"""
+    try:
+        raw = dict(st.secrets["name_aliases"])
+        return raw
+    except Exception:
+        # fallback：硬寫預設值
+        return {
+            "金閃閃": "kingsley金閃閃",
+            "冬青":   "冬青得來速",
+            "得來速": "冬青得來速",
+            "菜":     "小菜",
+            "小菜":   "小菜",
+        }
 
 # ==========================================
 # 1. CSS
@@ -53,6 +68,10 @@ def load_css():
         font-size: 0.8rem; font-weight: 600; color: #475569 !important;
         display: inline-block; margin-top: 10px;
     }
+    .db-status-ok  { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:6px 12px;
+                     font-size:0.78rem; color:#15803d !important; font-weight:600; margin-bottom:12px; }
+    .db-status-err { background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:6px 12px;
+                     font-size:0.78rem; color:#b91c1c !important; font-weight:600; margin-bottom:12px; }
 
     .player-row {
         background: white; border: 1px solid #f1f5f9; border-radius: 12px;
@@ -104,66 +123,82 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 資料庫
+# 2. 資料庫（分格儲存，避免單格 50k 上限）
 # ==========================================
+# 儲存格分配：
+#   A1 = sessions（報名資料，最大）
+#   B1 = meta（hidden / rained_out / removed_members）
+#   C1 = leaves（請假資料）
+
 @st.cache_resource
 def get_sheet():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+        creds  = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         client = gspread.authorize(creds)
         return client.open(SHEET_NAME).sheet1
     except Exception as e:
         st.error(f"❌ 資料庫連線失敗：{e}")
         return None
 
+def _read_cell(sheet, cell: str, default):
+    try:
+        raw = sheet.acell(cell).value
+        return json.loads(raw) if raw else default
+    except Exception:
+        return default
+
 def load_data() -> dict:
     sheet = get_sheet()
     if not sheet:
         return _empty_data()
     try:
-        raw = sheet.acell('A1').value
-        if not raw:
-            return _empty_data()
-        data = json.loads(raw)
-        data.setdefault("leaves", {})
-        data.setdefault("sessions", {})
-        data.setdefault("hidden", [])
-        data.setdefault("removed_members", [])
-        data.setdefault("rained_out", [])       # ☔ 天氣取消場次清單
-        # 每個 session 補 rained_out flag（向下相容）
-        return data
+        sessions = _read_cell(sheet, 'A1', {})
+        meta     = _read_cell(sheet, 'B1', {})
+        leaves   = _read_cell(sheet, 'C1', {})
+
+        return {
+            "sessions":        sessions,
+            "leaves":          leaves,
+            "hidden":          meta.get("hidden", []),
+            "rained_out":      meta.get("rained_out", []),
+            "removed_members": meta.get("removed_members", []),
+        }
     except Exception:
         return _empty_data()
-
-def _empty_data() -> dict:
-    return {"sessions": {}, "hidden": [], "leaves": {}, "removed_members": [], "rained_out": []}
 
 def save_data(data: dict):
     sheet = get_sheet()
     if not sheet:
         return
     try:
-        sheet.update_acell('A1', json.dumps(data, ensure_ascii=False))
+        meta = {
+            "hidden":          data.get("hidden", []),
+            "rained_out":      data.get("rained_out", []),
+            "removed_members": data.get("removed_members", []),
+        }
+        sheet.update_acell('A1', json.dumps(data.get("sessions", {}),  ensure_ascii=False))
+        sheet.update_acell('B1', json.dumps(meta,                       ensure_ascii=False))
+        sheet.update_acell('C1', json.dumps(data.get("leaves", {}),    ensure_ascii=False))
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
+
+def _empty_data() -> dict:
+    return {"sessions": {}, "hidden": [], "leaves": {}, "removed_members": [], "rained_out": []}
+
+def check_db_connection() -> bool:
+    """回傳連線是否正常，用於頁面頂端提示。"""
+    return get_sheet() is not None
 
 # ==========================================
 # 3. 工具函式
 # ==========================================
-NAME_ALIASES: dict[str, str] = {
-    "金閃閃": "kingsley金閃閃",
-    "冬青":   "冬青得來速",
-    "得來速": "冬青得來速",
-    "菜":     "小菜",
-    "小菜":   "小菜",
-}
-
 def normalize_name(name: str) -> str:
     if not name:
         return ""
-    clean = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name).replace(" ", "").lower()
-    for k, v in NAME_ALIASES.items():
+    aliases = get_name_aliases()
+    clean   = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name).replace(" ", "").lower()
+    for k, v in aliases.items():
         if k in clean:
             return v
     return clean
@@ -171,28 +206,16 @@ def normalize_name(name: str) -> str:
 def is_friend(name: str) -> bool:
     return any(k in name for k in ["友", "（", "("])
 
-# ── 出席狀態計算（核心邏輯）──
+# ── 出席狀態計算 ──
 def compute_status(last_date: date | None, leave_months: set[str], rained_out_months: set[str]) -> str:
-    """
-    從今天往回算，把「請假月」和「天氣取消月」扣掉（最多扣 MAX_LEAVE_EXEMPT 個月），
-    剩下「有效空窗月數」> ABSENCE_LIMIT_MONTHS 就逾期。
-    """
-    today = date.today()
+    today             = date.today()
     current_month_str = today.strftime("%Y-%m")
 
     if last_date is None:
         return "🔴 逾期"
 
-    # 若當月請假，先標示「請假中」（不立即判逾期）
-    if current_month_str in leave_months:
-        # 但仍需往前算是否已超過限制
-        pass
-
-    # 從 last_date 的下個月到今天，逐月掃描
-    exempt_used = 0
+    exempt_used         = 0
     effective_months_gap = 0
-
-    # 起點：last_date 的下一個月
     cursor = date(last_date.year, last_date.month, 1) + relativedelta(months=1)
     end    = date(today.year, today.month, 1)
 
@@ -200,19 +223,17 @@ def compute_status(last_date: date | None, leave_months: set[str], rained_out_mo
         m_str = cursor.strftime("%Y-%m")
         if m_str in leave_months or m_str in rained_out_months:
             if exempt_used < MAX_LEAVE_EXEMPT:
-                exempt_used += 1  # 這個月豁免，不算空窗
+                exempt_used += 1
             else:
-                effective_months_gap += 1  # 超過豁免上限，還是要算
+                effective_months_gap += 1
         else:
             effective_months_gap += 1
         cursor += relativedelta(months=1)
 
     if current_month_str in leave_months:
-        status_prefix = "🏖️ 請假中"
-        # 如果請假後扣掉豁免仍超限，還是逾期
         if effective_months_gap > ABSENCE_LIMIT_MONTHS:
             return "🔴 逾期（請假中）"
-        return status_prefix
+        return "🏖️ 請假中"
     elif effective_months_gap > ABSENCE_LIMIT_MONTHS:
         return "🔴 逾期"
     elif effective_months_gap >= ABSENCE_LIMIT_MONTHS:
@@ -346,31 +367,48 @@ def render_list(players, date_key, is_wait=False, can_edit=True, is_admin_mode=F
                             delete_player(p['id'], date_key)
 
 # ==========================================
-# 6. 出席統計
+# 6. 出席統計（加 cache）
 # ==========================================
-def build_stats(raw_data: dict, visible_dates: list) -> tuple[dict, dict]:
+@st.cache_data(ttl=60, show_spinner=False)
+def build_stats(
+    sessions_json: str,
+    leaves_json: str,
+    rained_out_tuple: tuple,
+    all_dates_tuple: tuple,
+) -> tuple[dict, dict]:
+    """
+    接收 JSON 字串 + tuple（hashable），讓 cache_data 能正確 hash。
+    ttl=60 → 每 60 秒自動過期重算。
+    """
+    sessions    = json.loads(sessions_json)
+    leaves      = json.loads(leaves_json)
+    rained_out  = set(rained_out_tuple)
+    all_dates   = list(all_dates_tuple)
+
     norm_cache: dict[str, str] = {}
-    rained_out_set = set(raw_data.get("rained_out", []))
 
     def get_norm(n: str) -> str:
         if n not in norm_cache:
             norm_cache[n] = normalize_name(n)
         return norm_cache[n]
 
-    # 近期報名（只看可見場次，且非天氣取消場次）
+    # 近期報名：所有非天氣取消的歷史場次（不限 visible）
     member_signups: dict[str, list] = {}
-    for sd in visible_dates:
-        if sd in rained_out_set:
+    for sd in all_dates:
+        if sd in rained_out:
+            continue
+        day = datetime.strptime(sd, "%Y-%m-%d").date()
+        if day > date.today():
             continue
         label = f"{int(sd.split('-')[1])}/{int(sd.split('-')[2])}"
-        for p in raw_data["sessions"].get(sd, []):
+        for p in sessions.get(sd, []):
             if not is_friend(p['name']):
                 member_signups.setdefault(get_norm(p['name']), []).append(label)
 
-    # 歷史出席（跳過天氣取消場次）
+    # 歷史出席
     stats: dict[str, dict] = {}
-    for sd, players in raw_data["sessions"].items():
-        if sd in rained_out_set:
+    for sd, players in sessions.items():
+        if sd in rained_out:
             continue
         day = datetime.strptime(sd, "%Y-%m-%d").date()
         if day > date.today():
@@ -385,7 +423,7 @@ def build_stats(raw_data: dict, visible_dates: list) -> tuple[dict, dict]:
                     stats[key]["name"] = p['name']
 
     # 請假
-    for raw_name, months in raw_data["leaves"].items():
+    for raw_name, months in leaves.items():
         key = get_norm(raw_name)
         stats.setdefault(key, {"name": raw_name, "last_date": None, "leaves": set()})
         stats[key]["leaves"].update(months)
@@ -393,14 +431,23 @@ def build_stats(raw_data: dict, visible_dates: list) -> tuple[dict, dict]:
     return stats, member_signups
 
 
-def render_stats(raw_data: dict, visible_dates: list):
-    removed     = set(raw_data.get("removed_members", []))
+def render_stats(raw_data: dict):
+    all_dates_tuple   = tuple(sorted(raw_data["sessions"].keys()))
+    rained_out_tuple  = tuple(raw_data.get("rained_out", []))
     rained_out_months = {
         datetime.strptime(d, "%Y-%m-%d").strftime("%Y-%m")
-        for d in raw_data.get("rained_out", [])
+        for d in rained_out_tuple
     }
-    stats, signups = build_stats(raw_data, visible_dates)
-    active_keys    = [k for k in sorted(stats.keys()) if k not in removed]
+
+    stats, signups = build_stats(
+        sessions_json    = json.dumps(raw_data["sessions"],  ensure_ascii=False),
+        leaves_json      = json.dumps(raw_data["leaves"],    ensure_ascii=False),
+        rained_out_tuple = rained_out_tuple,
+        all_dates_tuple  = all_dates_tuple,
+    )
+
+    removed     = set(raw_data.get("removed_members", []))
+    active_keys = [k for k in sorted(stats.keys()) if k not in removed]
 
     if not active_keys:
         st.info("目前無統計資料")
@@ -411,12 +458,9 @@ def render_stats(raw_data: dict, visible_dates: list):
             leaves_sorted = sorted(item["leaves"])
             signup_str    = ", ".join(signups.get(key, [])) or "—"
             last_str      = str(last) if last else "無紀錄"
-            leave_set     = set(leaves_sorted)
+            leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
+            status        = compute_status(last, set(leaves_sorted), rained_out_months)
 
-            status    = compute_status(last, leave_set, rained_out_months)
-            leave_str = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
-
-            # 編輯模式
             if st.session_state.get(f"stat_edit_{key}"):
                 st.markdown(f"<div class='edit-box'>✏️ 編輯成員：{item['name']}</div>", unsafe_allow_html=True)
                 with st.form(key=f"stat_form_{key}"):
@@ -435,6 +479,7 @@ def render_stats(raw_data: dict, visible_dates: list):
                         if old in cur["leaves"]:
                             cur["leaves"][new_display] = cur["leaves"].pop(old)
                         save_data(cur)
+                        build_stats.clear()
                         st.session_state[f"stat_edit_{key}"] = False
                         st.toast("✅ 名稱已更新")
                         time.sleep(0.5)
@@ -448,6 +493,7 @@ def render_stats(raw_data: dict, visible_dates: list):
                         if key not in cur["removed_members"]:
                             cur["removed_members"].append(key)
                         save_data(cur)
+                        build_stats.clear()
                         st.session_state[f"stat_edit_{key}"] = False
                         st.toast(f"👋 {item['name']} 已從統計移除")
                         time.sleep(0.5)
@@ -473,6 +519,7 @@ def render_stats(raw_data: dict, visible_dates: list):
                             if key not in cur["removed_members"]:
                                 cur["removed_members"].append(key)
                             save_data(cur)
+                            build_stats.clear()
                             st.toast(f"👋 {item['name']} 已移除")
                             time.sleep(0.5)
                             st.rerun()
@@ -492,28 +539,27 @@ def render_stats(raw_data: dict, visible_dates: list):
                             if key in cur.get("removed_members", []):
                                 cur["removed_members"].remove(key)
                             save_data(cur)
+                            build_stats.clear()
                             st.toast(f"✅ {item['name']} 已恢復")
                             time.sleep(0.5)
                             st.rerun()
                     with c3:
                         with st.popover("🗑️"):
-                            st.write(f"永久刪除「{item['name']}」所有紀錄？此操作無法復原！")
+                            st.warning(f"永久刪除「{item['name']}」所有紀錄？此操作無法復原！", icon="⚠️")
                             if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
                                 cur = load_data()
-                                # 從 removed_members 移除
                                 if key in cur.get("removed_members", []):
                                     cur["removed_members"].remove(key)
-                                # 從所有場次刪除該人所有報名
                                 for sd in cur["sessions"]:
                                     cur["sessions"][sd] = [
                                         p for p in cur["sessions"][sd]
                                         if normalize_name(p['name']) != key
                                     ]
-                                # 從請假紀錄刪除
                                 for rn in list(cur["leaves"].keys()):
                                     if normalize_name(rn) == key:
                                         del cur["leaves"][rn]
                                 save_data(cur)
+                                build_stats.clear()
                                 st.toast(f"🗑️ {item['name']} 所有資料已永久刪除")
                                 time.sleep(0.5)
                                 st.rerun()
@@ -525,6 +571,7 @@ def render_stats(raw_data: dict, visible_dates: list):
 # ==========================================
 if 'is_admin'    not in st.session_state: st.session_state.is_admin    = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
+if 'submitting'  not in st.session_state: st.session_state.submitting  = False
 
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered")
 load_css()
@@ -539,6 +586,11 @@ st.markdown("""
     <div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕒 19:00</div>
 </div>
 """, unsafe_allow_html=True)
+
+# 連線狀態提示
+if not check_db_connection():
+    st.markdown('<div class="db-status-err">❌ 資料庫連線異常，請重新整理或聯絡管理員</div>', unsafe_allow_html=True)
+    st.stop()
 
 st.session_state.data = load_data()
 
@@ -557,6 +609,7 @@ with col_leave:
                 if month_str not in data["leaves"][leave_name]:
                     data["leaves"][leave_name].append(month_str)
                     save_data(data)
+                    build_stats.clear()
                     st.toast("✅ 已登記")
                     time.sleep(1)
                     st.rerun()
@@ -588,6 +641,7 @@ with col_board:
                                         if not data["leaves"][k]:
                                             del data["leaves"][k]
                                 save_data(data)
+                                build_stats.clear()
                                 st.toast(f"🗑️ 移除 {m}")
                                 time.sleep(0.5)
                                 st.rerun()
@@ -598,6 +652,7 @@ with col_board:
                                 if normalize_name(k) == key:
                                     del data["leaves"][k]
                             save_data(data)
+                            build_stats.clear()
                             st.toast("🗑️ 強制移除")
                             time.sleep(0.5)
                             st.rerun()
@@ -612,13 +667,11 @@ rained_out    = set(st.session_state.data.get("rained_out", []))
 if not visible_dates:
     st.info("👋 目前沒有開放報名的場次")
 else:
-    tab_labels = []
-    for d in visible_dates:
-        label = f"{int(d.split('-')[1])}/{int(d.split('-')[2])}"
-        if d in rained_out:
-            label = f"☔ {label}"
-        tab_labels.append(label)
-
+    tab_labels = [
+        f"☔ {int(d.split('-')[1])}/{int(d.split('-')[2])}" if d in rained_out
+        else f"{int(d.split('-')[1])}/{int(d.split('-')[2])}"
+        for d in visible_dates
+    ]
     tabs = st.tabs(tab_labels)
 
     for i, dk in enumerate(visible_dates):
@@ -629,7 +682,6 @@ else:
             is_expired    = datetime.now() > cutoff
             can_operate   = st.session_state.is_admin or (not is_expired)
 
-            # ☔ 天氣取消提示
             if is_rained_out:
                 st.markdown("""
                 <div class="rain-banner">
@@ -672,18 +724,26 @@ else:
             with st.expander("📝 點擊報名 / 規則說明", expanded=not is_expired):
                 if is_expired and not st.session_state.is_admin:
                     st.warning("⛔ 本場次已截止報名與修改 (前一日 12:00)")
+                if is_rained_out and not st.session_state.is_admin:
+                    st.warning("⛔ 本場次已因天氣取消，無法報名")
+
+                submit_disabled = not can_operate or (is_rained_out and not st.session_state.is_admin)
 
                 with st.form(f"signup_{dk}", clear_on_submit=True):
-                    player_name  = st.text_input("球員姓名", disabled=not can_operate)
+                    player_name  = st.text_input("球員姓名", disabled=submit_disabled)
                     c1, c2, c3   = st.columns(3)
-                    is_member    = c1.checkbox("⭐晴女",           key=f"m_{dk}", disabled=not can_operate)
-                    bring_ball   = c2.checkbox("🏀帶球",           key=f"b_{dk}", disabled=not can_operate)
-                    occupy_court = c3.checkbox("🚩佔場",           key=f"c_{dk}", disabled=not can_operate)
-                    is_visitor   = st.checkbox("📣 不打球 (加油團)", key=f"v_{dk}", disabled=not can_operate)
-                    total        = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=not can_operate)
+                    is_member    = c1.checkbox("⭐晴女",           key=f"m_{dk}", disabled=submit_disabled)
+                    bring_ball   = c2.checkbox("🏀帶球",           key=f"b_{dk}", disabled=submit_disabled)
+                    occupy_court = c3.checkbox("🚩佔場",           key=f"c_{dk}", disabled=submit_disabled)
+                    is_visitor   = st.checkbox("📣 不打球 (加油團)", key=f"v_{dk}", disabled=submit_disabled)
+                    total        = st.number_input("報名人數", 1, 3, 1, key=f"t_{dk}", disabled=submit_disabled)
 
-                    if st.form_submit_button("送出報名", type="primary", disabled=not can_operate):
-                        if "友" in player_name:
+                    if st.form_submit_button("送出報名", type="primary", disabled=submit_disabled):
+                        # 防重複提交
+                        submit_key = f"submitted_{dk}_{player_name}"
+                        if st.session_state.get(submit_key):
+                            st.warning("⚠️ 已送出，請勿重複提交")
+                        elif "友" in player_name:
                             st.error("❌ 請輸入團員姓名")
                         elif player_name:
                             latest        = load_data()
@@ -697,6 +757,7 @@ else:
                             elif related_count + total > 3:
                                 st.error("❌ 每人上限 3 位")
                             else:
+                                st.session_state[submit_key] = True   # 標記已送出
                                 ts = time.time()
                                 for k in range(total):
                                     first     = (k == 0 and related_count == 0)
@@ -711,6 +772,7 @@ else:
                                         "timestamp":   ts + (k * 0.01),
                                     })
                                 save_data(latest)
+                                build_stats.clear()
                                 st.balloons()
                                 st.toast("🎉 報名成功！")
                                 time.sleep(2)
@@ -783,6 +845,7 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 data = load_data()
                 del data["sessions"][del_target]
                 save_data(data)
+                build_stats.clear()
                 st.rerun()
 
             hidden = st.multiselect("隱藏場次", all_sessions, default=st.session_state.data.get("hidden", []))
@@ -792,21 +855,20 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 save_data(data)
                 st.rerun()
 
-            # ── ☔ 天氣取消標記 ──
             st.divider()
             st.subheader("☔ 天氣取消場次")
-            st.caption("標記後該場不計入出席統計，場次 tab 會顯示 ☔ 標記")
-            current_rained = st.session_state.data.get("rained_out", [])
+            st.caption("標記後該場不計入出席統計，場次 tab 會顯示 ☔ 標記，並鎖定報名")
             new_rained = st.multiselect(
                 "選擇天氣取消的場次",
                 all_sessions,
-                default=current_rained,
-                key="rained_multiselect"
+                default=st.session_state.data.get("rained_out", []),
+                key="rained_multiselect",
             )
             if st.button("更新天氣取消設定"):
                 data = load_data()
                 data["rained_out"] = new_rained
                 save_data(data)
+                build_stats.clear()
                 st.toast("✅ 已更新")
                 time.sleep(0.5)
                 st.rerun()
@@ -825,13 +887,11 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             else:
                 st.write("目前無隱藏場次")
 
-        # ── 出席統計 ──
         st.divider()
         st.subheader("📊 出席統計報表")
         st.caption("✏️ 改名　🚪 退群（移至下方，可恢復或永久刪除）")
-        render_stats(st.session_state.data, visible_dates)
+        render_stats(st.session_state.data)
 
-        # ── 清洗標籤 ──
         st.divider()
         if st.button("🧹 一鍵清洗標籤"):
             data = load_data()
