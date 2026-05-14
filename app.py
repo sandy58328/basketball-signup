@@ -518,7 +518,8 @@ def render_stats(raw_data: dict):
         item          = stats[key]
         last          = item["last_date"]
         leaves_sorted = sorted(item["leaves"])
-        signup_str    = ", ".join(signups.get(key, [])) or "—"
+        recent_two    = signups.get(key, [])[-2:]
+        signup_str    = ", ".join(recent_two) or "—"
         last_str      = str(last) if last else "無紀錄"
         leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
         status        = compute_status(last, set(leaves_sorted))
@@ -885,15 +886,3 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
         st.caption("✏️ 改名　🚪 退群（移至下方，可恢復或永久刪除）")
         st.markdown('</div>', unsafe_allow_html=True)
         render_stats(st.session_state.data)
-
-        # ── 工具 ──
-        st.markdown('<div class="admin-section"><div class="admin-section-title">🔧 工具</div>', unsafe_allow_html=True)
-        if st.button("🧹 一鍵清洗標籤", use_container_width=True):
-            data = load_data(); count = 0
-            for dk in data["sessions"]:
-                for p in data["sessions"][dk]:
-                    if is_friend(p['name']) and p.get('isMember'):
-                        p['isMember'] = False; count += 1
-            save_data(data)
-            st.success(f"清洗完成！共修正 {count} 筆。"); time.sleep(2); st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
