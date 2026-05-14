@@ -1060,6 +1060,92 @@ else:
 
     active_idx = _get_active_idx()
 
+    # 投籃動畫（fragment 外，components.html 才能跑 JS）
+    if st.session_state.get("show_basket_anim"):
+        st.session_state["show_basket_anim"] = False
+        ANIM_HTML = """
+        <!DOCTYPE html><html><head>
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:white;overflow:hidden;}
+        #w{position:relative;width:100%;height:220px;}
+        canvas{position:absolute;top:0;left:0;}
+        #m{position:absolute;bottom:14px;left:50%;transform:translateX(-50%) scale(0.5);
+           font-size:20px;font-weight:900;color:#1e293b;white-space:nowrap;
+           opacity:0;transition:opacity .3s,transform .4s cubic-bezier(0.34,1.56,0.64,1);
+           font-family:sans-serif;}
+        #m.s{opacity:1;transform:translateX(-50%) scale(1);}
+        </style></head><body>
+        <div id="w"><canvas id="c"></canvas><div id="m">🎉 報名成功！</div></div>
+        <script>
+        (function(){
+          var c=document.getElementById("c"),ctx=c.getContext("2d"),m=document.getElementById("m");
+          var W=document.getElementById("w").offsetWidth;var H=220;
+          c.width=W;c.height=H;
+          // 籃框位置
+          var hx=W*0.75,hy=H*0.32,hr=W*0.09;
+          function drawHoop(){
+            // 籃框
+            ctx.beginPath();ctx.moveTo(hx-hr,hy);ctx.lineTo(hx+hr,hy);
+            ctx.strokeStyle="#e04b1a";ctx.lineWidth=4;ctx.stroke();
+            ctx.beginPath();ctx.arc(hx-hr,hy,5,0,Math.PI*2);ctx.fillStyle="#e04b1a";ctx.fill();
+            ctx.beginPath();ctx.arc(hx+hr,hy,5,0,Math.PI*2);ctx.fillStyle="#e04b1a";ctx.fill();
+            // 網
+            ctx.strokeStyle="rgba(148,163,184,0.6)";ctx.lineWidth=1;
+            var nw=hr*1.6;
+            for(var i=0;i<=4;i++){
+              var x0=hx-hr+(hr*2/4)*i, x1=hx-hr+4+(nw/4)*i;
+              ctx.beginPath();ctx.moveTo(x0,hy+2);ctx.lineTo(x1,hy+28);ctx.stroke();
+            }
+            for(var j=1;j<=3;j++){
+              var f=j/4;
+              ctx.beginPath();ctx.moveTo(hx-hr+(4*f),hy+28*f);ctx.lineTo(hx+hr-(4*f),hy+28*f);ctx.stroke();
+            }
+          }
+          function drawBall(x,y,a){
+            var r=W*0.065;
+            ctx.save();ctx.translate(x,y);ctx.rotate(a);
+            ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);
+            ctx.fillStyle="#e07b2a";ctx.fill();
+            ctx.strokeStyle="#b85e1a";ctx.lineWidth=1;ctx.stroke();
+            ctx.strokeStyle="rgba(0,0,0,0.2)";ctx.lineWidth=1.5;
+            ctx.beginPath();ctx.moveTo(-r,0);ctx.lineTo(r,0);ctx.stroke();
+            ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(0,r);ctx.stroke();
+            ctx.restore();
+          }
+          function bez(t,p0,p1,p2,p3){var u=1-t;return u*u*u*p0+3*u*u*t*p1+3*u*t*t*p2+t*t*t*p3;}
+          var sx=W*0.05,sy=H*0.85,ex=hx,ey=hy-W*0.065;
+          var c1x=W*0.1,c1y=-H*0.1,c2x=W*0.5,c2y=-H*0.05;
+          var dur=1600,t0=null,phase="fly";
+          function loop(ts){
+            if(!t0)t0=ts;
+            var el=ts-t0;
+            ctx.clearRect(0,0,W,H);
+            drawHoop();
+            if(phase==="fly"){
+              var t=Math.min(el/dur,1);
+              var bx=bez(t,sx,c1x,c2x,ex),by=bez(t,sy,c1y,c2y,ey);
+              drawBall(bx,by,t*Math.PI*3);
+              if(t<1)requestAnimationFrame(loop);
+              else{phase="drop";t0=ts;requestAnimationFrame(loop);}
+            } else {
+              var t2=Math.min(el/400,1);
+              ctx.globalAlpha=1-t2;
+              drawBall(ex,ey+t2*40,Math.PI*3+t2*0.5);
+              ctx.globalAlpha=1;
+              if(t2<1)requestAnimationFrame(loop);
+              else{m.classList.add("s");}
+            }
+          }
+          requestAnimationFrame(loop);
+        })();
+        </script></body></html>
+        """
+        components.html(ANIM_HTML, height=240)
+        import time as _t2; _t2.sleep(3)
+        st.rerun()
+
     # ── 場次卡片選擇器 ──
     card_cols = st.columns(len(visible_dates))
     for ci, d in enumerate(visible_dates):
@@ -1170,43 +1256,8 @@ else:
                     _success = st.session_state.get(f"just_signed_{_dk}", False)
                     if _success:
                         st.session_state[f"just_signed_{_dk}"] = False
-                        st.markdown("""
-                        <style>
-                        @keyframes bk_fly3{
-                            0%   {left:4%;  top:80%; transform:rotate(0deg);   opacity:1;}
-                            100% {left:67%; top:15%; transform:rotate(520deg); opacity:1;}
-                        }
-                        @keyframes bk_drop{
-                            0%   {left:67%; top:15%; transform:rotate(520deg); opacity:1;}
-                            100% {left:67%; top:40%; transform:rotate(560deg); opacity:0;}
-                        }
-                        @keyframes bk_msg3{from{opacity:0;transform:translateX(-50%) scale(0.5)}to{opacity:1;transform:translateX(-50%) scale(1)}}
-                        #bk3_wrap{position:relative;width:100%;height:260px;overflow:hidden;background:white;border-radius:16px;}
-                        #bk3_ball{
-                            position:absolute;font-size:48px;line-height:1;
-                            animation:bk_fly3 1.6s cubic-bezier(0.25,0.1,0.25,1) forwards,
-                                      bk_drop 0.5s 1.6s ease-in forwards;
-                        }
-                        #bk3_rim{position:absolute;right:28px;top:76px;width:62px;height:5px;background:#e04b1a;border-radius:3px;}
-                        #bk3_rim::before{content:"";position:absolute;left:-5px;top:-3px;width:10px;height:10px;background:#e04b1a;border-radius:50%;}
-                        #bk3_rim::after{content:"";position:absolute;right:-5px;top:-3px;width:10px;height:10px;background:#e04b1a;border-radius:50%;}
-                        #bk3_net{position:absolute;right:32px;top:81px;width:54px;height:28px;
-                          border-left:1.5px solid #94a3b8;border-right:1.5px solid #94a3b8;border-bottom:1.5px solid #94a3b8;
-                          border-radius:0 0 10px 10px;
-                          background:repeating-linear-gradient(to bottom,transparent 0,transparent 6px,rgba(148,163,184,0.5) 6px,rgba(148,163,184,0.5) 7px),
-                          repeating-linear-gradient(to right,transparent 0,transparent 10px,rgba(148,163,184,0.5) 10px,rgba(148,163,184,0.5) 11px);}
-                        #bk3_msg{position:absolute;bottom:20px;left:50%;transform:translateX(-50%) scale(0.5);
-                          font-size:22px;font-weight:900;color:#1e293b;white-space:nowrap;
-                          opacity:0;animation:bk_msg3 0.4s 2.2s cubic-bezier(0.34,1.56,0.64,1) forwards;}
-                        </style>
-                        <div id="bk3_wrap">
-                          <div id="bk3_rim"></div><div id="bk3_net"></div>
-                          <div id="bk3_ball">🏀</div>
-                          <div id="bk3_msg">🎉 報名成功！</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        import time as _t; _t.sleep(3)
-                        st.rerun()
+                        st.session_state["show_basket_anim"] = True
+                        st.rerun(scope="fragment")
                         return
                     with st.expander("📝 我要報名", expanded=not _is_expired):
                         if _is_rained_out and not st.session_state.is_admin:
