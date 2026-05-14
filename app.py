@@ -1334,33 +1334,6 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             else:
                 st.write("目前無隱藏場次")
 
-        # ── 一鍵複製名單 ──
-        st.markdown('<div class="admin-section"><div class="admin-section-title">📋 複製名單</div>', unsafe_allow_html=True)
-        _copy_sessions = sorted(st.session_state.data['sessions'].keys())
-        if _copy_sessions:
-            _copy_dk = st.selectbox('選擇場次', _copy_sessions, key='copy_dk_select', label_visibility='collapsed')
-            if _copy_dk:
-                _players = st.session_state.data['sessions'].get(_copy_dk, [])
-                _active  = sorted([p for p in _players if p.get('count',1)>0], key=lambda x:x.get('timestamp',0))
-                _wait    = sorted([p for p in _players if p.get('count',1)>0][MAX_CAPACITY:], key=lambda x:x.get('timestamp',0))
-                _active  = sorted([p for p in _players if p.get('count',1)>0], key=lambda x:(0 if x.get('isMember') else 1, x.get('timestamp',0)))
-                _main    = _active[:MAX_CAPACITY]
-                _w       = _active[MAX_CAPACITY:]
-                _mo, _dy = int(_copy_dk.split('-')[1]), int(_copy_dk.split('-')[2])
-                _lines   = [f"📅 {_mo}/{_dy} 報名名單\n"]
-                _lines  += [f"{i+1}. {p['name']}" for i,p in enumerate(_main)]
-                if _w:
-                    _lines += ["", "⏳ 候補"]
-                    _lines += [f"{i+1}. {p['name']}" for i,p in enumerate(_w)]
-                _text = "\n".join(_lines)
-                st.text_area('名單', _text, height=200, key='copy_text_area')
-                components.html(f"""
-                <button onclick="navigator.clipboard.writeText({repr(_text)}).then(()=>{{this.textContent='✅ 已複製!';setTimeout(()=>this.textContent='📋 複製到剪貼簿',1500)}})" 
-                style="background:#e05a2b;color:white;border:none;padding:8px 18px;border-radius:8px;font-size:14px;cursor:pointer;font-family:sans-serif;">
-                📋 複製到剪貼簿</button>
-                """, height=50)
-        st.markdown('</div>', unsafe_allow_html=True)
-
         # ── 出席統計 ──
         st.markdown('<div class="admin-section"><div class="admin-section-title">📊 出席統計報表</div>', unsafe_allow_html=True)
         st.caption("✏️ 改名　🚪 退群（移至下方，可恢復或永久刪除）")
