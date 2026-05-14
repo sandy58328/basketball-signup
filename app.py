@@ -141,11 +141,25 @@ def load_css():
     .stat-card-yellow .stat-card-num { color: #f59e0b !important; }
     .stat-card-green  .stat-card-num { color: #22c55e !important; }
     .stat-card-blue   .stat-card-num { color: #3b82f6 !important; }
-    .stat-card { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
-    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important; }
-    .stat-card-active-filter { outline: 2px solid #6366f1 !important; box-shadow: 0 0 0 4px rgba(99,102,241,0.12) !important; }
     .stat-group-header { font-size: 0.8rem; font-weight: 800; color: #94a3b8 !important;
                          letter-spacing: 1px; margin: 16px 0 8px 4px; text-transform: uppercase; }
+    /* 統計卡片按鈕客製化 */
+    div[data-testid="stButton"] button[kind="secondary"] {
+        background: white !important;
+        border: 1px solid #f1f5f9 !important;
+        border-radius: 12px !important;
+        padding: 10px 8px !important;
+        height: auto !important;
+        min-height: 64px !important;
+        white-space: pre-line !important;
+        font-family: 'Noto Sans TC', sans-serif !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03) !important;
+        transition: transform 0.15s, box-shadow 0.15s !important;
+    }
+    div[data-testid="stButton"] button[kind="secondary"]:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important;
+    }
 
     /* ── 管理員區塊 ── */
     .admin-section {
@@ -569,18 +583,17 @@ def render_stats(raw_data: dict):
     if "stat_filter" not in st.session_state:
         st.session_state.stat_filter = None  # None = 全部顯示
 
-    # ── 總覽卡片（可點擊篩選）──
+    # ── 總覽卡片（卡片本身即按鈕）──
     cols = st.columns(4, gap="small")
     for ci, sg in enumerate(STATUS_ORDER):
         is_selected = st.session_state.stat_filter == sg
         border_style = "outline:2px solid #6366f1;box-shadow:0 0 0 4px rgba(99,102,241,0.12);" if is_selected else ""
         with cols[ci]:
-            st.markdown(f"""<div class="{STATUS_CARD[sg]} stat-card" style="{border_style}">
-                <div class="stat-card-num">{cnt[sg]}</div>
-                <div class="stat-card-lbl">{STATUS_LABEL[sg]}</div>
-            </div>""", unsafe_allow_html=True)
-            btn_label = "✕ 取消" if is_selected else STATUS_LABEL[sg].split(" ")[1]
-            if st.button(btn_label, key=f"filter_btn_{sg}", use_container_width=True):
+            if st.button(
+                f"{cnt[sg]}\n{STATUS_LABEL[sg]}",
+                key=f"filter_btn_{sg}",
+                use_container_width=True,
+            ):
                 st.session_state.stat_filter = None if is_selected else sg
                 st.rerun()
 
