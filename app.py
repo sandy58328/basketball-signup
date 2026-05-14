@@ -1090,7 +1090,14 @@ else:
         rain_icon  = "☔ " if is_rain else ""
         count_txt  = f"{play_cnt}/{MAX_CAPACITY}" + (f" +{wait_cnt}" if wait_cnt > 0 else "")
         # 整張卡片就是按鈕，用 label 排版
-        btn_label  = f"{rain_icon}{month}/{day}\n{count_txt} 人"
+        _today_d   = date.today()
+        _dobj      = datetime.strptime(d, "%Y-%m-%d").date()
+        _delta     = (_dobj - _today_d).days
+        if _delta < 0:    _day_hint = "已結束"
+        elif _delta == 0: _day_hint = "今天 🔥"
+        elif _delta == 1: _day_hint = "明天"
+        else:             _day_hint = f"{_delta} 天後"
+        btn_label  = f"{rain_icon}{month}/{day}\n{_day_hint} · {count_txt} 人"
         with card_cols[ci]:
             if st.button(
                 btn_label,
