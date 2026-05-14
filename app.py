@@ -1164,68 +1164,76 @@ else:
                     else:
                         _cd = f"⏰ 截止時間：{_mins} 分鐘後"
                     st.caption(_cd)
-                with st.expander("📝 我要報名", expanded=not is_expired):
-                    if is_rained_out and not st.session_state.is_admin:
-                        st.warning("⛔ 本場次已因天氣取消，無法報名")
-                    else:
-                        with st.form(f"signup_{dk}", clear_on_submit=True):
-                            player_name  = st.text_input("✏️ 球員姓名", placeholder="請輸入你的名字", disabled=submit_disabled)
 
-                            # checkbox 兩列排版，手機不擠
-                            r1c1, r1c2 = st.columns(2)
-                            r2c1, r2c2 = st.columns(2)
-                            is_member    = r1c1.checkbox("⭐ 晴女成員", key=f"m_{dk}", disabled=submit_disabled)
-                            bring_ball   = r1c2.checkbox("🏀 我帶球",   key=f"b_{dk}", disabled=submit_disabled)
-                            occupy_court = r2c1.checkbox("🚩 我佔場",   key=f"c_{dk}", disabled=submit_disabled)
-                            is_visitor   = r2c2.checkbox("📣 加油團（不打球）", key=f"v_{dk}", disabled=submit_disabled)
+                @st.fragment
+                def signup_form(_dk, _submit_disabled, _is_rained_out, _is_expired, _cutoff):
+                    _success = st.session_state.get(f"just_signed_{_dk}", False)
+                    if _success:
+                        st.session_state[f"just_signed_{_dk}"] = False
+                        st.balloons()
+                        st.markdown("""
+                        <div style='text-align:center;padding:40px 10px;'>
+                            <div style='font-size:64px;'>🏀</div>
+                            <div style='font-size:24px;font-weight:900;color:#1e293b;margin-top:12px;'>報名成功！</div>
+                        </div>""", unsafe_allow_html=True)
+                        return
+                    with st.expander("📝 我要報名", expanded=not _is_expired):
+                        if _is_rained_out and not st.session_state.is_admin:
+                            st.warning("⛔ 本場次已因天氣取消，無法報名")
+                        else:
+                            with st.form(f"signup_{_dk}", clear_on_submit=True):
+                                player_name  = st.text_input("✏️ 球員姓名", placeholder="請輸入你的名字", disabled=_submit_disabled)
+                                r1c1, r1c2 = st.columns(2)
+                                r2c1, r2c2 = st.columns(2)
+                                is_member    = r1c1.checkbox("⭐ 晴女成員", key=f"m_{_dk}", disabled=_submit_disabled)
+                                bring_ball   = r1c2.checkbox("🏀 我帶球",   key=f"b_{_dk}", disabled=_submit_disabled)
+                                occupy_court = r2c1.checkbox("🚩 我佔場",   key=f"c_{_dk}", disabled=_submit_disabled)
+                                is_visitor   = r2c2.checkbox("📣 加油團（不打球）", key=f"v_{_dk}", disabled=_submit_disabled)
+                                total = st.radio(
+                                    "**報名人數**（含自己）",
+                                    options=[1, 2, 3],
+                                    format_func=lambda x: f"{x} 人",
+                                    horizontal=True,
+                                    key=f"total_{_dk}",
+                                    disabled=_submit_disabled,
+                                )
+                                submitted = st.form_submit_button("🏀 送出報名", type="primary", disabled=_submit_disabled, use_container_width=True)
+                                if submitted:
+                                    if "友" in player_name:
+                                        st.error("❌ 請輸入團員姓名")
+                                    elif player_name:
+                                        latest        = load_data()
+                                        existing      = latest["sessions"].get(_dk, [])
+                                        related_count = len([
+                                            x for x in existing
+                                            if x['name'] == player_name
+                                            or x['name'].startswith(f"{player_name} (")
+                                            or x['name'].startswith(f"{player_name} （")
+                                        ])
+                                        if related_count == 0 and not is_member:
+                                            st.error("❌ 第一次報名需勾選「⭐ 晴女成員」")
+                                        elif related_count > 0 and is_member:
+                                            st.error("❌ 加報朋友請勿重複勾選晴女")
+                                        elif related_count + total > 3:
+                                            st.error("❌ 每人上限 3 位")
+                                        else:
+                                            ts = time.time()
+                                            for k in range(total):
+                                                first     = (k == 0 and related_count == 0)
+                                                full_name = player_name if first else f"{player_name} (友{related_count + k})"
+                                                latest["sessions"][_dk].append({
+                                                    "id": str(uuid.uuid4()), "name": full_name,
+                                                    "count": 0 if (is_visitor and first) else 1,
+                                                    "isMember": is_member if first else False,
+                                                    "bringBall": bring_ball if first else False,
+                                                    "occupyCourt": occupy_court if first else False,
+                                                    "timestamp": ts + (k * 0.01),
+                                                })
+                                            save_data(latest); build_stats.clear()
+                                            st.session_state[f"just_signed_{_dk}"] = True
+                                            st.rerun(scope="fragment")
 
-                            # 人數選擇：radio 橫排，不會誤觸 submit
-                            total = st.radio(
-                                "**報名人數**（含自己）",
-                                options=[1, 2, 3],
-                                format_func=lambda x: f"{x} 人",
-                                horizontal=True,
-                                key=f"total_{dk}",
-                                disabled=submit_disabled,
-                            )
-
-                            submitted = st.form_submit_button("🏀 送出報名", type="primary", disabled=submit_disabled, use_container_width=True)
-                            if submitted:
-                                if "友" in player_name:
-                                    st.error("❌ 請輸入團員姓名")
-                                elif player_name:
-                                    latest        = load_data()
-                                    existing      = latest["sessions"].get(dk, [])
-                                    related_count = len([
-                                        x for x in existing
-                                        if x['name'] == player_name
-                                        or x['name'].startswith(f"{player_name} (")
-                                        or x['name'].startswith(f"{player_name} （")
-                                    ])
-                                    if related_count == 0 and not is_member:
-                                        st.error("❌ 第一次報名需勾選「⭐ 晴女成員」")
-                                    elif related_count > 0 and is_member:
-                                        st.error("❌ 加報朋友請勿重複勾選晴女")
-                                    elif related_count + total > 3:
-                                        st.error("❌ 每人上限 3 位")
-                                    else:
-                                        ts = time.time()
-                                        for k in range(total):
-                                            first     = (k == 0 and related_count == 0)
-                                            full_name = player_name if first else f"{player_name} (友{related_count + k})"
-                                            latest["sessions"][dk].append({
-                                                "id": str(uuid.uuid4()), "name": full_name,
-                                                "count": 0 if (is_visitor and first) else 1,
-                                                "isMember": is_member if first else False,
-                                                "bringBall": bring_ball if first else False,
-                                                "occupyCourt": occupy_court if first else False,
-                                                "timestamp": ts + (k * 0.01),
-                                            })
-                                        save_data(latest); build_stats.clear()
-                                        st.session_state['_tab_jump'] = i
-                                        st.session_state['show_basket_anim'] = True
-                                        st.session_state['scroll_to'] = full_name
-                                        st.rerun()
+                signup_form(dk, submit_disabled, is_rained_out, is_expired, cutoff)
 
                 # 規則說明獨立折疊，不跟表單混在一起
                 with st.expander("📌 報名規則說明", expanded=False):
