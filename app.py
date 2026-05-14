@@ -1172,57 +1172,38 @@ else:
                         st.session_state[f"just_signed_{_dk}"] = False
                         st.markdown("""
                         <style>
-                        #bk2_wrap{position:relative;width:100%;height:260px;overflow:hidden;background:white;border-radius:16px;}
-                        #bk2_ball{position:absolute;font-size:48px;line-height:1;}
-                        #bk2_rim{position:absolute;right:30px;top:80px;width:60px;height:5px;background:#e04b1a;border-radius:3px;}
-                        #bk2_rim::before{content:'';position:absolute;left:-5px;top:-3px;width:10px;height:10px;background:#e04b1a;border-radius:50%;}
-                        #bk2_rim::after{content:'';position:absolute;right:-5px;top:-3px;width:10px;height:10px;background:#e04b1a;border-radius:50%;}
-                        #bk2_net{position:absolute;right:34px;top:85px;width:52px;height:28px;
+                        @keyframes bk_fly3{
+                            0%   {left:4%;  top:80%; transform:rotate(0deg);   opacity:1;}
+                            100% {left:67%; top:15%; transform:rotate(520deg); opacity:1;}
+                        }
+                        @keyframes bk_drop{
+                            0%   {left:67%; top:15%; transform:rotate(520deg); opacity:1;}
+                            100% {left:67%; top:40%; transform:rotate(560deg); opacity:0;}
+                        }
+                        @keyframes bk_msg3{from{opacity:0;transform:translateX(-50%) scale(0.5)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+                        #bk3_wrap{position:relative;width:100%;height:260px;overflow:hidden;background:white;border-radius:16px;}
+                        #bk3_ball{
+                            position:absolute;font-size:48px;line-height:1;
+                            animation:bk_fly3 1.6s cubic-bezier(0.25,0.1,0.25,1) forwards,
+                                      bk_drop 0.5s 1.6s ease-in forwards;
+                        }
+                        #bk3_rim{position:absolute;right:28px;top:76px;width:62px;height:5px;background:#e04b1a;border-radius:3px;}
+                        #bk3_rim::before{content:"";position:absolute;left:-5px;top:-3px;width:10px;height:10px;background:#e04b1a;border-radius:50%;}
+                        #bk3_rim::after{content:"";position:absolute;right:-5px;top:-3px;width:10px;height:10px;background:#e04b1a;border-radius:50%;}
+                        #bk3_net{position:absolute;right:32px;top:81px;width:54px;height:28px;
                           border-left:1.5px solid #94a3b8;border-right:1.5px solid #94a3b8;border-bottom:1.5px solid #94a3b8;
                           border-radius:0 0 10px 10px;
                           background:repeating-linear-gradient(to bottom,transparent 0,transparent 6px,rgba(148,163,184,0.5) 6px,rgba(148,163,184,0.5) 7px),
                           repeating-linear-gradient(to right,transparent 0,transparent 10px,rgba(148,163,184,0.5) 10px,rgba(148,163,184,0.5) 11px);}
-                        #bk2_msg{position:absolute;bottom:20px;left:50%;
+                        #bk3_msg{position:absolute;bottom:20px;left:50%;transform:translateX(-50%) scale(0.5);
                           font-size:22px;font-weight:900;color:#1e293b;white-space:nowrap;
-                          opacity:0;transition:opacity 0.4s,transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
-                          transform:translateX(-50%) scale(0.5);}
-                        #bk2_msg.show{opacity:1;transform:translateX(-50%) scale(1);}
+                          opacity:0;animation:bk_msg3 0.4s 2.2s cubic-bezier(0.34,1.56,0.64,1) forwards;}
                         </style>
-                        <div id='bk2_wrap'>
-                          <div id='bk2_rim'></div><div id='bk2_net'></div>
-                          <div id='bk2_ball'>🏀</div>
-                          <div id='bk2_msg'>🎉 報名成功！</div>
+                        <div id="bk3_wrap">
+                          <div id="bk3_rim"></div><div id="bk3_net"></div>
+                          <div id="bk3_ball">🏀</div>
+                          <div id="bk3_msg">🎉 報名成功！</div>
                         </div>
-                        <script>
-                        (function(){
-                          var ball=document.getElementById('bk2_ball'),msg=document.getElementById('bk2_msg');
-                          var wrap=document.getElementById('bk2_wrap');
-                          var W=wrap.offsetWidth||320,H=260;
-                          var sx=W*0.04,sy=H*0.78,ex=W-30-30-24,ey=56;
-                          var c1x=W*0.15,c1y=-H*0.1,c2x=W*0.55,c2y=-H*0.05;
-                          var dur=1800,st2=null,phase='fly';
-                          function bez(t,p0,p1,p2,p3){var u=1-t;return u*u*u*p0+3*u*u*t*p1+3*u*t*t*p2+t*t*t*p3;}
-                          function run(ts){
-                            if(!st2)st2=ts;
-                            var el=ts-st2;
-                            if(phase==='fly'){
-                              var t=Math.min(el/dur,1);
-                              ball.style.left=bez(t,sx,c1x,c2x,ex)+'px';
-                              ball.style.top=bez(t,sy,c1y,c2y,ey)+'px';
-                              ball.style.transform='rotate('+(t*540)+'deg)';
-                              if(t<1){requestAnimationFrame(run);}
-                              else{phase='swish';st2=ts;requestAnimationFrame(run);}
-                            } else {
-                              var t2=Math.min(el/400,1);
-                              ball.style.top=(ey+t2*50)+'px';
-                              ball.style.opacity=(1-t2).toString();
-                              if(t2<1){requestAnimationFrame(run);}
-                              else{ball.style.opacity='0';msg.classList.add('show');}
-                            }
-                          }
-                          requestAnimationFrame(run);
-                        })();
-                        </script>
                         """, unsafe_allow_html=True)
                         import time as _t; _t.sleep(3)
                         st.rerun()
