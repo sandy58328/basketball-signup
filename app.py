@@ -143,6 +143,7 @@ def load_css():
     .wait-title { font-size: 0.85rem; font-weight: 800; color: #92400e !important; margin-bottom: 10px; }
     .wait-badge { background: #fef3c7; color: #92400e !important; font-size: 0.72rem;
                   padding: 1px 8px; border-radius: 20px; font-weight: 700; margin-left: 6px; }
+    .wait-section .player-row { background: #fff8e7 !important; border-color: #fde68a !important; }
 
     /* ── 編輯框 ── */
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
@@ -343,18 +344,20 @@ def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_v
     player.update({'name': name, 'isMember': False if is_friend(name) else is_member,
                    'bringBall': bring_ball, 'occupyCourt': occupy_court, 'count': 0 if is_visitor else 1})
     save_data(data)
-    _set_tab_for_date(date_key)
+    _set_tab_for_date(date_key, data)
     st.session_state.edit_target = None
     st.toast("✅ 資料已更新")
     time.sleep(0.5)
     st.rerun()
 
-def _set_tab_for_date(date_key: str):
-    """rerun 前呼叫，確保畫面停在 date_key 對應的 tab。"""
+def _set_tab_for_date(date_key: str, data: dict | None = None):
+    """rerun 前呼叫，確保畫面停在 date_key 對應的 tab。
+    傳入最新 data 避免用到 session_state 的舊版本。"""
     try:
-        all_d   = sorted(st.session_state.data["sessions"].keys())
-        hidden  = st.session_state.data.get("hidden", [])
-        visible = [d for d in all_d if d not in hidden]
+        d = data if data is not None else st.session_state.data
+        all_d   = sorted(d["sessions"].keys())
+        hidden  = d.get("hidden", [])
+        visible = [x for x in all_d if x not in hidden]
         if date_key in visible:
             st.query_params['tab'] = str(visible.index(date_key))
     except Exception:
@@ -378,7 +381,7 @@ def delete_player(pid, date_key):
     if st.session_state.edit_target == pid:
         st.session_state.edit_target = None
     save_data(data)
-    _set_tab_for_date(date_key)
+    _set_tab_for_date(date_key, data)
     st.toast("🗑️ 已刪除")
     time.sleep(0.5)
     st.rerun()
@@ -1201,10 +1204,12 @@ else:
 
             # ── 候補名單（獨立區塊，黃色背景）──
             if wait_list:
-                st.markdown("""<div class="wait-section">
-                    <div class="wait-title">⏳ 候補名單</div>
-                </div>""", unsafe_allow_html=True)
+                wait_badge = f'<span class="wait-badge">{len(wait_list)} 人等待</span>'
+                st.markdown(f'''<div class="wait-section">
+                    <div class="wait-title">⏳ 候補名單 {wait_badge}</div>''',
+                    unsafe_allow_html=True)
                 render_list(wait_list, dk, True, can_operate, st.session_state.is_admin)
+                st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
 # 9. 管理員專區
