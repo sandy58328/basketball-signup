@@ -140,7 +140,9 @@ def load_css():
         background: #fffbf0; border: 1.5px dashed #fcd34d; border-radius: 14px;
         padding: 14px 12px; margin-top: 16px;
     }
-    .wait-title { font-size: 0.85rem; font-weight: 800; color: #92400e !important; margin-bottom: 10px; }
+    .wait-title { font-size: 0.85rem; font-weight: 800; color: #92400e !important;
+                  margin-bottom: 14px; padding-bottom: 8px;
+                  border-bottom: 1px dashed #fcd34d; }
     .wait-badge { background: #fef3c7; color: #92400e !important; font-size: 0.72rem;
                   padding: 1px 8px; border-radius: 20px; font-weight: 700; margin-left: 6px; }
     .wait-section .player-row { background: #fff8e7 !important; border-color: #fde68a !important; }
@@ -1029,29 +1031,28 @@ else:
 
     tabs = st.tabs([tab_label(d) for d in visible_dates])
 
-    # 預設 tab：優先用 query_params 指定的（報名/刪除後 rerun 用）
-    # 若無指定，自動找最近的未來或今天的場次（不要停在過期場次）
-    _today = date.today()
+    # tab index：query_params 有值（刪除/報名後 rerun）就直接用
+    # 沒有的話找最近的未來場次
     def _default_tab_idx():
         qp = st.query_params.get('tab', None)
         if qp is not None:
             try:
                 idx = int(qp)
-                # 確認該 index 的場次還沒過期，否則找下一個未來場次
                 if 0 <= idx < len(visible_dates):
-                    d = visible_dates[idx]
-                    if datetime.strptime(d, "%Y-%m-%d").date() >= _today:
-                        return idx
+                    return idx
             except ValueError:
                 pass
         # 找第一個今天或之後的場次
+        _today = date.today()
         for j, d in enumerate(visible_dates):
             if datetime.strptime(d, "%Y-%m-%d").date() >= _today:
                 return j
-        # 全是過去場次，停在最後一個
         return len(visible_dates) - 1
 
     _tab_idx = _default_tab_idx()
+    # 用完就清掉，避免下次誤用舊值
+    if 'tab' in st.query_params:
+        st.query_params.pop('tab', None)
     if _tab_idx > 0:
         components.html(f"""
         <script>
@@ -1204,9 +1205,8 @@ else:
 
             # ── 候補名單（獨立區塊，黃色背景）──
             if wait_list:
-                wait_badge = f'<span class="wait-badge">{len(wait_list)} 人等待</span>'
-                st.markdown(f'''<div class="wait-section">
-                    <div class="wait-title">⏳ 候補名單 {wait_badge}</div>''',
+                st.markdown('''<div class="wait-section">
+                    <div class="wait-title">⏳ 候補名單</div>''',
                     unsafe_allow_html=True)
                 render_list(wait_list, dk, True, can_operate, st.session_state.is_admin)
                 st.markdown("</div>", unsafe_allow_html=True)
