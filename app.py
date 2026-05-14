@@ -264,7 +264,13 @@ def format_timestamp(ts: float) -> str:
     else:
         return dt.strftime("%-m/%-d %H:%M")
 
-def compute_status(last_date: date | None, leave_months: set[str], rained_out_months: set[str]) -> str:
+def compute_status(last_date: date | None, leave_months: set[str]) -> str:
+    """
+    計算出席狀態。
+    - 請假月份最多豁免 MAX_LEAVE_EXEMPT 個月
+    - 天氣取消場次不給豁免：有報名的人 last_date 已自然更新，
+      沒報名的人該月照樣算空窗，對兩者才公平
+    """
     today             = date.today()
     current_month_str = today.strftime("%Y-%m")
     if last_date is None:
@@ -275,7 +281,7 @@ def compute_status(last_date: date | None, leave_months: set[str], rained_out_mo
     end    = date(today.year, today.month, 1)
     while cursor <= end:
         m_str = cursor.strftime("%Y-%m")
-        if m_str in leave_months or m_str in rained_out_months:
+        if m_str in leave_months:
             if exempt_used < MAX_LEAVE_EXEMPT:
                 exempt_used += 1
             else:
@@ -461,7 +467,6 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
 def render_stats(raw_data: dict):
     all_dates_tuple  = tuple(sorted(raw_data["sessions"].keys()))
     rained_out_tuple = tuple(raw_data.get("rained_out", []))
-    rained_out_months = {datetime.strptime(d, "%Y-%m-%d").strftime("%Y-%m") for d in rained_out_tuple}
 
     stats, signups = build_stats(
         sessions_json    = json.dumps(raw_data["sessions"], ensure_ascii=False),
@@ -477,7 +482,7 @@ def render_stats(raw_data: dict):
     cnt = {"🟢": 0, "🟡": 0, "🔴": 0, "🏖️": 0}
     for key in active_keys:
         item   = stats[key]
-        status = compute_status(item["last_date"], set(item["leaves"]), rained_out_months)
+        status = compute_status(item["last_date"], set(item["leaves"]))
         if   "🔴" in status: cnt["🔴"] += 1
         elif "🟡" in status: cnt["🟡"] += 1
         elif "🏖️" in status: cnt["🏖️"] += 1
@@ -516,7 +521,7 @@ def render_stats(raw_data: dict):
         signup_str    = ", ".join(signups.get(key, [])) or "—"
         last_str      = str(last) if last else "無紀錄"
         leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
-        status        = compute_status(last, set(leaves_sorted), rained_out_months)
+        status        = compute_status(last, set(leaves_sorted))
         row_cls       = status_to_row_class(status)
 
         if st.session_state.get(f"stat_edit_{key}"):
