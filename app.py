@@ -677,7 +677,8 @@ def render_stats(raw_data: dict):
 # ==========================================
 if 'is_admin'    not in st.session_state: st.session_state.is_admin    = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
-if 'active_tab'  not in st.session_state: st.session_state.active_tab  = 0
+if 'active_tab'    not in st.session_state: st.session_state.active_tab    = 0
+if 'success_page'  not in st.session_state: st.session_state.success_page  = False
 if 'total_sel'   not in st.session_state: st.session_state.total_sel   = {}  # {date_key: int}
 
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered")
@@ -929,10 +930,6 @@ canvas{display:block;}
 """
 
 # 報名成功動畫
-if st.session_state.get('show_basket_anim'):
-    components.html(BASKETBALL_ANIM, height=1)
-    st.toast("🎉 報名成功！")
-    st.session_state['show_basket_anim'] = False
 
 # 捲動到剛報名的名字
 if st.session_state.get('scroll_to'):
@@ -1142,7 +1139,7 @@ else:
                                             })
                                         save_data(latest); build_stats.clear()
                                         st.session_state['_tab_jump'] = i
-                                        st.session_state['show_basket_anim'] = True
+                                        st.session_state['success_page'] = True
                                         st.session_state['scroll_to'] = full_name
                                         st.rerun()
 
