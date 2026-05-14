@@ -1071,18 +1071,17 @@ else:
         day        = int(d.split('-')[2])
         is_rain    = d in rained_out
         is_sel     = (ci == active_idx)
-        card_cls   = "session-card"
-        if is_sel:  card_cls += " session-card-active"
-        if is_rain: card_cls += " session-card-rain"
         rain_icon  = "☔ " if is_rain else ""
         count_txt  = f"{play_cnt}/{MAX_CAPACITY}" + (f" +{wait_cnt}" if wait_cnt > 0 else "")
+        # 整張卡片就是按鈕，用 label 排版
+        btn_label  = f"{rain_icon}{month}/{day}\n{count_txt} 人"
         with card_cols[ci]:
-            st.markdown(f"""<div class="{card_cls}">
-                <div class="session-card-date">{rain_icon}{month}/{day}</div>
-                <div class="session-card-count">{count_txt} 人</div>
-            </div>""", unsafe_allow_html=True)
-            if st.button("選擇", key=f"card_btn_{d}", use_container_width=True,
-                         type="primary" if is_sel else "secondary"):
+            if st.button(
+                btn_label,
+                key=f"card_btn_{d}",
+                use_container_width=True,
+                type="primary" if is_sel else "secondary",
+            ):
                 st.session_state['_active_session'] = ci
                 st.rerun()
 
