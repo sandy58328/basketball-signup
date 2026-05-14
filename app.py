@@ -1031,6 +1031,25 @@ if st.session_state.get('show_basket_anim'):
     st.toast("🎉 報名成功！")
     st.session_state['show_basket_anim'] = False
 
+# 捲動到剛報名的名字
+if st.session_state.get('scroll_to'):
+    _sname = st.session_state.pop('scroll_to')
+    components.html(f"""
+    <script>
+    (function(){{
+        setTimeout(function(){{
+            var els = window.parent.document.querySelectorAll('.list-name');
+            for(var i=0;i<els.length;i++){{
+                if(els[i].textContent.trim()==='{_sname}'){{
+                    els[i].scrollIntoView({{behavior:'smooth',block:'center'}});
+                    break;
+                }}
+            }}
+        }},600);
+    }})();
+    </script>
+    """, height=0)
+
 if not visible_dates:
     st.info("👋 目前沒有開放報名的場次")
 else:
@@ -1142,6 +1161,18 @@ else:
             submit_disabled = not can_operate or (is_rained_out and not st.session_state.is_admin)
 
             if not is_expired or st.session_state.is_admin:
+                # 截止倒數
+                if not is_expired:
+                    _remaining = cutoff - datetime.now()
+                    _hrs = int(_remaining.total_seconds() // 3600)
+                    _mins = int((_remaining.total_seconds() % 3600) // 60)
+                    if _hrs >= 24:
+                        _cd = f"⏰ 截止時間：{int(_hrs//24)} 天 {_hrs%24} 小時後"
+                    elif _hrs > 0:
+                        _cd = f"⏰ 截止時間：{_hrs} 小時 {_mins} 分後"
+                    else:
+                        _cd = f"⏰ 截止時間：{_mins} 分鐘後"
+                    st.caption(_cd)
                 with st.expander("📝 我要報名", expanded=not is_expired):
                     if is_rained_out and not st.session_state.is_admin:
                         st.warning("⛔ 本場次已因天氣取消，無法報名")
@@ -1202,6 +1233,7 @@ else:
                                         save_data(latest); build_stats.clear()
                                         st.session_state['_tab_jump'] = i
                                         st.session_state['show_basket_anim'] = True
+                                        st.session_state['scroll_to'] = full_name
                                         st.rerun()
 
                 # 規則說明獨立折疊，不跟表單混在一起
@@ -1294,6 +1326,33 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     render_list(st.session_state.data["sessions"].get(target_hidden, []), target_hidden, is_admin_mode=True)
             else:
                 st.write("目前無隱藏場次")
+
+        # ── 一鍵複製名單 ──
+        st.markdown('<div class="admin-section"><div class="admin-section-title">📋 複製名單</div>', unsafe_allow_html=True)
+        _copy_sessions = sorted(st.session_state.data['sessions'].keys())
+        if _copy_sessions:
+            _copy_dk = st.selectbox('選擇場次', _copy_sessions, key='copy_dk_select', label_visibility='collapsed')
+            if _copy_dk:
+                _players = st.session_state.data['sessions'].get(_copy_dk, [])
+                _active  = sorted([p for p in _players if p.get('count',1)>0], key=lambda x:x.get('timestamp',0))
+                _wait    = sorted([p for p in _players if p.get('count',1)>0][MAX_CAPACITY:], key=lambda x:x.get('timestamp',0))
+                _active  = sorted([p for p in _players if p.get('count',1)>0], key=lambda x:(0 if x.get('isMember') else 1, x.get('timestamp',0)))
+                _main    = _active[:MAX_CAPACITY]
+                _w       = _active[MAX_CAPACITY:]
+                _mo, _dy = int(_copy_dk.split('-')[1]), int(_copy_dk.split('-')[2])
+                _lines   = [f"📅 {_mo}/{_dy} 報名名單\n"]
+                _lines  += [f"{i+1}. {p['name']}" for i,p in enumerate(_main)]
+                if _w:
+                    _lines += ["", "⏳ 候補"]
+                    _lines += [f"{i+1}. {p['name']}" for i,p in enumerate(_w)]
+                _text = "\n".join(_lines)
+                st.text_area('名單', _text, height=200, key='copy_text_area')
+                components.html(f"""
+                <button onclick="navigator.clipboard.writeText({repr(_text)}).then(()=>{{this.textContent='✅ 已複製!';setTimeout(()=>this.textContent='📋 複製到剪貼簿',1500)}})" 
+                style="background:#e05a2b;color:white;border:none;padding:8px 18px;border-radius:8px;font-size:14px;cursor:pointer;font-family:sans-serif;">
+                📋 複製到剪貼簿</button>
+                """, height=50)
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # ── 出席統計 ──
         st.markdown('<div class="admin-section"><div class="admin-section-title">📊 出席統計報表</div>', unsafe_allow_html=True)
