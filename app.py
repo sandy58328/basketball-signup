@@ -55,12 +55,17 @@ def load_css():
     [data-testid="stSidebarCollapsedControl"] { display: none !important; }
 
     /* ── Header ── */
-    .header-title { font-size: 1.5rem; font-weight: 900; color: #1e293b !important; margin: 0 0 3px 0; }
-    .header-sub   { font-size: 0.85rem; color: #64748b !important; font-weight: 600; margin: 0 0 7px 0; }
+    .header-box {
+        background: white; padding: 1.5rem 1rem; border-radius: 20px;
+        text-align: center; margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;
+    }
+    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
+    .header-sub   { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
     .info-pill {
-        background: #f1f5f9; padding: 3px 12px; border-radius: 30px;
-        font-size: 0.78rem; font-weight: 600; color: #475569 !important;
-        display: inline-block; border: 1px solid #e8ecf0;
+        background: #f1f5f9; padding: 4px 14px; border-radius: 30px;
+        font-size: 0.8rem; font-weight: 600; color: #475569 !important;
+        display: inline-block; margin-top: 10px;
     }
 
     /* ── 管理員 badge ── */
@@ -681,22 +686,13 @@ load_css()
 # ==========================================
 # 8. 主畫面
 # ==========================================
-_hc1, _hc2 = st.columns([1, 4], gap="medium")
-with _hc1:
-    import base64 as _b64, io as _io
-    from PIL import Image as _PILImg
-    _raw = _b64.b64decode(LOGO_B64)
-    _pil = _PILImg.open(_io.BytesIO(_raw))
-    st.image(_pil, width=88)
-with _hc2:
-    st.markdown(
-        '<div style="padding:10px 0;">'
-        '<div class="header-title">晴女 ☀️ 在場邊等妳 🌈</div>'
-        '<div class="header-sub">Keep Playing, Keep Shining</div>'
-        '<div class="info-pill">📍 朱崙公園 &nbsp;|&nbsp; 🕑 19:00</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+st.markdown("""
+<div style="background:white;padding:1.5rem 1rem;border-radius:20px;text-align:center;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,0.03);border:1px solid #f1f5f9;">
+    <div style="font-size:1.6rem;font-weight:900;color:#1e293b;margin-bottom:5px;">晴女 ☀️ 在場邊等妳 🌈</div>
+    <div style="font-size:0.9rem;color:#64748b;font-weight:500;margin-bottom:8px;">Keep Playing, Keep Shining</div>
+    <div style="background:#f1f5f9;padding:4px 14px;border-radius:30px;font-size:0.8rem;font-weight:600;color:#475569;display:inline-block;">📍 朱崙公園 &nbsp;|&nbsp; 🕑 19:00</div>
+</div>
+""", unsafe_allow_html=True)
 
 if st.session_state.is_admin:
     st.markdown('<div style="text-align:center"><span class="admin-badge">⚙️ 管理員模式</span></div>', unsafe_allow_html=True)
