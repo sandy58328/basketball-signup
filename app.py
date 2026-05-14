@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import json
 import time
 import uuid
@@ -721,6 +722,69 @@ with col_board:
 all_dates     = sorted(st.session_state.data["sessions"].keys())
 visible_dates = [d for d in all_dates if d not in st.session_state.data.get("hidden", [])]
 rained_out    = set(st.session_state.data.get("rained_out", []))
+
+BASKETBALL_ANIM = (
+    "<style>"
+    "#bk-scene{position:relative;width:100%;height:260px;overflow:hidden;}"
+    "#bk-ball{position:absolute;width:48px;height:48px;border-radius:50%;font-size:28px;"
+    "display:flex;align-items:center;justify-content:center;will-change:transform;opacity:0;}"
+    "#bk-hw{position:absolute;top:50px;right:100px;}"
+    "#bk-board{width:5px;height:60px;background:#888;opacity:.35;margin:0 auto;}"
+    "#bk-hoop{width:56px;height:10px;border:4px solid #e04b1a;border-radius:2px;margin:0 auto;position:relative;}"
+    "#bk-net{width:38px;height:26px;border-left:2px solid rgba(180,180,180,.5);"
+    "border-right:2px solid rgba(180,180,180,.5);border-bottom:2px solid rgba(180,180,180,.5);"
+    "border-radius:0 0 8px 8px;margin:0 auto;clip-path:polygon(0 0,100% 0,85% 100%,15% 100%);}"
+    "#bk-msg{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);"
+    "font-size:20px;font-weight:600;color:#1e293b;opacity:0;white-space:nowrap;"
+    "font-family:\'Noto Sans TC\',sans-serif;}"
+    ".bk-cf{position:absolute;border-radius:2px;opacity:0;}"
+    "</style>"
+    "<div id=\'bk-scene\'>"
+    "<div id=\'bk-hw\'><div id=\'bk-board\'></div>"
+    "<div id=\'bk-hoop\'>"
+    "<svg style=\'position:absolute;top:8px;left:50%;transform:translateX(-50%);width:38px;height:26px;\' viewBox=\'0 0 38 26\'>"
+    "<line x1=\'9\' y1=\'0\' x2=\'7\' y2=\'26\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
+    "<line x1=\'19\' y1=\'0\' x2=\'19\' y2=\'26\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
+    "<line x1=\'29\' y1=\'0\' x2=\'31\' y2=\'26\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
+    "<line x1=\'0\' y1=\'9\' x2=\'38\' y2=\'9\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
+    "<line x1=\'1\' y1=\'19\' x2=\'37\' y2=\'19\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
+    "</svg></div>"
+    "<div id=\'bk-net\'></div></div>"
+    "<div id=\'bk-ball\'>🏀</div>"
+    "<div id=\'bk-msg\'>🎉 報名成功！</div>"
+    "</div>"
+    "<script>(function(){"
+    "var scene=document.getElementById(\'bk-scene\'),ball=document.getElementById(\'bk-ball\'),msg=document.getElementById(\'bk-msg\');"
+    "function easeOut(t){return t*(2-t);}"
+    "function getHoop(){var hw=document.getElementById(\'bk-hw\'),h=document.getElementById(\'bk-hoop\');"
+    "var sr=scene.getBoundingClientRect(),hr=h.getBoundingClientRect();"
+    "return{x:hr.left+hr.width/2-sr.left,y:hr.top+hr.height/2-sr.top};}"
+    "function confetti(){var cols=[\'#e04b1a\',\'#378add\',\'#639922\',\'#d4537e\',\'#EF9F27\',\'#534AB7\'];"
+    "for(var i=0;i<24;i++){(function(i){var c=document.createElement(\'div\');c.className=\'bk-cf\';"
+    "c.style.cssText=\'width:\'+(6+Math.random()*6)+\'px;height:\'+(6+Math.random()*6)+\'px;background:\'+cols[i%6]+\';left:\'+(30+Math.random()*40)+\'%;top:30%;\';"
+    "scene.appendChild(c);var a=Math.random()*Math.PI*2,d=70+Math.random()*110,tx=Math.cos(a)*d,ty=Math.sin(a)*d,rot=Math.random()*720,dur=500+Math.random()*400;"
+    "c.animate([{transform:\'translate(0,0) rotate(0deg)\',opacity:1},{transform:\'translate(\'+tx+\'px,\'+ty+\'px) rotate(\'+rot+\'deg)\',opacity:0}],{duration:dur,easing:\'ease-out\',fill:\'forwards\'});"
+    "setTimeout(function(){c.remove();},dur+50);})(i);}}"
+    "ball.style.opacity=\'1\';"
+    "var sw=scene.offsetWidth,sh=scene.offsetHeight,hoop=getHoop();"
+    "var sx=40,sy=sh-60,ex=hoop.x-24,ey=hoop.y-24,dur=850,s=null;"
+    "function step(ts){if(!s)s=ts;var t=Math.min((ts-s)/dur,1);"
+    "var cx=sx+(ex-sx)*t;var cy=sy+(ey-sy)*easeOut(t)-Math.sin(Math.PI*t)*150;"
+    "ball.style.transform=\'translate(\'+cx+\'px,\'+cy+\'px) rotate(\'+(t*540)+\'deg)\';"
+    "if(t<1){requestAnimationFrame(step);}"
+    "else{ball.style.opacity=\'0\';confetti();"
+    "msg.animate([{opacity:0,transform:\'translateX(-50%) scale(0.8)\'},{opacity:1,transform:\'translateX(-50%) scale(1)\'}],{duration:300,easing:\'ease-out\',fill:\'forwards\'});"
+    "msg.style.opacity=\'1\';}}"
+    "ball.style.transform=\'translate(\'+sx+\'px,\'+sy+\'px)\';"
+    "setTimeout(function(){requestAnimationFrame(step);},100);"
+    "})()</script>"
+)
+
+# 報名成功動畫
+if st.session_state.get('show_basket_anim'):
+    components.html(BASKETBALL_ANIM, height=280)
+    st.toast("🎉 報名成功！")
+    st.session_state['show_basket_anim'] = False
 
 if not visible_dates:
     st.info("👋 目前沒有開放報名的場次")
