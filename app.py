@@ -343,10 +343,22 @@ def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_v
     player.update({'name': name, 'isMember': False if is_friend(name) else is_member,
                    'bringBall': bring_ball, 'occupyCourt': occupy_court, 'count': 0 if is_visitor else 1})
     save_data(data)
+    _set_tab_for_date(date_key)
     st.session_state.edit_target = None
     st.toast("✅ 資料已更新")
     time.sleep(0.5)
     st.rerun()
+
+def _set_tab_for_date(date_key: str):
+    """rerun 前呼叫，確保畫面停在 date_key 對應的 tab。"""
+    try:
+        all_d   = sorted(st.session_state.data["sessions"].keys())
+        hidden  = st.session_state.data.get("hidden", [])
+        visible = [d for d in all_d if d not in hidden]
+        if date_key in visible:
+            st.query_params['tab'] = str(visible.index(date_key))
+    except Exception:
+        pass
 
 def delete_player(pid, date_key):
     data   = load_data()
@@ -366,6 +378,7 @@ def delete_player(pid, date_key):
     if st.session_state.edit_target == pid:
         st.session_state.edit_target = None
     save_data(data)
+    _set_tab_for_date(date_key)
     st.toast("🗑️ 已刪除")
     time.sleep(0.5)
     st.rerun()
