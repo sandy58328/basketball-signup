@@ -178,6 +178,25 @@ def load_css():
     .admin-section-title { font-size: 0.85rem; font-weight: 800; color: #475569 !important;
                            margin-bottom: 10px; letter-spacing: 0.3px; }
 
+    /* ── 場次卡片選擇器 ── */
+    .session-cards { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .session-card {
+        flex: 1; min-width: 80px; max-width: 160px;
+        background: white; border: 1.5px solid #e2e8f0; border-radius: 14px;
+        padding: 12px 10px; text-align: center; cursor: pointer;
+        transition: all 0.15s; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .session-card:hover { border-color: #94a3b8; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .session-card-active {
+        border-color: #6366f1 !important; background: #eef2ff !important;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+    }
+    .session-card-date { font-size: 1.1rem; font-weight: 800; color: #1e293b !important; }
+    .session-card-count { font-size: 0.75rem; color: #64748b !important; margin-top: 3px; font-weight: 600; }
+    .session-card-active .session-card-date { color: #4f46e5 !important; }
+    .session-card-active .session-card-count { color: #6366f1 !important; }
+    .session-card-rain .session-card-date { color: #0369a1 !important; }
+
     /* ── 天氣取消 ── */
     .rain-banner { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px;
                    padding: 8px 14px; margin-bottom: 12px;
@@ -1018,49 +1037,61 @@ if st.session_state.get('show_basket_anim'):
 if not visible_dates:
     st.info("👋 目前沒有開放報名的場次")
 else:
-    def tab_label(d):
-        players    = st.session_state.data["sessions"].get(d, [])
-        active_cnt = len([p for p in players if p.get('count', 1) > 0])
-        base       = f"{int(d.split('-')[1])}/{int(d.split('-')[2])}"
-        prefix     = "☔ " if d in rained_out else ""
-        return f"{prefix}{base} ({active_cnt})"
-
-    tabs = st.tabs([tab_label(d) for d in visible_dates])
-
-    # tab index：
-    # - session_state['_tab_jump'] 由操作（刪除/報名）設定，只用一次
-    # - 預設找最近的未來場次
-    def _default_tab_idx():
+    # ── 決定目前選中的場次 index ──
+    def _get_active_idx():
+        # 操作後跳指定場次
         if st.session_state.get('_tab_jump') is not None:
             idx = st.session_state.pop('_tab_jump')
             if 0 <= idx < len(visible_dates):
+                st.session_state['_active_session'] = idx
                 return idx
+        # 保持上次選的
+        saved = st.session_state.get('_active_session')
+        if saved is not None and 0 <= saved < len(visible_dates):
+            return saved
+        # 預設：最近的未來或今天場次
         _today = date.today()
         for j, d in enumerate(visible_dates):
             if datetime.strptime(d, "%Y-%m-%d").date() >= _today:
+                st.session_state['_active_session'] = j
                 return j
+        st.session_state['_active_session'] = len(visible_dates) - 1
         return len(visible_dates) - 1
 
-    _tab_idx = _default_tab_idx()
-    if _tab_idx > 0:
-        components.html(f"""
-        <script>
-        (function(){{
-            function clickTab(tries) {{
-                var btns = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (btns.length > {_tab_idx}) {{
-                    btns[{_tab_idx}].click();
-                }} else if (tries > 0) {{
-                    setTimeout(function(){{ clickTab(tries-1); }}, 150);
-                }}
-            }}
-            setTimeout(function(){{ clickTab(10); }}, 150);
-        }})();
-        </script>
-        """, height=0)
+    active_idx = _get_active_idx()
 
-    for i, dk in enumerate(visible_dates):
-        with tabs[i]:
+    # ── 場次卡片選擇器 ──
+    card_cols = st.columns(len(visible_dates))
+    for ci, d in enumerate(visible_dates):
+        players    = st.session_state.data["sessions"].get(d, [])
+        active_cnt = len([p for p in players if p.get('count', 1) > 0])
+        wait_cnt   = max(0, active_cnt - MAX_CAPACITY)
+        play_cnt   = min(active_cnt, MAX_CAPACITY)
+        month      = int(d.split('-')[1])
+        day        = int(d.split('-')[2])
+        is_rain    = d in rained_out
+        is_sel     = (ci == active_idx)
+        card_cls   = "session-card"
+        if is_sel:  card_cls += " session-card-active"
+        if is_rain: card_cls += " session-card-rain"
+        rain_icon  = "☔ " if is_rain else ""
+        count_txt  = f"{play_cnt}/{MAX_CAPACITY}" + (f" +{wait_cnt}" if wait_cnt > 0 else "")
+        with card_cols[ci]:
+            st.markdown(f"""<div class="{card_cls}">
+                <div class="session-card-date">{rain_icon}{month}/{day}</div>
+                <div class="session-card-count">{count_txt} 人</div>
+            </div>""", unsafe_allow_html=True)
+            if st.button("選擇", key=f"card_btn_{d}", use_container_width=True,
+                         type="primary" if is_sel else "secondary"):
+                st.session_state['_active_session'] = ci
+                st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── 只渲染選中的場次 ──
+    i  = active_idx
+    dk = visible_dates[i]
+    if True:  # 保持縮排一致
             is_rained_out = dk in rained_out
             dt_obj        = datetime.strptime(dk, "%Y-%m-%d")
             cutoff        = (dt_obj - timedelta(days=1)).replace(hour=12, minute=0, second=0)
