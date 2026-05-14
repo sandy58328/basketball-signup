@@ -415,24 +415,22 @@ def build_stats(
             norm_cache[n] = normalize_name(n)
         return norm_cache[n]
 
-    # 近期報名：所有非天氣取消的歷史場次（不限 visible）
+    # 近期報名：所有歷史場次（含天氣取消，有在名單就算來）
     member_signups: dict[str, list] = {}
     for sd in all_dates:
-        if sd in rained_out:
-            continue
         day = datetime.strptime(sd, "%Y-%m-%d").date()
         if day > date.today():
             continue
         label = f"{int(sd.split('-')[1])}/{int(sd.split('-')[2])}"
+        if sd in rained_out:
+            label = f"☔{label}"   # 標記是天氣取消場，讓管理員一眼看出
         for p in sessions.get(sd, []):
             if not is_friend(p['name']):
                 member_signups.setdefault(get_norm(p['name']), []).append(label)
 
-    # 歷史出席
+    # 歷史出席（天氣取消場次照常算，有在名單 = 算出席）
     stats: dict[str, dict] = {}
     for sd, players in sessions.items():
-        if sd in rained_out:
-            continue
         day = datetime.strptime(sd, "%Y-%m-%d").date()
         if day > date.today():
             continue
