@@ -137,10 +137,12 @@ def load_css():
 
     /* ── 候補區塊 ── */
     .wait-section {
-        background: #fffbf0; border: 1px solid #fde68a; border-radius: 14px;
+        background: #fffbf0; border: 1.5px dashed #fcd34d; border-radius: 14px;
         padding: 14px 12px; margin-top: 16px;
     }
     .wait-title { font-size: 0.85rem; font-weight: 800; color: #92400e !important; margin-bottom: 10px; }
+    .wait-badge { background: #fef3c7; color: #92400e !important; font-size: 0.72rem;
+                  padding: 1px 8px; border-radius: 20px; font-weight: 700; margin-left: 6px; }
 
     /* ── 編輯框 ── */
     .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
@@ -642,6 +644,7 @@ def render_stats(raw_data: dict):
 # ==========================================
 if 'is_admin'    not in st.session_state: st.session_state.is_admin    = False
 if 'edit_target' not in st.session_state: st.session_state.edit_target = None
+if 'active_tab'  not in st.session_state: st.session_state.active_tab  = 0
 if 'total_sel'   not in st.session_state: st.session_state.total_sel   = {}  # {date_key: int}
 
 st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered")
@@ -909,7 +912,9 @@ else:
                                                 "timestamp": ts + (k * 0.01),
                                             })
                                         save_data(latest); build_stats.clear()
-                                        st.balloons(); st.toast("🎉 報名成功！"); time.sleep(2); st.rerun()
+                                        st.session_state['active_tab'] = i
+                                        st.session_state['show_basket_anim'] = True
+                                        st.rerun()
 
                 # 規則說明獨立折疊，不跟表單混在一起
                 with st.expander("📌 報名規則說明", expanded=False):
