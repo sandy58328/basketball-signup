@@ -726,62 +726,274 @@ all_dates     = sorted(st.session_state.data["sessions"].keys())
 visible_dates = [d for d in all_dates if d not in st.session_state.data.get("hidden", [])]
 rained_out    = set(st.session_state.data.get("rained_out", []))
 
-BASKETBALL_ANIM = (
-    "<style>"
-    "#bk-scene{position:relative;width:100%;height:260px;overflow:hidden;}"
-    "#bk-ball{position:absolute;width:48px;height:48px;border-radius:50%;font-size:28px;"
-    "display:flex;align-items:center;justify-content:center;will-change:transform;opacity:0;}"
-    "#bk-hw{position:absolute;top:50px;right:100px;}"
-    "#bk-board{width:5px;height:60px;background:#888;opacity:.35;margin:0 auto;}"
-    "#bk-hoop{width:56px;height:10px;border:4px solid #e04b1a;border-radius:2px;margin:0 auto;position:relative;}"
-    "#bk-net{width:38px;height:26px;border-left:2px solid rgba(180,180,180,.5);"
-    "border-right:2px solid rgba(180,180,180,.5);border-bottom:2px solid rgba(180,180,180,.5);"
-    "border-radius:0 0 8px 8px;margin:0 auto;clip-path:polygon(0 0,100% 0,85% 100%,15% 100%);}"
-    "#bk-msg{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);"
-    "font-size:20px;font-weight:600;color:#1e293b;opacity:0;white-space:nowrap;"
-    "font-family:\'Noto Sans TC\',sans-serif;}"
-    ".bk-cf{position:absolute;border-radius:2px;opacity:0;}"
-    "</style>"
-    "<div id=\'bk-scene\'>"
-    "<div id=\'bk-hw\'><div id=\'bk-board\'></div>"
-    "<div id=\'bk-hoop\'>"
-    "<svg style=\'position:absolute;top:8px;left:50%;transform:translateX(-50%);width:38px;height:26px;\' viewBox=\'0 0 38 26\'>"
-    "<line x1=\'9\' y1=\'0\' x2=\'7\' y2=\'26\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
-    "<line x1=\'19\' y1=\'0\' x2=\'19\' y2=\'26\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
-    "<line x1=\'29\' y1=\'0\' x2=\'31\' y2=\'26\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
-    "<line x1=\'0\' y1=\'9\' x2=\'38\' y2=\'9\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
-    "<line x1=\'1\' y1=\'19\' x2=\'37\' y2=\'19\' stroke=\'rgba(180,180,180,.5)\' stroke-width=\'1\'/>"
-    "</svg></div>"
-    "<div id=\'bk-net\'></div></div>"
-    "<div id=\'bk-ball\'>🏀</div>"
-    "<div id=\'bk-msg\'>🎉 報名成功！</div>"
-    "</div>"
-    "<script>(function(){"
-    "var scene=document.getElementById(\'bk-scene\'),ball=document.getElementById(\'bk-ball\'),msg=document.getElementById(\'bk-msg\');"
-    "function easeOut(t){return t*(2-t);}"
-    "function getHoop(){var hw=document.getElementById(\'bk-hw\'),h=document.getElementById(\'bk-hoop\');"
-    "var sr=scene.getBoundingClientRect(),hr=h.getBoundingClientRect();"
-    "return{x:hr.left+hr.width/2-sr.left,y:hr.top+hr.height/2-sr.top};}"
-    "function confetti(){var cols=[\'#e04b1a\',\'#378add\',\'#639922\',\'#d4537e\',\'#EF9F27\',\'#534AB7\'];"
-    "for(var i=0;i<24;i++){(function(i){var c=document.createElement(\'div\');c.className=\'bk-cf\';"
-    "c.style.cssText=\'width:\'+(6+Math.random()*6)+\'px;height:\'+(6+Math.random()*6)+\'px;background:\'+cols[i%6]+\';left:\'+(30+Math.random()*40)+\'%;top:30%;\';"
-    "scene.appendChild(c);var a=Math.random()*Math.PI*2,d=70+Math.random()*110,tx=Math.cos(a)*d,ty=Math.sin(a)*d,rot=Math.random()*720,dur=500+Math.random()*400;"
-    "c.animate([{transform:\'translate(0,0) rotate(0deg)\',opacity:1},{transform:\'translate(\'+tx+\'px,\'+ty+\'px) rotate(\'+rot+\'deg)\',opacity:0}],{duration:dur,easing:\'ease-out\',fill:\'forwards\'});"
-    "setTimeout(function(){c.remove();},dur+50);})(i);}}"
-    "ball.style.opacity=\'1\';"
-    "var sw=scene.offsetWidth,sh=scene.offsetHeight,hoop=getHoop();"
-    "var sx=40,sy=sh-60,ex=hoop.x-24,ey=hoop.y-24,dur=850,s=null;"
-    "function step(ts){if(!s)s=ts;var t=Math.min((ts-s)/dur,1);"
-    "var cx=sx+(ex-sx)*t;var cy=sy+(ey-sy)*easeOut(t)-Math.sin(Math.PI*t)*150;"
-    "ball.style.transform=\'translate(\'+cx+\'px,\'+cy+\'px) rotate(\'+(t*540)+\'deg)\';"
-    "if(t<1){requestAnimationFrame(step);}"
-    "else{ball.style.opacity=\'0\';confetti();"
-    "msg.animate([{opacity:0,transform:\'translateX(-50%) scale(0.8)\'},{opacity:1,transform:\'translateX(-50%) scale(1)\'}],{duration:300,easing:\'ease-out\',fill:\'forwards\'});"
-    "msg.style.opacity=\'1\';}}"
-    "ball.style.transform=\'translate(\'+sx+\'px,\'+sy+\'px)\';"
-    "setTimeout(function(){requestAnimationFrame(step);},100);"
-    "})()</script>"
-)
+BASKETBALL_ANIM = """
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:transparent;overflow:hidden;font-family:'Noto Sans TC',sans-serif;}
+#scene{position:relative;width:100%;height:280px;overflow:hidden;}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+#msg{position:absolute;bottom:20px;left:50%;transform:translateX(-50%) scale(0);
+  font-size:22px;font-weight:700;color:#1e293b;white-space:nowrap;
+  transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s;
+  opacity:0;}
+#msg.show{transform:translateX(-50%) scale(1);opacity:1;}
+</style>
+</head>
+<body>
+<div id="scene">
+  <canvas id="c"></canvas>
+  <div id="msg">🎉 報名成功！</div>
+</div>
+<script>
+var canvas = document.getElementById('c');
+var ctx    = canvas.getContext('2d');
+var msg    = document.getElementById('msg');
+var W, H;
+
+function resize() {
+  W = canvas.width  = canvas.offsetWidth;
+  H = canvas.height = canvas.offsetHeight;
+}
+resize();
+
+// ─ hoop geometry ─
+var hoopX, hoopY, hoopR = 28;
+function setHoop() {
+  hoopX = W * 0.72;
+  hoopY = H * 0.30;
+}
+setHoop();
+
+// ─ confetti pool ─
+var confetti = [];
+var COLORS = ['#f97316','#3b82f6','#22c55e','#ec4899','#eab308','#8b5cf6','#ef4444'];
+function spawnConfetti() {
+  for (var i = 0; i < 60; i++) {
+    confetti.push({
+      x: hoopX, y: hoopY,
+      vx: (Math.random() - 0.5) * 14,
+      vy: (Math.random() - 2.5) * 8,
+      w: 5 + Math.random() * 6,
+      h: 3 + Math.random() * 4,
+      rot: Math.random() * Math.PI * 2,
+      rspd: (Math.random() - 0.5) * 0.3,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      life: 1.0,
+      decay: 0.012 + Math.random() * 0.01
+    });
+  }
+}
+
+// ─ easing ─
+function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+function easeOutBounce(t) {
+  if (t < 1/2.75) return 7.5625*t*t;
+  if (t < 2/2.75) { t -= 1.5/2.75; return 7.5625*t*t+0.75; }
+  if (t < 2.5/2.75) { t -= 2.25/2.75; return 7.5625*t*t+0.9375; }
+  t -= 2.625/2.75; return 7.5625*t*t+0.984375;
+}
+
+// ─ ball path: bezier curve ─
+var DURATION = 1100; // ms
+var startTime = null;
+var phase = 'fly'; // fly → bounce → done
+var bounceStart = null;
+var ballX, ballY, ballAngle = 0;
+
+// start from bottom-left, arc to hoop
+var p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y;
+function initPath() {
+  p0x = W * 0.08; p0y = H * 0.88;
+  p1x = W * 0.10; p1y = H * 0.05;
+  p2x = W * 0.50; p2y = H * 0.02;
+  p3x = hoopX;    p3y = hoopY;
+}
+initPath();
+
+function bezier(t, p0, p1, p2, p3) {
+  var u = 1 - t;
+  return u*u*u*p0 + 3*u*u*t*p1 + 3*u*t*t*p2 + t*t*t*p3;
+}
+
+// ─ draw backboard + hoop + net ─
+function drawHoop() {
+  // backboard
+  ctx.save();
+  ctx.fillStyle = 'rgba(150,150,150,0.25)';
+  ctx.fillRect(hoopX + hoopR + 6, hoopY - 30, 8, 55);
+  ctx.restore();
+
+  // back rim (behind ball)
+  ctx.beginPath();
+  ctx.arc(hoopX + hoopR, hoopY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#e04b1a';
+  ctx.fill();
+
+  // net
+  ctx.save();
+  ctx.strokeStyle = 'rgba(160,160,160,0.55)';
+  ctx.lineWidth = 1;
+  var nx = hoopX - hoopR, nw = hoopR * 2, nd = 30;
+  for (var xi = 0; xi <= 4; xi++) {
+    var nx0 = nx + (nw / 4) * xi;
+    var nx1 = nx + 4 + (nw * 0.85 / 4) * xi;
+    ctx.beginPath();
+    ctx.moveTo(nx0, hoopY + 2);
+    ctx.lineTo(nx1, hoopY + nd);
+    ctx.stroke();
+  }
+  for (var yi = 1; yi <= 3; yi++) {
+    var frac = yi / 4;
+    ctx.beginPath();
+    ctx.moveTo(nx + (4 * frac), hoopY + nd * frac);
+    ctx.lineTo(nx + nw - (4 * frac), hoopY + nd * frac);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ─ draw front rim (in front of ball) ─
+function drawRim() {
+  ctx.beginPath();
+  ctx.arc(hoopX - hoopR, hoopY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#e04b1a';
+  ctx.fill();
+
+  // rim bar
+  ctx.beginPath();
+  ctx.moveTo(hoopX - hoopR, hoopY);
+  ctx.lineTo(hoopX + hoopR, hoopY);
+  ctx.strokeStyle = '#e04b1a';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+}
+
+// ─ draw ball ─
+function drawBall(x, y, angle) {
+  var r = 22;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  // shadow
+  ctx.beginPath();
+  ctx.ellipse(0, r + 6, r * 0.7, 5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.fill();
+
+  // ball body
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#e07b2a';
+  ctx.fill();
+  ctx.strokeStyle = '#b85e1a';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // seam lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-r, 0); ctx.lineTo(r, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -r); ctx.lineTo(0, r);
+  ctx.stroke();
+  // curved seams
+  ctx.beginPath();
+  ctx.arc(-r*0.4, 0, r*0.65, -0.6, 0.6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(r*0.4, 0, r*0.65, Math.PI-0.6, Math.PI+0.6);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ─ draw confetti ─
+function drawConfetti() {
+  confetti.forEach(function(c) {
+    ctx.save();
+    ctx.globalAlpha = c.life;
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot);
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-c.w/2, -c.h/2, c.w, c.h);
+    ctx.restore();
+  });
+}
+
+function updateConfetti() {
+  confetti.forEach(function(c) {
+    c.x += c.vx;
+    c.y += c.vy;
+    c.vy += 0.35; // gravity
+    c.vx *= 0.98;
+    c.rot += c.rspd;
+    c.life -= c.decay;
+  });
+  confetti = confetti.filter(function(c) { return c.life > 0; });
+}
+
+// ─ main loop ─
+function loop(ts) {
+  ctx.clearRect(0, 0, W, H);
+  drawHoop();
+
+  if (phase === 'fly') {
+    if (!startTime) startTime = ts;
+    var elapsed = ts - startTime;
+    var t = Math.min(elapsed / DURATION, 1);
+    var et = easeInOut(t);
+
+    ballX = bezier(et, p0x, p1x, p2x, p3x);
+    ballY = bezier(et, p0y, p1y, p2y, p3y);
+    ballAngle += 0.06 + t * 0.04;
+
+    drawBall(ballX, ballY, ballAngle);
+    drawRim();
+
+    if (t >= 1) {
+      phase = 'swish';
+      bounceStart = ts;
+      spawnConfetti();
+      setTimeout(function() {
+        msg.classList.add('show');
+      }, 200);
+    }
+  } else if (phase === 'swish') {
+    // ball drops through net
+    var el2 = ts - bounceStart;
+    var t2  = Math.min(el2 / 400, 1);
+    ballX = hoopX + (Math.sin(t2 * Math.PI * 2) * 6 * (1 - t2));
+    ballY = hoopY + t2 * 50;
+    var alpha = 1 - t2;
+    ctx.globalAlpha = alpha;
+    drawBall(ballX, ballY, ballAngle + t2 * 2);
+    ctx.globalAlpha = 1;
+    drawRim();
+    updateConfetti();
+    drawConfetti();
+    if (t2 >= 1) phase = 'done';
+  } else {
+    updateConfetti();
+    drawConfetti();
+    drawRim();
+  }
+
+  if (phase !== 'done' || confetti.length > 0) {
+    requestAnimationFrame(loop);
+  }
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
+"""
 
 # 報名成功動畫
 if st.session_state.get('show_basket_anim'):
@@ -800,6 +1012,21 @@ else:
         return f"{prefix}{base} ({active_cnt})"
 
     tabs = st.tabs([tab_label(d) for d in visible_dates])
+    # 讀 query_params，JS 自動點擊對應 tab
+    _tab_idx = int(st.query_params.get('tab', 0))
+    if _tab_idx > 0:
+        components.html(f"""
+        <script>
+        (function(){{
+            function clickTab() {{
+                var btns = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                if (btns.length > {_tab_idx}) {{ btns[{_tab_idx}].click(); }}
+                else {{ setTimeout(clickTab, 100); }}
+            }}
+            setTimeout(clickTab, 200);
+        }})();
+        </script>
+        """, height=0)
 
     for i, dk in enumerate(visible_dates):
         with tabs[i]:
@@ -912,7 +1139,7 @@ else:
                                                 "timestamp": ts + (k * 0.01),
                                             })
                                         save_data(latest); build_stats.clear()
-                                        st.session_state['active_tab'] = i
+                                        st.query_params['tab'] = str(i)
                                         st.session_state['show_basket_anim'] = True
                                         st.rerun()
 
