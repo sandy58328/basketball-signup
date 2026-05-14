@@ -1045,7 +1045,7 @@ if st.session_state.get('scroll_to'):
                     break;
                 }}
             }}
-        }},600);
+        }},2800);
     }})();
     </script>
     """, height=0)
