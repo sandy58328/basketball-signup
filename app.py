@@ -1181,14 +1181,17 @@ else:
                         }
                         @keyframes bk_msg2{from{opacity:0;transform:translateX(-50%) scale(0.5)}to{opacity:1;transform:translateX(-50%) scale(1)}}
                         #bk2_wrap{position:relative;width:100%;height:260px;overflow:hidden;background:white;border-radius:16px;}
-                        #bk2_ball{position:absolute;font-size:56px;line-height:1;animation:bk_fly2 2s ease-in-out forwards;}
-                        #bk2_hoop{position:absolute;right:16%;top:22%;font-size:50px;}
+                        #bk2_ball{position:absolute;font-size:52px;line-height:1;animation:bk_fly2 2s ease-in-out forwards;}
+                        #bk2_hoop{position:absolute;right:12%;top:18%;width:70px;}
+                        #bk2_rim{width:60px;height:8px;background:#e04b1a;border-radius:3px;margin:0 auto;}
+                        #bk2_board{width:5px;height:55px;background:#94a3b8;margin:0 auto;}
+                        #bk2_net{width:42px;height:24px;border-left:2px solid #94a3b8;border-right:2px solid #94a3b8;border-bottom:2px solid #94a3b8;border-radius:0 0 8px 8px;margin:0 auto;}
                         #bk2_msg{position:absolute;bottom:24px;left:50%;transform:translateX(-50%) scale(0.5);
                             font-size:24px;font-weight:900;color:#1e293b;white-space:nowrap;
                             opacity:0;animation:bk_msg2 0.4s 2s forwards;}
                         </style>
                         <div id='bk2_wrap'>
-                            <div id='bk2_hoop'>🏀</div>
+                            <div id='bk2_hoop'><div id='bk2_board'></div><div id='bk2_rim'></div><div id='bk2_net'></div></div>
                             <div id='bk2_ball'>🏀</div>
                             <div id='bk2_msg'>🎉 報名成功！</div>
                         </div>
