@@ -141,6 +141,11 @@ def load_css():
     .stat-card-yellow .stat-card-num { color: #f59e0b !important; }
     .stat-card-green  .stat-card-num { color: #22c55e !important; }
     .stat-card-blue   .stat-card-num { color: #3b82f6 !important; }
+    .stat-card { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important; }
+    .stat-card-active-filter { outline: 2px solid #6366f1 !important; box-shadow: 0 0 0 4px rgba(99,102,241,0.12) !important; }
+    .stat-group-header { font-size: 0.8rem; font-weight: 800; color: #94a3b8 !important;
+                         letter-spacing: 1px; margin: 16px 0 8px 4px; text-transform: uppercase; }
 
     /* ── 管理員區塊 ── */
     .admin-section {
@@ -470,6 +475,66 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
     return stats, member_signups, future_signups
 
 
+def _render_stat_row(key, item, signups, future_signups, stats_ref=None):
+    """單列統計渲染，抽出來給分組迴圈複用。"""
+    last          = item["last_date"]
+    leaves_sorted = sorted(item["leaves"])
+    recent_two    = signups.get(key, [])[-2:]
+    signup_str    = ", ".join(recent_two) or "—"
+    future_list   = future_signups.get(key, [])
+    future_str    = "　📅 " + ", ".join(future_list) if future_list else ""
+    last_str      = str(last) if last else "無紀錄"
+    leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
+    status        = compute_status(last, set(leaves_sorted))
+    row_cls       = status_to_row_class(status)
+
+    if st.session_state.get(f"stat_edit_{key}"):
+        st.markdown(f"<div class='edit-box'>✏️ 編輯成員：{item['name']}</div>", unsafe_allow_html=True)
+        with st.form(key=f"stat_form_{key}"):
+            new_display = st.text_input("顯示名稱", item['name'])
+            b1, b2, b3  = st.columns(3)
+            if b1.form_submit_button("💾 儲存", type="primary"):
+                cur = load_data(); old = item['name']
+                for sd in cur["sessions"]:
+                    for p in cur["sessions"][sd]:
+                        if normalize_name(p['name']) == key and not is_friend(p['name']):
+                            p['name'] = new_display
+                        for fp in cur["sessions"][sd]:
+                            if fp['name'].startswith(f"{old} (") or fp['name'].startswith(f"{old} （"):
+                                fp['name'] = fp['name'].replace(old, new_display, 1)
+                if old in cur["leaves"]:
+                    cur["leaves"][new_display] = cur["leaves"].pop(old)
+                save_data(cur); build_stats.clear()
+                st.session_state[f"stat_edit_{key}"] = False
+                st.toast("✅ 名稱已更新"); time.sleep(0.5); st.rerun()
+            if b2.form_submit_button("取消"):
+                st.session_state[f"stat_edit_{key}"] = False; st.rerun()
+            if b3.form_submit_button("🚪 退群", type="secondary"):
+                cur = load_data(); cur.setdefault("removed_members", [])
+                if key not in cur["removed_members"]: cur["removed_members"].append(key)
+                save_data(cur); build_stats.clear()
+                st.session_state[f"stat_edit_{key}"] = False
+                st.toast(f"👋 {item['name']} 已從統計移除"); time.sleep(0.5); st.rerun()
+    else:
+        cols = st.columns([5.5, 1, 1], gap="small")
+        with cols[0]:
+            st.markdown(f"""<div class="{row_cls}">
+                <div class="stat-name">{status} &nbsp; {item['name']}</div>
+                <div class="stat-detail">近期：{signup_str}　最後出席：{last_str}{leave_str}{future_str}</div>
+            </div>""", unsafe_allow_html=True)
+        with cols[1]:
+            if st.button("✏️", key=f"stat_btn_edit_{key}"):
+                st.session_state[f"stat_edit_{key}"] = True; st.rerun()
+        with cols[2]:
+            with st.popover("🚪"):
+                st.write(f"將「{item['name']}」移至已退群？")
+                if st.button("確認退群", key=f"stat_rm_{key}", type="primary"):
+                    cur = load_data(); cur.setdefault("removed_members", [])
+                    if key not in cur["removed_members"]: cur["removed_members"].append(key)
+                    save_data(cur); build_stats.clear()
+                    st.toast(f"👋 {item['name']} 已移除"); time.sleep(0.5); st.rerun()
+
+
 def render_stats(raw_data: dict):
     all_dates_tuple  = tuple(sorted(raw_data["sessions"].keys()))
     rained_out_tuple = tuple(raw_data.get("rained_out", []))
@@ -484,100 +549,55 @@ def render_stats(raw_data: dict):
     removed     = set(raw_data.get("removed_members", []))
     active_keys = [k for k in sorted(stats.keys()) if k not in removed]
 
-    # ── 總覽卡片 ──
-    cnt = {"🟢": 0, "🟡": 0, "🔴": 0, "🏖️": 0}
+    # ── 先計算每人狀態，分組 ──
+    STATUS_ORDER = ["🟢", "🟡", "🔴", "🏖️"]
+    STATUS_LABEL = {"🟢": "🟢 活躍", "🟡": "🟡 預警", "🔴": "🔴 逾期", "🏖️": "🏖️ 請假中"}
+    STATUS_CARD  = {"🟢": "stat-card-green", "🟡": "stat-card-yellow", "🔴": "stat-card-red", "🏖️": "stat-card-blue"}
+
+    groups: dict[str, list] = {"🟢": [], "🟡": [], "🔴": [], "🏖️": []}
     for key in active_keys:
         item   = stats[key]
         status = compute_status(item["last_date"], set(item["leaves"]))
-        if   "🔴" in status: cnt["🔴"] += 1
-        elif "🟡" in status: cnt["🟡"] += 1
-        elif "🏖️" in status: cnt["🏖️"] += 1
-        else:                 cnt["🟢"] += 1
+        if   "🔴" in status: groups["🔴"].append(key)
+        elif "🟡" in status: groups["🟡"].append(key)
+        elif "🏖️" in status: groups["🏖️"].append(key)
+        else:                 groups["🟢"].append(key)
 
-    st.markdown(f"""
-    <div class="stat-summary">
-        <div class="stat-card stat-card-green">
-            <div class="stat-card-num">{cnt["🟢"]}</div>
-            <div class="stat-card-lbl">🟢 活躍</div>
-        </div>
-        <div class="stat-card stat-card-yellow">
-            <div class="stat-card-num">{cnt["🟡"]}</div>
-            <div class="stat-card-lbl">🟡 預警</div>
-        </div>
-        <div class="stat-card stat-card-red">
-            <div class="stat-card-num">{cnt["🔴"]}</div>
-            <div class="stat-card-lbl">🔴 逾期</div>
-        </div>
-        <div class="stat-card stat-card-blue">
-            <div class="stat-card-num">{cnt["🏖️"]}</div>
-            <div class="stat-card-lbl">🏖️ 請假</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    cnt = {k: len(v) for k, v in groups.items()}
+
+    # ── 篩選狀態（session_state）──
+    if "stat_filter" not in st.session_state:
+        st.session_state.stat_filter = None  # None = 全部顯示
+
+    # ── 總覽卡片（可點擊篩選）──
+    cols = st.columns(4, gap="small")
+    for ci, sg in enumerate(STATUS_ORDER):
+        is_selected = st.session_state.stat_filter == sg
+        border_style = "outline:2px solid #6366f1;box-shadow:0 0 0 4px rgba(99,102,241,0.12);" if is_selected else ""
+        with cols[ci]:
+            st.markdown(f"""<div class="{STATUS_CARD[sg]} stat-card" style="{border_style}">
+                <div class="stat-card-num">{cnt[sg]}</div>
+                <div class="stat-card-lbl">{STATUS_LABEL[sg]}</div>
+            </div>""", unsafe_allow_html=True)
+            btn_label = "✕ 取消" if is_selected else STATUS_LABEL[sg].split(" ")[1]
+            if st.button(btn_label, key=f"filter_btn_{sg}", use_container_width=True):
+                st.session_state.stat_filter = None if is_selected else sg
+                st.rerun()
 
     if not active_keys:
         st.info("目前無統計資料")
         return
 
-    current_month = date.today().strftime("%Y-%m")
-    for key in active_keys:
-        item          = stats[key]
-        last          = item["last_date"]
-        leaves_sorted = sorted(item["leaves"])
-        recent_two    = signups.get(key, [])[-2:]
-        signup_str    = ", ".join(recent_two) or "—"
-        future_list   = future_signups.get(key, [])
-        future_str    = "　📅 " + ", ".join(future_list) if future_list else ""
-        last_str      = str(last) if last else "無紀錄"
-        leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
-        status        = compute_status(last, set(leaves_sorted))
-        row_cls       = status_to_row_class(status)
+    # ── 依篩選決定顯示哪些分組 ──
+    show_groups = [st.session_state.stat_filter] if st.session_state.stat_filter else STATUS_ORDER
 
-        if st.session_state.get(f"stat_edit_{key}"):
-            st.markdown(f"<div class='edit-box'>✏️ 編輯成員：{item['name']}</div>", unsafe_allow_html=True)
-            with st.form(key=f"stat_form_{key}"):
-                new_display = st.text_input("顯示名稱", item['name'])
-                b1, b2, b3  = st.columns(3)
-                if b1.form_submit_button("💾 儲存", type="primary"):
-                    cur = load_data(); old = item['name']
-                    for sd in cur["sessions"]:
-                        for p in cur["sessions"][sd]:
-                            if normalize_name(p['name']) == key and not is_friend(p['name']):
-                                p['name'] = new_display
-                            for fp in cur["sessions"][sd]:
-                                if fp['name'].startswith(f"{old} (") or fp['name'].startswith(f"{old} （"):
-                                    fp['name'] = fp['name'].replace(old, new_display, 1)
-                    if old in cur["leaves"]:
-                        cur["leaves"][new_display] = cur["leaves"].pop(old)
-                    save_data(cur); build_stats.clear()
-                    st.session_state[f"stat_edit_{key}"] = False
-                    st.toast("✅ 名稱已更新"); time.sleep(0.5); st.rerun()
-                if b2.form_submit_button("取消"):
-                    st.session_state[f"stat_edit_{key}"] = False; st.rerun()
-                if b3.form_submit_button("🚪 退群", type="secondary"):
-                    cur = load_data(); cur.setdefault("removed_members", [])
-                    if key not in cur["removed_members"]: cur["removed_members"].append(key)
-                    save_data(cur); build_stats.clear()
-                    st.session_state[f"stat_edit_{key}"] = False
-                    st.toast(f"👋 {item['name']} 已從統計移除"); time.sleep(0.5); st.rerun()
-        else:
-            cols = st.columns([5.5, 1, 1], gap="small")
-            with cols[0]:
-                st.markdown(f"""<div class="{row_cls}">
-                    <div class="stat-name">{status} &nbsp; {item['name']}</div>
-                    <div class="stat-detail">近期：{signup_str}　最後出席：{last_str}{leave_str}{future_str}</div>
-                </div>""", unsafe_allow_html=True)
-            with cols[1]:
-                if st.button("✏️", key=f"stat_btn_edit_{key}"):
-                    st.session_state[f"stat_edit_{key}"] = True; st.rerun()
-            with cols[2]:
-                with st.popover("🚪"):
-                    st.write(f"將「{item['name']}」移至已退群？")
-                    if st.button("確認退群", key=f"stat_rm_{key}", type="primary"):
-                        cur = load_data(); cur.setdefault("removed_members", [])
-                        if key not in cur["removed_members"]: cur["removed_members"].append(key)
-                        save_data(cur); build_stats.clear()
-                        st.toast(f"👋 {item['name']} 已移除"); time.sleep(0.5); st.rerun()
+    for sg in show_groups:
+        keys_in_group = groups[sg]
+        if not keys_in_group:
+            continue
+        st.markdown(f"<div class='stat-group-header'>{STATUS_LABEL[sg]} · {len(keys_in_group)} 人</div>", unsafe_allow_html=True)
+        for key in keys_in_group:
+            _render_stat_row(key, stats[key], signups, future_signups)
 
     # 已退群名單
     if removed:
