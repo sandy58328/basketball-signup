@@ -689,6 +689,707 @@ load_css()
 # ── 成功頁面 ──
 if st.session_state.get('success_page'):
     st.session_state['success_page'] = False
+    st.balloons()
+    st.markdown("""
+    <div style='text-align:center;padding:60px 20px;'>
+        <div style='font-size:72px;margin-bottom:16px;'>🏀</div>
+        <div style='font-size:28px;font-weight:900;color:#1e293b;margin-bottom:8px;'>報名成功！</div>
+        <div style='font-size:16px;color:#64748b;'>3 秒後自動回到名單...</div>
+    </div>
+    """, unsafe_allow_html=True)
+    import time as _t; _t.sleep(3)
+    st.rerun()
+import streamlit as st
+import streamlit.components.v1 as components
+import json
+import time
+import uuid
+import re
+from datetime import datetime, date, timedelta
+from dateutil.relativedelta import relativedelta
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+# ==========================================
+# 0. 設定區
+# ==========================================
+MAX_CAPACITY         = 20
+APP_URL              = "https://sunny-girls-basketball.streamlit.app"
+SHEET_NAME           = "basketball_db"
+ABSENCE_LIMIT_MONTHS = 2
+MAX_LEAVE_EXEMPT     = 2
+
+def get_admin_password() -> str:
+    try:
+        return st.secrets["admin_password"]
+    except Exception:
+        return "sunny"
+
+def get_name_aliases() -> dict[str, str]:
+    try:
+        return dict(st.secrets["name_aliases"])
+    except Exception:
+        return {
+            "金閃閃": "kingsley金閃閃",
+            "冬青":   "冬青得來速",
+            "得來速": "冬青得來速",
+            "菜":     "小菜",
+            "小菜":   "小菜",
+        }
+
+# ==========================================
+# 1. CSS
+# ==========================================
+def load_css():
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+
+    [data-testid="stAppViewContainer"] { background-color: #f8fafc !important; color: #334155 !important; }
+    html, body, [class*="css"], p, div, label, span, h1, h2, h3, .stMarkdown {
+        font-family: 'Noto Sans TC', sans-serif; color: #334155 !important;
+    }
+    .block-container { padding-top: 3rem !important; padding-bottom: 5rem !important; }
+    header { background: transparent !important; }
+    [data-testid="stDecoration"], [data-testid="stToolbar"], [data-testid="stStatusWidget"],
+    footer, #MainMenu, .stDeployButton { display: none !important; }
+    [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+
+    /* ── Header ── */
+    .header-box {
+        background: white; padding: 1.5rem 1rem; border-radius: 20px;
+        text-align: center; margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;
+    }
+    .header-title { font-size: 1.6rem; font-weight: 800; color: #1e293b !important; letter-spacing: 1px; margin-bottom: 5px; }
+    .header-sub   { font-size: 0.9rem; color: #64748b !important; font-weight: 500; }
+    .info-pill {
+        background: #f1f5f9; padding: 4px 14px; border-radius: 30px;
+        font-size: 0.8rem; font-weight: 600; color: #475569 !important;
+        display: inline-block; margin-top: 10px;
+    }
+
+    /* ── 管理員 badge ── */
+    .admin-badge {
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        color: white !important; font-size: 0.75rem; font-weight: 700;
+        padding: 3px 10px; border-radius: 20px; display: inline-block;
+        margin-bottom: 14px; letter-spacing: 0.5px;
+    }
+
+    /* ── DB 狀態 ── */
+    .db-status-err { background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:6px 12px;
+                     font-size:0.78rem; color:#b91c1c !important; font-weight:600; margin-bottom:12px; }
+
+    /* ── 名單列表 ── */
+    .player-row {
+        background: white; border: 1px solid #f1f5f9; border-radius: 12px;
+        padding: 10px 12px; margin-bottom: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        display: flex; align-items: center; width: 100%; min-height: 48px;
+    }
+    .wait-row { background: #fffbf0 !important; border-color: #fde68a !important; border-left: 3px solid #fbbf24 !important; }
+    .list-index        { color: #cbd5e1 !important; font-weight: 700; font-size: 0.9rem; margin-right: 12px; min-width: 22px; text-align: right; flex-shrink: 0; }
+    .list-index-flower { color: #f472b6 !important; font-weight: 700; font-size: 1rem;  margin-right: 12px; min-width: 22px; text-align: right; flex-shrink: 0; }
+    .list-name         { color: #334155 !important; font-weight: 700; font-size: 1.1rem; flex-grow: 1; line-height: 1.3; }
+    .list-time         { color: #cbd5e1 !important; font-size: 0.7rem; font-weight: 500; white-space: nowrap; margin-left: 4px; }
+
+    /* ── 標籤 ── */
+    .badge        { padding: 3px 7px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; margin-left: 4px; display: inline-block; vertical-align: middle; }
+    .badge-sunny  { background: #fffbeb; color: #d97706 !important; }
+    .badge-ball   { background: #fff7ed; color: #c2410c !important; }
+    .badge-court  { background: #eff6ff; color: #1d4ed8 !important; }
+    .badge-visit  { background: #fdf2f8; color: #db2777 !important; border: 1px solid #fce7f3; }
+    .badge-rain   { background: #f0f9ff; color: #0369a1 !important; border: 1px solid #bae6fd; }
+
+    /* ── 進度條 ── */
+    .progress-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 8px; margin-top: 8px; overflow: hidden; }
+    .progress-bar       { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+    .progress-info      { display: flex; justify-content: space-between; font-size: 0.82rem; color: #64748b !important; margin-bottom: 4px; font-weight: 600; }
+
+    /* ── 報名表單 ── */
+    .form-box {
+        background: white; border: 1px solid #f1f5f9; border-radius: 16px;
+        padding: 18px 16px; margin-bottom: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    }
+    .form-title { font-size: 1rem; font-weight: 800; color: #334155 !important; margin-bottom: 14px; }
+
+    /* 人數選擇大按鈕 */
+    .total-btn-wrap { display: flex; gap: 8px; margin: 8px 0 4px; }
+    .total-btn {
+        flex: 1; padding: 10px 4px; border-radius: 10px; border: 2px solid #e2e8f0;
+        background: white; font-size: 0.9rem; font-weight: 700; color: #64748b !important;
+        text-align: center; cursor: pointer; transition: all 0.15s;
+    }
+    .total-btn-active {
+        border-color: #6366f1 !important; background: #eef2ff !important;
+        color: #4338ca !important;
+    }
+
+    /* ── 規則說明（折疊）── */
+    .rules-box    { background-color: #f8fafc; border-radius: 14px; padding: 16px; border: 1px solid #f1f5f9; margin-top: 8px; }
+    .rules-header { font-size: 0.9rem; font-weight: 800; color: #334155 !important; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+    .rules-row    { display: flex; align-items: flex-start; margin-bottom: 10px; }
+    .rules-icon   { font-size: 1rem; margin-right: 10px; line-height: 1.5; flex-shrink: 0; }
+    .rules-content   { font-size: 0.85rem; color: #64748b !important; line-height: 1.5; }
+    .rules-content b { color: #475569 !important; font-weight: 700; }
+    .rules-footer    { margin-top: 12px; font-size: 0.8rem; color: #94a3b8 !important; text-align: right; font-weight: 500; }
+
+    /* ── 候補區塊 ── */
+    .wait-header { font-size: 0.85rem; font-weight: 800; color: #92400e !important;
+                   margin: 20px 0 10px 4px; }
+    div[data-testid='stVerticalBlockBorderWrapper']:has(.wait-player) {
+        border: 1.5px dashed #fcd34d !important; border-radius: 14px !important;
+        background: #fffbf0 !important; padding: 8px !important; margin-top: 4px !important;
+    }
+    .wait-player .player-row { background: #fff8e7 !important; border-color: #fde68a !important; }
+
+    /* ── 編輯框 ── */
+    .edit-box { border: 1px solid #3b82f6; border-radius: 12px; padding: 12px; background: #eff6ff; margin-bottom: 10px; }
+
+    /* ── 統計報表 ── */
+    .stat-row         { background: white; border: 1px solid #f1f5f9; border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+    .stat-row-red     { border-left: 3px solid #fca5a5 !important; background: #fff9f9 !important; }
+    .stat-row-yellow  { border-left: 3px solid #fcd34d !important; background: #fffef5 !important; }
+    .stat-row-green   { border-left: 3px solid #86efac !important; }
+    .stat-row-leave   { border-left: 3px solid #93c5fd !important; background: #f8fbff !important; }
+    .stat-name        { font-weight: 700; font-size: 1rem; color: #1e293b !important; }
+    .stat-detail      { font-size: 0.78rem; color: #94a3b8 !important; margin-top: 2px; }
+
+    /* ── 統計總覽卡片 ── */
+    .stat-group-header { font-size: 0.8rem; font-weight: 800; color: #94a3b8 !important;
+                         letter-spacing: 1px; margin: 16px 0 8px 4px; }
+    div[data-testid="stButton"] button[kind="secondary"] {
+        background: white !important; border: 1px solid #f1f5f9 !important;
+        border-radius: 12px !important; padding: 10px 8px !important;
+        height: auto !important; min-height: 64px !important;
+        white-space: pre-line !important; font-family: 'Noto Sans TC', sans-serif !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03) !important;
+        transition: transform 0.15s, box-shadow 0.15s !important;
+    }
+    div[data-testid="stButton"] button[kind="secondary"]:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important;
+    }
+
+    /* ── 管理員區塊 ── */
+    .admin-section { background: white; border: 1px solid #f1f5f9; border-radius: 14px;
+                     padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .admin-section-title { font-size: 0.85rem; font-weight: 800; color: #475569 !important;
+                           margin-bottom: 10px; letter-spacing: 0.3px; }
+
+    /* ── 場次卡片選擇器 ── */
+    .session-cards { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .session-card {
+        flex: 1; min-width: 80px; max-width: 160px;
+        background: white; border: 1.5px solid #e2e8f0; border-radius: 14px;
+        padding: 12px 10px; text-align: center; cursor: pointer;
+        transition: all 0.15s; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .session-card:hover { border-color: #94a3b8; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .session-card-active {
+        border-color: #6366f1 !important; background: #eef2ff !important;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+    }
+    .session-card-date { font-size: 1.1rem; font-weight: 800; color: #1e293b !important; }
+    .session-card-count { font-size: 0.75rem; color: #64748b !important; margin-top: 3px; font-weight: 600; }
+    .session-card-active .session-card-date { color: #4f46e5 !important; }
+    .session-card-active .session-card-count { color: #6366f1 !important; }
+    .session-card-rain .session-card-date { color: #0369a1 !important; }
+
+    /* ── 天氣取消 ── */
+    .rain-banner { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px;
+                   padding: 8px 14px; margin-bottom: 12px;
+                   font-size: 0.88rem; color: #0369a1 !important; font-weight: 600; }
+
+    /* ── 手機優化：加大可點擊區域 ── */
+    @media (max-width: 768px) {
+        .block-container { padding-left: 12px !important; padding-right: 12px !important; }
+        .list-name { font-size: 1.05rem !important; }
+        button[data-testid="stBaseButton-secondary"] { min-height: 44px !important; }
+    }
+
+    button[data-testid="stBaseButton-secondary"] { width: 100% !important; min-height: 40px !important; padding: 0 !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# 2. 資料庫
+# ==========================================
+@st.cache_resource
+def get_sheet():
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    try:
+        creds  = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+        client = gspread.authorize(creds)
+        return client.open(SHEET_NAME).sheet1
+    except Exception as e:
+        st.error(f"❌ 資料庫連線失敗：{e}")
+        return None
+
+def _read_cell(sheet, cell: str, default):
+    try:
+        raw = sheet.acell(cell).value
+        return json.loads(raw) if raw else default
+    except Exception:
+        return default
+
+def load_data() -> dict:
+    sheet = get_sheet()
+    if not sheet:
+        return _empty_data()
+    try:
+        a1_raw = _read_cell(sheet, 'A1', {})
+        if isinstance(a1_raw, dict) and "sessions" in a1_raw:
+            old      = a1_raw
+            sessions = old.get("sessions", {})
+            leaves   = old.get("leaves", {})
+            meta     = {"hidden": old.get("hidden", []), "rained_out": old.get("rained_out", []), "removed_members": old.get("removed_members", [])}
+            try:
+                sheet.update_acell('A1', json.dumps(sessions, ensure_ascii=False))
+                sheet.update_acell('B1', json.dumps(meta,     ensure_ascii=False))
+                sheet.update_acell('C1', json.dumps(leaves,   ensure_ascii=False))
+            except Exception:
+                pass
+        else:
+            sessions = a1_raw
+            meta     = _read_cell(sheet, 'B1', {})
+            leaves   = _read_cell(sheet, 'C1', {})
+        return {
+            "sessions":        sessions,
+            "leaves":          leaves,
+            "hidden":          meta.get("hidden", []),
+            "rained_out":      meta.get("rained_out", []),
+            "removed_members": meta.get("removed_members", []),
+        }
+    except Exception:
+        return _empty_data()
+
+def save_data(data: dict):
+    sheet = get_sheet()
+    if not sheet:
+        return
+    try:
+        meta = {"hidden": data.get("hidden", []), "rained_out": data.get("rained_out", []), "removed_members": data.get("removed_members", [])}
+        sheet.update_acell('A1', json.dumps(data.get("sessions", {}), ensure_ascii=False))
+        sheet.update_acell('B1', json.dumps(meta,                     ensure_ascii=False))
+        sheet.update_acell('C1', json.dumps(data.get("leaves", {}),   ensure_ascii=False))
+    except Exception as e:
+        st.error(f"❌ 資料儲存失敗：{e}")
+
+def _empty_data() -> dict:
+    return {"sessions": {}, "hidden": [], "leaves": {}, "removed_members": [], "rained_out": []}
+
+def check_db_connection() -> bool:
+    return get_sheet() is not None
+
+# ==========================================
+# 3. 工具函式
+# ==========================================
+def normalize_name(name: str) -> str:
+    if not name:
+        return ""
+    aliases = get_name_aliases()
+    clean   = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name).replace(" ", "").lower()
+    for k, v in aliases.items():
+        if k in clean:
+            return v
+    return clean
+
+def is_friend(name: str) -> bool:
+    return any(k in name for k in ["友", "（", "("])
+
+def format_timestamp(ts: float) -> str:
+    if not ts:
+        return ""
+    dt    = datetime.fromtimestamp(ts)
+    today = date.today()
+    d     = dt.date()
+    if d == today:
+        return f"今天 {dt.strftime('%H:%M')}"
+    elif d == today - timedelta(days=1):
+        return f"昨天 {dt.strftime('%H:%M')}"
+    else:
+        return dt.strftime("%-m/%-d %H:%M")
+
+def compute_status(last_date: date | None, leave_months: set[str]) -> str:
+    today             = date.today()
+    current_month_str = today.strftime("%Y-%m")
+    if last_date is None:
+        return "🔴 逾期"
+    exempt_used          = 0
+    effective_months_gap = 0
+    cursor = date(last_date.year, last_date.month, 1) + relativedelta(months=1)
+    end    = date(today.year, today.month, 1)
+    while cursor <= end:
+        m_str = cursor.strftime("%Y-%m")
+        if m_str in leave_months:
+            if exempt_used < MAX_LEAVE_EXEMPT:
+                exempt_used += 1
+            else:
+                effective_months_gap += 1
+        else:
+            effective_months_gap += 1
+        cursor += relativedelta(months=1)
+    if current_month_str in leave_months:
+        return "🔴 逾期（請假中）" if effective_months_gap > ABSENCE_LIMIT_MONTHS else "🏖️ 請假中"
+    elif effective_months_gap > ABSENCE_LIMIT_MONTHS:
+        return "🔴 逾期"
+    elif effective_months_gap >= ABSENCE_LIMIT_MONTHS:
+        return "🟡 預警"
+    else:
+        return "🟢 活躍"
+
+def status_to_row_class(status: str) -> str:
+    if "🔴" in status: return "stat-row stat-row-red"
+    if "🟡" in status: return "stat-row stat-row-yellow"
+    if "🏖️" in status: return "stat-row stat-row-leave"
+    return "stat-row stat-row-green"
+
+# ==========================================
+# 4. 報名 CRUD
+# ==========================================
+def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_visitor):
+    data   = load_data()
+    player = next((p for p in data["sessions"][date_key] if p['id'] == pid), None)
+    if not player:
+        return
+    old_name = player['name']
+    if st.session_state.is_admin and is_member and old_name != name:
+        for p in data["sessions"][date_key]:
+            if p['name'].startswith(f"{old_name} (") or p['name'].startswith(f"{old_name} （"):
+                p['name'] = p['name'].replace(old_name, name, 1)
+    player.update({'name': name, 'isMember': False if is_friend(name) else is_member,
+                   'bringBall': bring_ball, 'occupyCourt': occupy_court, 'count': 0 if is_visitor else 1})
+    save_data(data)
+    _set_tab_for_date(date_key, data)
+    st.session_state.edit_target = None
+    st.toast("✅ 資料已更新")
+    time.sleep(0.5)
+    st.rerun()
+
+def _set_tab_for_date(date_key: str, data: dict | None = None):
+    """rerun 前呼叫，確保畫面停在 date_key 對應的 tab。"""
+    try:
+        d = data if data is not None else st.session_state.data
+        all_d   = sorted(d["sessions"].keys())
+        hidden  = d.get("hidden", [])
+        visible = [x for x in all_d if x not in hidden]
+        if date_key in visible:
+            st.session_state['_tab_jump'] = visible.index(date_key)
+    except Exception:
+        pass
+
+def delete_player(pid, date_key):
+    data   = load_data()
+    target = next((p for p in data["sessions"][date_key] if p['id'] == pid), None)
+    if not target:
+        return
+    name = target['name']
+    if is_friend(name):
+        data["sessions"][date_key] = [p for p in data["sessions"][date_key] if p['id'] != pid]
+    else:
+        data["sessions"][date_key] = [
+            p for p in data["sessions"][date_key]
+            if p['id'] != pid and not (
+                p['name'].startswith(f"{name} (") or p['name'].startswith(f"{name} （") or p['name'] == f"{name}之友"
+            )
+        ]
+    if st.session_state.edit_target == pid:
+        st.session_state.edit_target = None
+    save_data(data)
+    _set_tab_for_date(date_key, data)
+    st.toast("🗑️ 已刪除")
+    time.sleep(0.5)
+    st.rerun()
+
+# ==========================================
+# 5. 名單渲染
+# ==========================================
+def render_list(players, date_key, is_wait=False, can_edit=True, is_admin_mode=False):
+    if not players:
+        if not is_wait:
+            st.markdown("""<div style="text-align:center;padding:40px;color:#cbd5e1;">
+                <div style="font-size:36px;">🏀</div><p>尚未有人報名</p></div>""", unsafe_allow_html=True)
+        return
+
+    sorted_players = sorted(players, key=lambda x: x.get('timestamp', 0))
+    counter = 0
+    for p in sorted_players:
+        is_playing = p.get('count', 1) > 0
+        if is_playing:
+            counter += 1
+            idx_str, idx_cls = f"{counter}.", "list-index"
+        else:
+            idx_str, idx_cls = "🌸", "list-index-flower"
+
+        if st.session_state.edit_target == p['id']:
+            with st.container():
+                st.markdown(f"<div class='edit-box'>✏️ 正在編輯：{p['name']}</div>", unsafe_allow_html=True)
+                with st.form(key=f"e_{p['id']}"):
+                    new_name    = st.text_input("姓名", p['name'], disabled=not is_admin_mode)
+                    c1, c2, c3  = st.columns(3)
+                    friend      = is_friend(p['name'])
+                    new_member  = c1.checkbox("⭐晴女", p.get('isMember'),    disabled=(not is_admin_mode and friend))
+                    new_ball    = c2.checkbox("🏀帶球", p.get('bringBall'),   disabled=friend)
+                    new_court   = c3.checkbox("🚩佔場", p.get('occupyCourt'), disabled=friend)
+                    new_visitor = st.checkbox("📣 不打球 (加油團)", p.get('count') == 0, disabled=friend)
+                    b1, b2      = st.columns(2)
+                    if b1.form_submit_button("💾 儲存", type="primary"):
+                        update_player(p['id'], date_key, new_name, new_member, new_ball, new_court, new_visitor)
+                    if b2.form_submit_button("取消"):
+                        st.session_state.edit_target = None
+                        st.rerun()
+        else:
+            badges = ""
+            if p.get('count') == 0:   badges += "<span class='badge badge-visit'>📣加油團</span>"
+            if p.get('isMember') and not is_friend(p['name']): badges += "<span class='badge badge-sunny'>晴女</span>"
+            if p.get('bringBall'):    badges += "<span class='badge badge-ball'>帶球</span>"
+            if p.get('occupyCourt'):  badges += "<span class='badge badge-court'>佔場</span>"
+
+            time_html = ""
+            if is_admin_mode and p.get('timestamp'):
+                time_html = f"<span class='list-time'>{format_timestamp(p['timestamp'])}</span>"
+
+            row_extra = " wait-row" if is_wait else ""
+            cols = st.columns([6, 1, 1], gap="small")
+            with cols[0]:
+                st.markdown(f"""<div class="player-row{row_extra}">
+                    <span class="{idx_cls}">{idx_str}</span>
+                    <span class="list-name">{p['name']}</span>{badges}{time_html}
+                </div>""", unsafe_allow_html=True)
+            if can_edit:
+                with cols[1]:
+                    if st.button("✏️", key=f"be_{p['id']}"):
+                        st.session_state.edit_target = p['id']
+                        st.rerun()
+                with cols[2]:
+                    with st.popover("❌"):
+                        st.write(f"確定取消「{p['name']}」的報名？")
+                        if st.button("確認刪除", key=f"conf_del_{p['id']}", type="primary"):
+                            delete_player(p['id'], date_key)
+
+# ==========================================
+# 6. 出席統計
+# ==========================================
+@st.cache_data(ttl=60, show_spinner=False)
+def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, all_dates_tuple: tuple) -> tuple[dict, dict, dict]:
+    sessions   = json.loads(sessions_json)
+    leaves     = json.loads(leaves_json)
+    rained_out = set(rained_out_tuple)
+    all_dates  = list(all_dates_tuple)
+    norm_cache: dict[str, str] = {}
+
+    def get_norm(n: str) -> str:
+        if n not in norm_cache:
+            norm_cache[n] = normalize_name(n)
+        return norm_cache[n]
+
+    member_signups: dict[str, list] = {}
+    future_signups: dict[str, list] = {}
+
+    for sd in all_dates:
+        day   = datetime.strptime(sd, "%Y-%m-%d").date()
+        label = f"{int(sd.split('-')[1])}/{int(sd.split('-')[2])}"
+        if day > date.today():
+            for p in sessions.get(sd, []):
+                if not is_friend(p['name']):
+                    future_signups.setdefault(get_norm(p['name']), []).append(label)
+            continue
+        if sd in rained_out:
+            label = f"☔{label}"
+        for p in sessions.get(sd, []):
+            if not is_friend(p['name']):
+                member_signups.setdefault(get_norm(p['name']), []).append(label)
+
+    stats: dict[str, dict] = {}
+    for sd, players in sessions.items():
+        day = datetime.strptime(sd, "%Y-%m-%d").date()
+        if day > date.today():
+            continue
+        for p in players:
+            if not is_friend(p['name']):
+                key = get_norm(p['name'])
+                if key not in stats:
+                    stats[key] = {"name": p['name'], "last_date": day, "leaves": set()}
+                elif day > stats[key]["last_date"]:
+                    stats[key]["last_date"] = day
+                    stats[key]["name"] = p['name']
+
+    for raw_name, months in leaves.items():
+        key = get_norm(raw_name)
+        stats.setdefault(key, {"name": raw_name, "last_date": None, "leaves": set()})
+        stats[key]["leaves"].update(months)
+
+    return stats, member_signups, future_signups
+
+
+def _render_stat_row(key, item, signups, future_signups):
+    last          = item["last_date"]
+    leaves_sorted = sorted(item["leaves"])
+    recent_two    = signups.get(key, [])[-2:]
+    signup_str    = ", ".join(recent_two) or "—"
+    future_list   = future_signups.get(key, [])
+    future_str    = "　📅 " + ", ".join(future_list) if future_list else ""
+    last_str      = str(last) if last else "無紀錄"
+    leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
+    status        = compute_status(last, set(leaves_sorted))
+    row_cls       = status_to_row_class(status)
+
+    if st.session_state.get(f"stat_edit_{key}"):
+        st.markdown(f"<div class='edit-box'>✏️ 編輯成員：{item['name']}</div>", unsafe_allow_html=True)
+        with st.form(key=f"stat_form_{key}"):
+            new_display = st.text_input("顯示名稱", item['name'])
+            b1, b2, b3  = st.columns(3)
+            if b1.form_submit_button("💾 儲存", type="primary"):
+                cur = load_data(); old = item['name']
+                for sd in cur["sessions"]:
+                    for p in cur["sessions"][sd]:
+                        if normalize_name(p['name']) == key and not is_friend(p['name']):
+                            p['name'] = new_display
+                        for fp in cur["sessions"][sd]:
+                            if fp['name'].startswith(f"{old} (") or fp['name'].startswith(f"{old} （"):
+                                fp['name'] = fp['name'].replace(old, new_display, 1)
+                if old in cur["leaves"]:
+                    cur["leaves"][new_display] = cur["leaves"].pop(old)
+                save_data(cur); build_stats.clear()
+                st.session_state[f"stat_edit_{key}"] = False
+                st.toast("✅ 名稱已更新"); time.sleep(0.5); st.rerun()
+            if b2.form_submit_button("取消"):
+                st.session_state[f"stat_edit_{key}"] = False; st.rerun()
+            if b3.form_submit_button("🚪 退群", type="secondary"):
+                cur = load_data(); cur.setdefault("removed_members", [])
+                if key not in cur["removed_members"]: cur["removed_members"].append(key)
+                save_data(cur); build_stats.clear()
+                st.session_state[f"stat_edit_{key}"] = False
+                st.toast(f"👋 {item['name']} 已從統計移除"); time.sleep(0.5); st.rerun()
+    else:
+        cols = st.columns([5.5, 1, 1], gap="small")
+        with cols[0]:
+            st.markdown(f"""<div class="{row_cls}">
+                <div class="stat-name">{status} &nbsp; {item['name']}</div>
+                <div class="stat-detail">近期：{signup_str}　最後出席：{last_str}{leave_str}{future_str}</div>
+            </div>""", unsafe_allow_html=True)
+        with cols[1]:
+            if st.button("✏️", key=f"stat_btn_edit_{key}"):
+                st.session_state[f"stat_edit_{key}"] = True; st.rerun()
+        with cols[2]:
+            with st.popover("🚪"):
+                st.write(f"將「{item['name']}」移至已退群？")
+                if st.button("確認退群", key=f"stat_rm_{key}", type="primary"):
+                    cur = load_data(); cur.setdefault("removed_members", [])
+                    if key not in cur["removed_members"]: cur["removed_members"].append(key)
+                    save_data(cur); build_stats.clear()
+                    st.toast(f"👋 {item['name']} 已移除"); time.sleep(0.5); st.rerun()
+
+
+def render_stats(raw_data: dict):
+    all_dates_tuple  = tuple(sorted(raw_data["sessions"].keys()))
+    rained_out_tuple = tuple(raw_data.get("rained_out", []))
+
+    stats, signups, future_signups = build_stats(
+        sessions_json    = json.dumps(raw_data["sessions"], ensure_ascii=False),
+        leaves_json      = json.dumps(raw_data["leaves"],   ensure_ascii=False),
+        rained_out_tuple = rained_out_tuple,
+        all_dates_tuple  = all_dates_tuple,
+    )
+
+    removed     = set(raw_data.get("removed_members", []))
+    active_keys = [k for k in sorted(stats.keys()) if k not in removed]
+
+    STATUS_ORDER = ["🟢", "🟡", "🔴", "🏖️"]
+    STATUS_LABEL = {"🟢": "🟢 活躍", "🟡": "🟡 預警", "🔴": "🔴 逾期", "🏖️": "🏖️ 請假中"}
+
+    groups: dict[str, list] = {"🟢": [], "🟡": [], "🔴": [], "🏖️": []}
+    for key in active_keys:
+        item   = stats[key]
+        status = compute_status(item["last_date"], set(item["leaves"]))
+        if   "🔴" in status: groups["🔴"].append(key)
+        elif "🟡" in status: groups["🟡"].append(key)
+        elif "🏖️" in status: groups["🏖️"].append(key)
+        else:                 groups["🟢"].append(key)
+
+    cnt = {k: len(v) for k, v in groups.items()}
+
+    if "stat_filter" not in st.session_state:
+        st.session_state.stat_filter = None
+
+    cols = st.columns(4, gap="small")
+    card_colors = {"🟢": "stat-card-green", "🟡": "stat-card-yellow", "🔴": "stat-card-red", "🏖️": "stat-card-blue"}
+    for ci, sg in enumerate(STATUS_ORDER):
+        is_selected  = st.session_state.stat_filter == sg
+        border_style = "outline:2px solid #6366f1;box-shadow:0 0 0 4px rgba(99,102,241,0.12);" if is_selected else ""
+        with cols[ci]:
+            st.markdown(f"""<div class="{card_colors[sg]} stat-card" style="{border_style}">
+                <div class="stat-card-num">{cnt[sg]}</div>
+                <div class="stat-card-lbl">{STATUS_LABEL[sg]}</div>
+            </div>""", unsafe_allow_html=True)
+            btn_label = "✕ 取消" if is_selected else STATUS_LABEL[sg].split(" ")[1]
+            if st.button(btn_label, key=f"filter_btn_{sg}", use_container_width=True):
+                st.session_state.stat_filter = None if is_selected else sg
+                st.rerun()
+
+    if not active_keys:
+        st.info("目前無統計資料")
+        return
+
+    show_groups = [st.session_state.stat_filter] if st.session_state.stat_filter else STATUS_ORDER
+    for sg in show_groups:
+        keys_in_group = groups[sg]
+        if not keys_in_group:
+            continue
+        st.markdown(f"<div class='stat-group-header'>{STATUS_LABEL[sg]} · {len(keys_in_group)} 人</div>", unsafe_allow_html=True)
+        for key in keys_in_group:
+            _render_stat_row(key, stats[key], signups, future_signups)
+
+    # 已退群名單
+    if removed:
+        st.divider()
+        with st.expander(f"👻 已退群名單（{len(removed)} 人）", expanded=False):
+            removed_stats = {k: stats[k] for k in removed if k in stats}
+            if removed_stats:
+                for key, item in sorted(removed_stats.items(), key=lambda x: x[1]['name']):
+                    c1, c2, c3 = st.columns([4, 1, 1])
+                    c1.markdown(f"**{item['name']}**")
+                    with c2:
+                        if st.button("↩️ 恢復", key=f"stat_restore_{key}"):
+                            cur = load_data()
+                            if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
+                            save_data(cur); build_stats.clear()
+                            st.toast(f"✅ {item['name']} 已恢復"); time.sleep(0.5); st.rerun()
+                    with c3:
+                        with st.popover("🗑️"):
+                            st.warning(f"永久刪除「{item['name']}」所有紀錄？此操作無法復原！", icon="⚠️")
+                            if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
+                                cur = load_data()
+                                if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
+                                for sd in cur["sessions"]:
+                                    cur["sessions"][sd] = [p for p in cur["sessions"][sd] if normalize_name(p['name']) != key]
+                                for rn in list(cur["leaves"].keys()):
+                                    if normalize_name(rn) == key: del cur["leaves"][rn]
+                                save_data(cur); build_stats.clear()
+                                st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
+            else:
+                st.write("（無歷史紀錄）")
+
+# ==========================================
+# 7. 初始化
+# ==========================================
+if 'is_admin'    not in st.session_state: st.session_state.is_admin    = False
+if 'edit_target' not in st.session_state: st.session_state.edit_target = None
+if 'active_tab'  not in st.session_state: st.session_state.active_tab  = 0
+if 'total_sel'   not in st.session_state: st.session_state.total_sel   = {}  # {date_key: int}
+
+st.set_page_config(page_title="晴女籃球報名", page_icon="☀️", layout="centered")
+load_css()
+
+# ==========================================
+# 8. 主畫面
+# ==========================================
+# ── 成功頁面 ──
+if st.session_state.get('success_page'):
+    st.session_state['success_page'] = False
     st.markdown("""
     <style>
     /* 隱藏 Streamlit 所有其他元素 */
