@@ -1170,12 +1170,31 @@ else:
                     _success = st.session_state.get(f"just_signed_{_dk}", False)
                     if _success:
                         st.session_state[f"just_signed_{_dk}"] = False
-                        st.balloons()
                         st.markdown("""
-                        <div style='text-align:center;padding:40px 10px;'>
-                            <div style='font-size:64px;'>🏀</div>
-                            <div style='font-size:24px;font-weight:900;color:#1e293b;margin-top:12px;'>報名成功！</div>
-                        </div>""", unsafe_allow_html=True)
+                        <style>
+                        @keyframes bk_fly2{
+                            0%  {left:5%;top:75%;transform:rotate(0deg);opacity:1;}
+                            60% {left:60%;top:15%;transform:rotate(380deg);opacity:1;}
+                            80% {left:67%;top:28%;transform:rotate(460deg);opacity:1;}
+                            95% {left:67%;top:38%;transform:rotate(500deg);opacity:1;}
+                            100%{left:67%;top:38%;transform:rotate(510deg);opacity:0;}
+                        }
+                        @keyframes bk_msg2{from{opacity:0;transform:translateX(-50%) scale(0.5)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+                        #bk2_wrap{position:relative;width:100%;height:260px;overflow:hidden;background:white;border-radius:16px;}
+                        #bk2_ball{position:absolute;font-size:56px;line-height:1;animation:bk_fly2 2s ease-in-out forwards;}
+                        #bk2_hoop{position:absolute;right:16%;top:22%;font-size:50px;}
+                        #bk2_msg{position:absolute;bottom:24px;left:50%;transform:translateX(-50%) scale(0.5);
+                            font-size:24px;font-weight:900;color:#1e293b;white-space:nowrap;
+                            opacity:0;animation:bk_msg2 0.4s 2s forwards;}
+                        </style>
+                        <div id='bk2_wrap'>
+                            <div id='bk2_hoop'>🏀</div>
+                            <div id='bk2_ball'>🏀</div>
+                            <div id='bk2_msg'>🎉 報名成功！</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        import time as _t; _t.sleep(3)
+                        st.rerun()
                         return
                     with st.expander("📝 我要報名", expanded=not _is_expired):
                         if _is_rained_out and not st.session_state.is_admin:
