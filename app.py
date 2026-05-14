@@ -24,17 +24,6 @@ def get_admin_password() -> str:
     except Exception:
         return "sunny"
 
-def get_name_aliases() -> dict[str, str]:
-    try:
-        return dict(st.secrets["name_aliases"])
-    except Exception:
-        return {
-            "金閃閃": "kingsley金閃閃",
-            "冬青":   "冬青得來速",
-            "得來速": "冬青得來速",
-            "菜":     "小菜",
-            "小菜":   "小菜",
-        }
 
 # ==========================================
 # 1. CSS
@@ -289,12 +278,7 @@ def check_db_connection() -> bool:
 def normalize_name(name: str) -> str:
     if not name:
         return ""
-    aliases = get_name_aliases()
-    clean   = re.sub(r'[^\w\s\u4e00-\u9fff]', '', name).replace(" ", "").lower()
-    for k, v in aliases.items():
-        if k in clean:
-            return v
-    return clean
+    return re.sub(r'[^\w\s\u4e00-\u9fff]', '', name).replace(" ", "").lower()
 
 def is_friend(name: str) -> bool:
     return any(k in name for k in ["友", "（", "("])
