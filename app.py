@@ -1012,8 +1012,30 @@ else:
         return f"{prefix}{base} ({active_cnt})"
 
     tabs = st.tabs([tab_label(d) for d in visible_dates])
-    # 讀 query_params，JS 自動點擊對應 tab
-    _tab_idx = int(st.query_params.get('tab', 0))
+
+    # 預設 tab：優先用 query_params 指定的（報名/刪除後 rerun 用）
+    # 若無指定，自動找最近的未來或今天的場次（不要停在過期場次）
+    _today = date.today()
+    def _default_tab_idx():
+        qp = st.query_params.get('tab', None)
+        if qp is not None:
+            try:
+                idx = int(qp)
+                # 確認該 index 的場次還沒過期，否則找下一個未來場次
+                if 0 <= idx < len(visible_dates):
+                    d = visible_dates[idx]
+                    if datetime.strptime(d, "%Y-%m-%d").date() >= _today:
+                        return idx
+            except ValueError:
+                pass
+        # 找第一個今天或之後的場次
+        for j, d in enumerate(visible_dates):
+            if datetime.strptime(d, "%Y-%m-%d").date() >= _today:
+                return j
+        # 全是過去場次，停在最後一個
+        return len(visible_dates) - 1
+
+    _tab_idx = _default_tab_idx()
     if _tab_idx > 0:
         components.html(f"""
         <script>
