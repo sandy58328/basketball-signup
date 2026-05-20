@@ -1030,6 +1030,8 @@ if st.session_state.get('show_basket_anim'):
     components.html(BASKETBALL_ANIM, height=280)
     st.toast("🎉 報名成功！")
     st.session_state['show_basket_anim'] = False
+    time.sleep(2.5)
+    st.rerun()
 
 # 捲動到剛報名的名字
 if st.session_state.get('scroll_to'):
