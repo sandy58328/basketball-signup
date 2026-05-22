@@ -1170,6 +1170,22 @@ else:
             submit_disabled = not can_operate or (is_rained_out and not st.session_state.is_admin)
 
             if not is_expired or st.session_state.is_admin:
+                # 報名規則
+                with st.expander("📌 報名規則說明", expanded=False):
+                    st.markdown("""<div class="rules-box">
+                        <div class="rules-header">📌 報名須知</div>
+                        <div class="rules-row"><span class="rules-icon">🔴</span>
+                            <div class="rules-content"><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名。欲事後補報朋友，請用原名再次填寫即可 (含自己上限3位)。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🟡</span>
+                            <div class="rules-content"><b>📣加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🟢</span>
+                            <div class="rules-content"><b>優先機制</b>：正選 20 人。當人數超過時，<b>⭐晴女</b> 享有進入正選名單之優先權。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🔵</span>
+                            <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🟡</span>
+                            <div class="rules-content"><b>出席要求</b>：每兩個月至少出席一次，請假不得連續超過兩個月。</div></div>
+                        <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
+                    </div>""", unsafe_allow_html=True)
                 # 截止倒數
                 if not is_expired:
                     _remaining = cutoff - datetime.now()
@@ -1245,22 +1261,6 @@ else:
                                         st.session_state['scroll_to'] = full_name
                                         st.rerun()
 
-                # 規則說明獨立折疊，不跟表單混在一起
-                with st.expander("📌 報名規則說明", expanded=False):
-                    st.markdown("""<div class="rules-box">
-                        <div class="rules-header">📌 報名須知</div>
-                        <div class="rules-row"><span class="rules-icon">🔴</span>
-                            <div class="rules-content"><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名。欲事後補報朋友，請用原名再次填寫即可 (含自己上限3位)。</div></div>
-                        <div class="rules-row"><span class="rules-icon">🟡</span>
-                            <div class="rules-content"><b>📣加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div>
-                        <div class="rules-row"><span class="rules-icon">🟢</span>
-                            <div class="rules-content"><b>優先機制</b>：正選 20 人。當人數超過時，<b>⭐晴女</b> 享有進入正選名單之優先權。</div></div>
-                        <div class="rules-row"><span class="rules-icon">🔵</span>
-                            <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。</div></div>
-                        <div class="rules-row"><span class="rules-icon">🟡</span>
-                            <div class="rules-content"><b>出席要求</b>：每兩個月至少出席一次，請假不得連續超過兩個月。</div></div>
-                        <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
-                    </div>""", unsafe_allow_html=True)
             else:
                 st.caption("⛔ 報名已截止（前一日 12:00）")
 
@@ -1291,7 +1291,10 @@ else:
                     _k = normalize_name(_rn)
                     _leave_merged.setdefault(_k, set()).update(_ms)
                     _leave_display.setdefault(_k, _rn)
-                _leave_list = [((_leave_display[k], sorted(_leave_merged[k]))) for k in sorted(_leave_merged) if _leave_merged[k]]
+                _now = date.today()
+                _recent = set((_now - __import__("dateutil.relativedelta", fromlist=["relativedelta"]).relativedelta(months=i)).strftime("%Y-%m") for i in range(2))
+                _leave_list = [((_leave_display[k], [m for m in sorted(_leave_merged[k]) if m >= (_now - __import__("dateutil.relativedelta", fromlist=["relativedelta"]).relativedelta(months=1)).strftime("%Y-%m")])) for k in sorted(_leave_merged) if _leave_merged[k]]
+                _leave_list = [x for x in _leave_list if x[1]]
                 st.markdown("**🏖️ 請假中**")
                 if _leave_list:
                     for _ln, _lm in _leave_list:
