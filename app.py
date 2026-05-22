@@ -1126,13 +1126,13 @@ else:
                         <div class="rules-header">📌 報名須知</div>
                         <div class="rules-row"><span class="rules-icon">🔴</span>
                             <div class="rules-content"><b>資格與規範</b>：採實名制。僅限 <b>⭐晴女</b> 報名。欲事後補報朋友，請用原名再次填寫即可 (含自己上限3位)。</div></div>
-                        <div class="rules-row"><span class="rules-icon">🟡</span>
+                        <div class="rules-row"><span class="rules-icon">🟠</span>
                             <div class="rules-content"><b>📣加油團</b>：團員若「不打球但帶朋友」請勾此項。本人不佔名額，但朋友會佔打球名額。</div></div>
-                        <div class="rules-row"><span class="rules-icon">🟢</span>
-                            <div class="rules-content"><b>優先機制</b>：正選 20 人。當人數超過時，<b>⭐晴女</b> 享有進入正選名單之優先權。</div></div>
-                        <div class="rules-row"><span class="rules-icon">🔵</span>
-                            <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。</div></div>
                         <div class="rules-row"><span class="rules-icon">🟡</span>
+                            <div class="rules-content"><b>優先機制</b>：正選 20 人。當人數超過時，<b>⭐晴女</b> 享有進入正選名單之優先權。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🟢</span>
+                            <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🔵</span>
                             <div class="rules-content"><b>出席要求</b>：每兩個月至少出席一次，請假不得連續超過兩個月。</div></div>
                         <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                     </div>""", unsafe_allow_html=True)
