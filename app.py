@@ -1219,7 +1219,7 @@ else:
                 with st.form(f"leave_form_{dk}", clear_on_submit=True):
                     leave_name  = st.text_input("姓名", key=f"ln_{dk}")
                     _today = date.today()
-                    _months = [((_today + relativedelta(months=i)).strftime("%Y-%m"), (_today + relativedelta(months=i)).strftime("%Y 年 %m 月")) for i in range(-1, 4)]
+                    _months = [((_today + relativedelta(months=i)).strftime("%Y-%m"), (_today + relativedelta(months=i)).strftime("%Y 年 %m 月")) for i in range(0, 4)]
                     leave_month = st.selectbox("請假月份", options=[m[0] for m in _months], format_func=lambda x: dict(_months)[x], key=f"lm_{dk}")
                     if st.form_submit_button("送出假單") and leave_name:
                         _ld = load_data()
