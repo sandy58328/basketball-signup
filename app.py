@@ -1218,10 +1218,12 @@ else:
             with st.expander("🏖️ 我要請假（長假登記）", expanded=False):
                 with st.form(f"leave_form_{dk}", clear_on_submit=True):
                     leave_name  = st.text_input("姓名", key=f"ln_{dk}")
-                    leave_month = st.date_input("請假月份", key=f"lm_{dk}")
+                    _today = date.today()
+                    _months = [((_today + relativedelta(months=i)).strftime("%Y-%m"), (_today + relativedelta(months=i)).strftime("%Y 年 %m 月")) for i in range(-1, 4)]
+                    leave_month = st.selectbox("請假月份", options=[m[0] for m in _months], format_func=lambda x: dict(_months)[x], key=f"lm_{dk}")
                     if st.form_submit_button("送出假單") and leave_name:
                         _ld = load_data()
-                        _ms = leave_month.strftime("%Y-%m")
+                        _ms = leave_month
                         _ld["leaves"].setdefault(leave_name, [])
                         if _ms not in _ld["leaves"][leave_name]:
                             _ld["leaves"][leave_name].append(_ms)
