@@ -1257,10 +1257,36 @@ else:
                             <div class="rules-content"><b>優先機制</b>：正選 20 人。當人數超過時，<b>⭐晴女</b> 享有進入正選名單之優先權。</div></div>
                         <div class="rules-row"><span class="rules-icon">🔵</span>
                             <div class="rules-content"><b>時間與修改</b>：截止於前一日 12:00。</div></div>
+                        <div class="rules-row"><span class="rules-icon">🟡</span>
+                            <div class="rules-content"><b>出席要求</b>：每兩個月至少出席一次，請假不得連續超過兩個月。</div></div>
                         <div class="rules-footer">有任何問題請找最美管理員們 ❤️</div>
                     </div>""", unsafe_allow_html=True)
             else:
                 st.caption("⛔ 報名已截止（前一日 12:00）")
+
+            # ── 出席狀態公開版 ──
+            with st.expander("📊 出席狀態", expanded=False):
+                _stats, _, _ = build_stats(
+                    json.dumps(st.session_state.data["sessions"]),
+                    json.dumps(st.session_state.data.get("leaves", {})),
+                    tuple(st.session_state.data.get("rained_out", [])),
+                    tuple(sorted(st.session_state.data["sessions"].keys()))
+                )
+                _groups = {"🟢": [], "🟡": [], "🔴": []}
+                for _item in _stats.values():
+                    _s = compute_status(_item["last_date"], set(_item["leaves"]))
+                    if "🟢" in _s: _groups["🟢"].append(_item["name"])
+                    elif "🟡" in _s: _groups["🟡"].append(_item["name"])
+                    elif "🔴" in _s: _groups["🔴"].append(_item["name"])
+                _labels = {"🟢": "正常", "🟡": "當月需出席", "🔴": "已逾期"}
+                for _icon, _label in _labels.items():
+                    _names = _groups[_icon]
+                    if _names:
+                        st.markdown(f"**{_icon} {_label}**")
+                        st.caption("　" + "・".join(_names))
+                    else:
+                        st.markdown(f"**{_icon} {_label}**")
+                        st.caption("　（無）")
 
             # ── 正選名單 ──
             st.subheader("🏀 報名名單")
