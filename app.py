@@ -1264,8 +1264,8 @@ else:
             else:
                 st.caption("⛔ 報名已截止（前一日 12:00）")
 
-            # ── 出席狀態公開版 ──
-            with st.expander("📊 出席狀態", expanded=False):
+            # ── 出席 & 請假狀態公開版 ──
+            with st.expander("📊 出席 & 請假狀況", expanded=False):
                 _stats, _, _ = build_stats(
                     json.dumps(st.session_state.data["sessions"]),
                     json.dumps(st.session_state.data.get("leaves", {})),
@@ -1281,12 +1281,23 @@ else:
                 _labels = {"🟢": "正常", "🟡": "當月需出席", "🔴": "已逾期"}
                 for _icon, _label in _labels.items():
                     _names = _groups[_icon]
-                    if _names:
-                        st.markdown(f"**{_icon} {_label}**")
-                        st.caption("　" + "・".join(_names))
-                    else:
-                        st.markdown(f"**{_icon} {_label}**")
-                        st.caption("　（無）")
+                    st.markdown(f"**{_icon} {_label}**")
+                    st.caption("　" + "・".join(_names) if _names else "　（無）")
+                # 請假區塊
+                _leaves = st.session_state.data.get("leaves", {})
+                _leave_merged: dict = {}
+                _leave_display: dict = {}
+                for _rn, _ms in _leaves.items():
+                    _k = normalize_name(_rn)
+                    _leave_merged.setdefault(_k, set()).update(_ms)
+                    _leave_display.setdefault(_k, _rn)
+                _leave_list = [((_leave_display[k], sorted(_leave_merged[k]))) for k in sorted(_leave_merged) if _leave_merged[k]]
+                st.markdown("**🏖️ 請假中**")
+                if _leave_list:
+                    for _ln, _lm in _leave_list:
+                        st.caption(f"　{_ln}（{"、".join(_lm)}）")
+                else:
+                    st.caption("　（無）")
 
             # ── 正選名單 ──
             st.subheader("🏀 報名名單")
