@@ -700,56 +700,6 @@ if not check_db_connection():
 
 st.session_state.data = load_data()
 
-# ── 請假 & 公報 ──
-col_leave, col_board = st.columns(2)
-with col_leave:
-    with st.expander("🏖️ 我要請假 (長假登記)"):
-        with st.form("leave_form", clear_on_submit=True):
-            leave_name  = st.text_input("姓名")
-            leave_month = st.date_input("請假月份")
-            if st.form_submit_button("送出假單") and leave_name:
-                data      = load_data()
-                month_str = leave_month.strftime("%Y-%m")
-                data["leaves"].setdefault(leave_name, [])
-                if month_str not in data["leaves"][leave_name]:
-                    data["leaves"][leave_name].append(month_str)
-                    save_data(data); build_stats.clear()
-                    st.toast("✅ 已登記"); time.sleep(1); st.rerun()
-
-with col_board:
-    with st.expander("📜 休假公報", expanded=False):
-        leaves = st.session_state.data.get("leaves", {})
-        merged: dict[str, set] = {}; display_map: dict[str, str] = {}
-        for raw_name, months in leaves.items():
-            key = normalize_name(raw_name)
-            merged.setdefault(key, set()).update(months)
-            display_map.setdefault(key, raw_name)
-        if any(merged.values()):
-            for key in sorted(merged.keys()):
-                month_list = sorted(merged[key])
-                c1, c2 = st.columns([0.82, 0.18])
-                with c1:
-                    st.markdown(f"**👤 {display_map[key]}**: {', '.join(month_list)}")
-                with c2:
-                    with st.popover("🗑️"):
-                        for m in month_list:
-                            if st.button(f"刪除 {m}", key=f"dl_{key}_{m}"):
-                                data = load_data()
-                                for k in list(data["leaves"].keys()):
-                                    if normalize_name(k) == key and m in data["leaves"][k]:
-                                        data["leaves"][k].remove(m)
-                                        if not data["leaves"][k]: del data["leaves"][k]
-                                save_data(data); build_stats.clear()
-                                st.toast(f"🗑️ 移除 {m}"); time.sleep(0.5); st.rerun()
-                        st.divider()
-                        if st.button("🚨 強制刪除", key=f"f_dl_{key}", type="secondary"):
-                            data = load_data()
-                            for k in list(data["leaves"].keys()):
-                                if normalize_name(k) == key: del data["leaves"][k]
-                            save_data(data); build_stats.clear()
-                            st.toast("🗑️ 強制移除"); time.sleep(0.5); st.rerun()
-        else:
-            st.info("目前無人請假")
 
 # ── 場次 ──
 all_dates     = sorted(st.session_state.data["sessions"].keys())
@@ -1263,6 +1213,22 @@ else:
 
             else:
                 st.caption("⛔ 報名已截止（前一日 12:00）")
+
+            # ── 我要請假 ──
+            with st.expander("🏖️ 我要請假（長假登記）", expanded=False):
+                with st.form(f"leave_form_{dk}", clear_on_submit=True):
+                    leave_name  = st.text_input("姓名", key=f"ln_{dk}")
+                    leave_month = st.date_input("請假月份", key=f"lm_{dk}")
+                    if st.form_submit_button("送出假單") and leave_name:
+                        _ld = load_data()
+                        _ms = leave_month.strftime("%Y-%m")
+                        _ld["leaves"].setdefault(leave_name, [])
+                        if _ms not in _ld["leaves"][leave_name]:
+                            _ld["leaves"][leave_name].append(_ms)
+                            save_data(_ld); build_stats.clear()
+                            st.toast("✅ 已登記"); time.sleep(1); st.rerun()
+                        else:
+                            st.warning("已登記過這個月了")
 
             # ── 出席 & 請假狀態公開版 ──
             with st.expander("📊 出席 & 請假狀況", expanded=False):
