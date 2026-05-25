@@ -255,12 +255,14 @@ def load_data() -> dict:
             sessions = a1_raw
             meta     = _read_cell(sheet, 'B1', {})
             leaves   = _read_cell(sheet, 'C1', {})
+        members = _read_cell(sheet, 'D1', {})
         return {
             "sessions":        sessions,
             "leaves":          leaves,
             "hidden":          meta.get("hidden", []),
             "rained_out":      meta.get("rained_out", []),
             "removed_members": meta.get("removed_members", []),
+            "members":         members,
         }
     except Exception:
         return _empty_data()
@@ -274,6 +276,7 @@ def save_data(data: dict):
         sheet.update_acell('A1', json.dumps(data.get("sessions", {}), ensure_ascii=False))
         sheet.update_acell('B1', json.dumps(meta,                     ensure_ascii=False))
         sheet.update_acell('C1', json.dumps(data.get("leaves", {}),   ensure_ascii=False))
+        sheet.update_acell('D1', json.dumps(data.get("members", {}),  ensure_ascii=False))
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
