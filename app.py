@@ -315,10 +315,19 @@ def format_timestamp(ts: float) -> str:
     else:
         return dt.strftime("%-m/%-d %H:%M")
 
-def compute_status(last_date: date | None, leave_months: set[str]) -> str:
+def compute_status(last_date: date | None, leave_months: set[str], joined_month: str | None = None) -> str:
     today             = date.today()
     current_month_str = today.strftime("%Y-%m")
     if last_date is None:
+        # 如果有加入月份，計算是否在寬限期內（加入月+2個月）
+        if joined_month:
+            try:
+                jy, jm = int(joined_month[:4]), int(joined_month[5:7])
+                grace_end = date(jy, jm, 1) + relativedelta(months=2)
+                if date(today.year, today.month, 1) <= grace_end:
+                    return "🟢 活躍"
+            except Exception:
+                pass
         return "🔴 逾期"
     exempt_used          = 0
     effective_months_gap = 0
@@ -1257,8 +1266,10 @@ else:
                     if _mk not in _stats and _mk not in _removed:
                         _stats[_mk] = {"name": _mn, "attend": 0, "last_date": None, "leaves": set()}
                 _groups = {"🟢": [], "🟡": [], "🔴": []}
+                _members_info = st.session_state.data.get("members", {})
                 for _item in _stats.values():
-                    _s = compute_status(_item["last_date"], set(_item["leaves"]))
+                    _jm = _members_info.get(_item["name"], {}).get("joined")
+                    _s = compute_status(_item["last_date"], set(_item["leaves"]), _jm)
                     if "🟢" in _s: _groups["🟢"].append(_item["name"])
                     elif "🟡" in _s: _groups["🟡"].append(_item["name"])
                     elif "🔴" in _s: _groups["🔴"].append(_item["name"])
