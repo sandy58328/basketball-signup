@@ -278,7 +278,7 @@ def save_data(data: dict):
         st.error(f"❌ 資料儲存失敗：{e}")
 
 def _empty_data() -> dict:
-    return {"sessions": {}, "hidden": [], "leaves": {}, "removed_members": [], "rained_out": []}
+    return {"sessions": {}, "hidden": [], "leaves": {}, "removed_members": [], "rained_out": [], "members": {}}
 
 def check_db_connection() -> bool:
     return get_sheet() is not None
@@ -595,6 +595,11 @@ def render_stats(raw_data: dict):
     )
 
     removed     = set(raw_data.get("removed_members", []))
+    # 手動加入的成員也納入統計
+    for _mname, _minfo in raw_data.get("members", {}).items():
+        _mk = normalize_name(_mname)
+        if _mk not in stats and _mk not in removed:
+            stats[_mk] = {"name": _mname, "attend": 0, "last_date": None, "leaves": set()}
     active_keys = [k for k in sorted(stats.keys()) if k not in removed]
 
     STATUS_ORDER = ["🟢", "🟡", "🔴", "🏖️"]
@@ -1301,6 +1306,70 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 st.session_state.is_admin = False; st.rerun()
 
         all_sessions = sorted(st.session_state.data["sessions"].keys())
+
+        # ── 成員管理 ──
+        st.markdown('<div class="admin-section"><div class="admin-section-title">👥 成員管理</div>', unsafe_allow_html=True)
+        _members = st.session_state.data.get("members", {})
+
+        # 新增成員
+        with st.form("add_member_form", clear_on_submit=True):
+            _mc1, _mc2, _mc3 = st.columns([2, 2, 1])
+            _new_name  = _mc1.text_input("姓名", placeholder="輸入成員姓名")
+            _new_month = _mc2.selectbox("加入月份",
+                options=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
+                format_func=lambda x: x[:4] + " 年 " + x[5:] + " 月"
+            )
+            if _mc3.form_submit_button("➕ 新增", use_container_width=True) and _new_name:
+                _d = load_data()
+                _d.setdefault("members", {})
+                _d["members"][_new_name] = {"joined": _new_month}
+                save_data(_d); build_stats.clear()
+                st.session_state.data = _d
+                st.toast(f"✅ 已新增 {_new_name}"); time.sleep(0.5); st.rerun()
+
+        # 成員清單
+        if _members:
+            for _mname, _minfo in sorted(_members.items()):
+                _joined = _minfo.get("joined", "未知")
+                _mc1, _mc2, _mc3, _mc4 = st.columns([2, 2, 1, 1])
+                _mc1.markdown(f"**{_mname}**")
+                _mc2.caption(f"加入：{_joined[:4]}年{_joined[5:]}月" if len(_joined) >= 7 else _joined)
+                if _mc3.button("✏️", key=f"edit_m_{_mname}", help="修改"):
+                    st.session_state[f"editing_member"] = _mname
+                if _mc4.button("🗑️", key=f"del_m_{_mname}", help="刪除"):
+                    _d = load_data()
+                    _d.setdefault("members", {})
+                    if _mname in _d["members"]: del _d["members"][_mname]
+                    save_data(_d); build_stats.clear()
+                    st.session_state.data = _d
+                    st.toast(f"🗑️ 已刪除 {_mname}"); time.sleep(0.5); st.rerun()
+        # 編輯成員
+        if st.session_state.get("editing_member"):
+            _em = st.session_state["editing_member"]
+            _em_info = _members.get(_em, {})
+            with st.form(f"edit_member_{_em}", clear_on_submit=True):
+                st.caption(f"修改：{_em}")
+                _em_c1, _em_c2 = st.columns(2)
+                _em_newname  = _em_c1.text_input("新名字", value=_em)
+                _em_newmonth = _em_c2.selectbox("加入月份",
+                    options=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
+                    format_func=lambda x: x[:4] + " 年 " + x[5:] + " 月",
+                    index=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)].index(_em_info.get("joined", date.today().strftime("%Y-%m"))) if _em_info.get("joined") in [(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)] else 0
+                )
+                _save, _cancel = st.columns(2)
+                if _save.form_submit_button("💾 儲存", use_container_width=True):
+                    _d = load_data()
+                    _d.setdefault("members", {})
+                    if _em in _d["members"]: del _d["members"][_em]
+                    _d["members"][_em_newname] = {"joined": _em_newmonth}
+                    save_data(_d); build_stats.clear()
+                    st.session_state.data = _d
+                    del st.session_state["editing_member"]
+                    st.toast(f"✅ 已更新"); time.sleep(0.5); st.rerun()
+                if _cancel.form_submit_button("取消", use_container_width=True):
+                    del st.session_state["editing_member"]
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # ── 場次管理 ──
         st.markdown('<div class="admin-section"><div class="admin-section-title">📅 場次管理</div>', unsafe_allow_html=True)
