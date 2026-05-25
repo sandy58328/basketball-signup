@@ -1247,6 +1247,12 @@ else:
                     tuple(st.session_state.data.get("rained_out", [])),
                     tuple(sorted(st.session_state.data["sessions"].keys()))
                 )
+                # 手動加入的成員也納入
+                _removed = set(st.session_state.data.get("removed_members", []))
+                for _mn, _mi in st.session_state.data.get("members", {}).items():
+                    _mk = normalize_name(_mn)
+                    if _mk not in _stats and _mk not in _removed:
+                        _stats[_mk] = {"name": _mn, "attend": 0, "last_date": None, "leaves": set()}
                 _groups = {"🟢": [], "🟡": [], "🔴": []}
                 for _item in _stats.values():
                     _s = compute_status(_item["last_date"], set(_item["leaves"]))
