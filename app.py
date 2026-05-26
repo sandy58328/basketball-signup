@@ -545,7 +545,8 @@ def _render_stat_row(key, item, signups, future_signups):
     future_str    = "　📅 " + ", ".join(future_list) if future_list else ""
     last_str      = str(last) if last else "無紀錄"
     leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
-    status        = compute_status(last, set(leaves_sorted))
+    _joined_m     = st.session_state.data.get("members", {}).get(item["name"], {}).get("joined")
+    status        = compute_status(last, set(leaves_sorted), _joined_m)
     row_cls       = status_to_row_class(status)
 
     if st.session_state.get(f"stat_edit_{key}"):
@@ -620,7 +621,8 @@ def render_stats(raw_data: dict):
     groups: dict[str, list] = {"🟢": [], "🟡": [], "🔴": [], "🏖️": []}
     for key in active_keys:
         item   = stats[key]
-        status = compute_status(item["last_date"], set(item["leaves"]))
+        _jm2   = st.session_state.data.get("members", {}).get(item["name"], {}).get("joined")
+        status = compute_status(item["last_date"], set(item["leaves"]), _jm2)
         if   "🔴" in status: groups["🔴"].append(key)
         elif "🟡" in status: groups["🟡"].append(key)
         elif "🏖️" in status: groups["🏖️"].append(key)
