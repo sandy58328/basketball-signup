@@ -543,9 +543,14 @@ def _render_stat_row(key, item, signups, future_signups):
     signup_str    = ", ".join(recent_two) or "—"
     future_list   = future_signups.get(key, [])
     future_str    = "　📅 " + ", ".join(future_list) if future_list else ""
-    last_str      = str(last) if last else "無紀錄"
-    leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
     _joined_m     = st.session_state.data.get("members", {}).get(item["name"], {}).get("joined")
+    if last:
+        last_str = str(last)
+    elif _joined_m:
+        last_str = f"{_joined_m[:4]}年{_joined_m[5:]}月加入"
+    else:
+        last_str = "無紀錄"
+    leave_str     = "　請假：" + ", ".join(leaves_sorted) if leaves_sorted else ""
     status        = compute_status(last, set(leaves_sorted), _joined_m)
     row_cls       = status_to_row_class(status)
 
