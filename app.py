@@ -264,7 +264,8 @@ def load_data() -> dict:
             "removed_members": meta.get("removed_members", []),
             "members":         members,
         }
-    except Exception:
+    except Exception as _e:
+        st.error(f"❌ 資料讀取失敗：{_e}")
         return _empty_data()
 
 def save_data(data: dict):
