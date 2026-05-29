@@ -265,7 +265,8 @@ def load_data() -> dict:
             "members":         members,
         }
     except Exception as _e:
-        st.error(f"❌ 資料讀取失敗：{_e}")
+        import traceback
+        st.error(f"❌ 資料讀取失敗：{_e}\n\n{traceback.format_exc()}")
         return _empty_data()
 
 def save_data(data: dict):
