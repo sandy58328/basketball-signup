@@ -724,6 +724,8 @@ if not check_db_connection():
     st.stop()
 
 st.session_state.data = load_data()
+if not st.session_state.data.get("sessions"):
+    st.warning(f"⚠️ sessions 是空的，請檢查 Google Sheets 連線")
 
 
 # ── 場次 ──
