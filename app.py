@@ -230,15 +230,8 @@ def get_sheet():
 def _read_cell(sheet, cell: str, default):
     try:
         raw = sheet.acell(cell).value
-        if not raw:
-            return default
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError as je:
-            st.error(f"❌ {cell} JSON 解析失敗（長度={len(raw)}）：{je}\n前100字：{raw[:100]}")
-            return default
-    except Exception as e:
-        st.error(f"❌ {cell} 讀取失敗：{e}")
+        return json.loads(raw) if raw else default
+    except Exception:
         return default
 
 def load_data() -> dict:
@@ -247,7 +240,6 @@ def load_data() -> dict:
         return _empty_data()
     try:
         a1_raw = _read_cell(sheet, 'A1', {})
-        st.info(f"🔍 A1 type={type(a1_raw).__name__}, keys={list(a1_raw.keys())[:3] if isinstance(a1_raw, dict) else str(a1_raw)[:80]}")
         if isinstance(a1_raw, dict) and "sessions" in a1_raw:
             old      = a1_raw
             sessions = old.get("sessions", {})
@@ -272,9 +264,7 @@ def load_data() -> dict:
             "removed_members": meta.get("removed_members", []),
             "members":         members,
         }
-    except Exception as _e:
-        import traceback
-        st.error(f"❌ 資料讀取失敗：{_e}\n\n{traceback.format_exc()}")
+    except Exception:
         return _empty_data()
 
 def save_data(data: dict):
@@ -733,8 +723,6 @@ if not check_db_connection():
     st.stop()
 
 st.session_state.data = load_data()
-if not st.session_state.data.get("sessions"):
-    st.warning(f"⚠️ sessions 是空的，請檢查 Google Sheets 連線")
 
 
 # ── 場次 ──
