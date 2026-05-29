@@ -240,6 +240,7 @@ def load_data() -> dict:
         return _empty_data()
     try:
         a1_raw = _read_cell(sheet, 'A1', {})
+        st.info(f"🔍 A1 type={type(a1_raw).__name__}, keys={list(a1_raw.keys())[:3] if isinstance(a1_raw, dict) else str(a1_raw)[:80]}")
         if isinstance(a1_raw, dict) and "sessions" in a1_raw:
             old      = a1_raw
             sessions = old.get("sessions", {})
