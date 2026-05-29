@@ -230,8 +230,15 @@ def get_sheet():
 def _read_cell(sheet, cell: str, default):
     try:
         raw = sheet.acell(cell).value
-        return json.loads(raw) if raw else default
-    except Exception:
+        if not raw:
+            return default
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as je:
+            st.error(f"❌ {cell} JSON 解析失敗（長度={len(raw)}）：{je}\n前100字：{raw[:100]}")
+            return default
+    except Exception as e:
+        st.error(f"❌ {cell} 讀取失敗：{e}")
         return default
 
 def load_data() -> dict:
