@@ -1233,6 +1233,16 @@ else:
                                                 "occupyCourt": occupy_court if first else False,
                                                 "timestamp": ts + (k * 0.01),
                                             })
+                                        # 自動刪除當月請假
+                                        _signup_month = dk[:7]  # YYYY-MM
+                                        _pname_norm = normalize_name(player_name)
+                                        for _ln in list(latest.get("leaves", {}).keys()):
+                                            if normalize_name(_ln) == _pname_norm:
+                                                if _signup_month in latest["leaves"][_ln]:
+                                                    latest["leaves"][_ln].remove(_signup_month)
+                                                    if not latest["leaves"][_ln]:
+                                                        del latest["leaves"][_ln]
+                                                    break
                                         save_data(latest); build_stats.clear()
                                         st.session_state['_tab_jump'] = i
                                         st.session_state['show_basket_anim'] = True
