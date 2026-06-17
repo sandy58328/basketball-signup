@@ -673,30 +673,47 @@ def render_stats(raw_data: dict):
         st.divider()
         with st.expander(f"👻 已退群名單（{len(removed)} 人）", expanded=False):
             removed_stats = {k: stats[k] for k in removed if k in stats}
-            if removed_stats:
-                for key, item in sorted(removed_stats.items(), key=lambda x: x[1]['name']):
-                    c1, c2, c3 = st.columns([4, 1, 1])
-                    c1.markdown(f"**{item['name']}**")
-                    with c2:
-                        if st.button("↩️ 恢復", key=f"stat_restore_{key}"):
+            # 有紀錄的
+            for key, item in sorted(removed_stats.items(), key=lambda x: x[1]['name']):
+                c1, c2, c3 = st.columns([4, 1, 1])
+                c1.markdown(f"**{item['name']}**")
+                with c2:
+                    if st.button("↩️ 恢復", key=f"stat_restore_{key}"):
+                        cur = load_data()
+                        if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
+                        save_data(cur); build_stats.clear()
+                        st.toast(f"✅ {item['name']} 已恢復"); time.sleep(0.5); st.rerun()
+                with c3:
+                    with st.popover("🗑️"):
+                        st.warning(f"永久刪除「{item['name']}」所有紀錄？此操作無法復原！", icon="⚠️")
+                        if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
+                            cur = load_data()
+                            if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
+                            for sd in cur["sessions"]:
+                                cur["sessions"][sd] = [p for p in cur["sessions"][sd] if normalize_name(p['name']) != key]
+                            for rn in list(cur["leaves"].keys()):
+                                if normalize_name(rn) == key: del cur["leaves"][rn]
+                            save_data(cur); build_stats.clear()
+                            st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
+            # 沒有歷史紀錄的
+            no_record = [k for k in removed if k not in stats]
+            for key in sorted(no_record):
+                c1, c2, c3 = st.columns([4, 1, 1])
+                c1.markdown(f"**{key}**（無歷史紀錄）")
+                with c2:
+                    if st.button("↩️ 恢復", key=f"stat_restore_{key}"):
+                        cur = load_data()
+                        if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
+                        save_data(cur); build_stats.clear()
+                        st.toast(f"✅ 已恢復"); time.sleep(0.5); st.rerun()
+                with c3:
+                    with st.popover("🗑️"):
+                        st.warning(f"永久刪除「{key}」？此操作無法復原！", icon="⚠️")
+                        if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
                             cur = load_data()
                             if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
                             save_data(cur); build_stats.clear()
-                            st.toast(f"✅ {item['name']} 已恢復"); time.sleep(0.5); st.rerun()
-                    with c3:
-                        with st.popover("🗑️"):
-                            st.warning(f"永久刪除「{item['name']}」所有紀錄？此操作無法復原！", icon="⚠️")
-                            if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
-                                cur = load_data()
-                                if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
-                                for sd in cur["sessions"]:
-                                    cur["sessions"][sd] = [p for p in cur["sessions"][sd] if normalize_name(p['name']) != key]
-                                for rn in list(cur["leaves"].keys()):
-                                    if normalize_name(rn) == key: del cur["leaves"][rn]
-                                save_data(cur); build_stats.clear()
-                                st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
-            else:
-                st.write("（無歷史紀錄）")
+                            st.toast(f"🗑️ 已永久刪除"); time.sleep(0.5); st.rerun()
 
 # ==========================================
 # 7. 初始化
