@@ -5,6 +5,8 @@ import time
 import uuid
 import re
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 from dateutil.relativedelta import relativedelta
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -1095,7 +1097,7 @@ else:
             is_rained_out = dk in rained_out
             dt_obj        = datetime.strptime(dk, "%Y-%m-%d")
             cutoff        = (dt_obj - timedelta(days=1)).replace(hour=12, minute=0, second=0)
-            is_expired    = datetime.now() > cutoff
+            is_expired    = datetime.now(TZ_TAIPEI).replace(tzinfo=None) > cutoff
             can_operate   = st.session_state.is_admin or (not is_expired)
 
             if is_rained_out:
@@ -1164,7 +1166,7 @@ else:
                     </div>""", unsafe_allow_html=True)
                 # 截止倒數
                 if not is_expired:
-                    _remaining = cutoff - datetime.now()
+                    _remaining = cutoff - datetime.now(TZ_TAIPEI).replace(tzinfo=None)
                     _hrs = int(_remaining.total_seconds() // 3600)
                     _mins = int((_remaining.total_seconds() % 3600) // 60)
                     if _hrs >= 24:
