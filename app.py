@@ -269,21 +269,18 @@ def load_data() -> dict:
     except Exception:
         return _empty_data()
 
-def save_data(data: dict) -> bool:
+def save_data(data: dict):
     sheet = get_sheet()
     if not sheet:
-        st.error("❌ 資料庫連線失敗，未儲存。請稍後再試或聯絡管理員。")
-        return False
+        return
     try:
         meta = {"hidden": data.get("hidden", []), "rained_out": data.get("rained_out", []), "removed_members": data.get("removed_members", [])}
         sheet.update_acell('A1', json.dumps(data.get("sessions", {}), ensure_ascii=False))
         sheet.update_acell('B1', json.dumps(meta,                     ensure_ascii=False))
         sheet.update_acell('C1', json.dumps(data.get("leaves", {}),   ensure_ascii=False))
         sheet.update_acell('D1', json.dumps(data.get("members", {}),  ensure_ascii=False))
-        return True
     except Exception as e:
-        st.error(f"❌ 資料儲存失敗，未儲存：{e}")
-        return False
+        st.error(f"❌ 資料儲存失敗：{e}")
 
 def _empty_data() -> dict:
     return {"sessions": {}, "hidden": [], "leaves": {}, "removed_members": [], "rained_out": [], "members": {}}
@@ -1202,6 +1199,7 @@ else:
                     else:
                         with st.form(f"signup_{dk}", clear_on_submit=True):
                             player_name  = st.text_input("✏️ 球員姓名", placeholder="請輸入你的名字", disabled=submit_disabled)
+                            st.caption("⚠️ 請輸入與 Line 群組**相同**的名字")
 
                             # checkbox 兩列排版，手機不擠
                             r1c1, r1c2 = st.columns(2)
@@ -1263,14 +1261,11 @@ else:
                                                     if not latest["leaves"][_ln]:
                                                         del latest["leaves"][_ln]
                                                     break
-                                        if save_data(latest):
-                                            build_stats.clear()
-                                            st.session_state['_tab_jump'] = i
-                                            st.session_state['show_basket_anim'] = True
-                                            st.session_state['scroll_to'] = full_name
-                                            st.rerun()
-                                        else:
-                                            st.error("❌ 報名未儲存成功，請重新整理頁面後再試一次。")
+                                        save_data(latest); build_stats.clear()
+                                        st.session_state['_tab_jump'] = i
+                                        st.session_state['show_basket_anim'] = True
+                                        st.session_state['scroll_to'] = full_name
+                                        st.rerun()
 
             else:
                 st.caption("⛔ 報名已截止（前一日 12:00）")
@@ -1288,11 +1283,8 @@ else:
                         _ld["leaves"].setdefault(leave_name, [])
                         if _ms not in _ld["leaves"][leave_name]:
                             _ld["leaves"][leave_name].append(_ms)
-                            if save_data(_ld):
-                                build_stats.clear()
-                                st.toast("✅ 已登記"); time.sleep(1); st.rerun()
-                            else:
-                                st.error("❌ 假單未儲存成功，請重新整理後再試。")
+                            save_data(_ld); build_stats.clear()
+                            st.toast("✅ 已登記"); time.sleep(1); st.rerun()
                         else:
                             st.warning("已登記過這個月了")
 
