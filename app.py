@@ -284,6 +284,36 @@ def archive_hidden_sessions(newly_hidden_keys: list[str], data: dict) -> None:
     sheet.update_acell('A1', json.dumps(archive, ensure_ascii=False))
     load_archive.clear()
 
+def auto_archive_old_sessions():
+    """只保留「這個月＋下個月」的場次顯示，其餘自動隱藏並搬進封存分頁。
+    每次開啟 app 都會檢查，視窗會隨月份自動往後推移，不用手動維護。
+    資料不會不見：只是搬去 sessions_archive 分頁，統計會自動合併回來計算。"""
+    data = st.session_state.data
+    _keep_months = {
+        taipei_today().strftime("%Y-%m"),
+        (taipei_today() + relativedelta(months=1)).strftime("%Y-%m"),
+    }
+    _hidden_now = set(data.get("hidden", []))
+    _to_hide = [
+        d for d in data["sessions"].keys()
+        if d[:7] not in _keep_months and d not in _hidden_now
+    ]
+    if not _to_hide:
+        return  # 沒有新的要處理，不用多打 API
+    load_data.clear()
+    fresh = load_data()
+    _hidden_now = set(fresh.get("hidden", []))
+    _to_hide = [
+        d for d in fresh["sessions"].keys()
+        if d[:7] not in _keep_months and d not in _hidden_now
+    ]
+    if not _to_hide:
+        return
+    fresh["hidden"] = sorted(_hidden_now | set(_to_hide))
+    archive_hidden_sessions(_to_hide, fresh)
+    if save_data(fresh):
+        st.session_state.data = fresh
+
 def _parse(raw, default):
     try:
         return json.loads(raw) if raw else default
@@ -852,6 +882,7 @@ if not check_db_connection():
     st.stop()
 
 st.session_state.data = load_data()
+auto_archive_old_sessions()  # 自動只留近兩個月場次，其餘搬去封存（資料不會不見，統計照算）
 
 
 # ── 場次 ──
