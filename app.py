@@ -1602,19 +1602,23 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             # ── 場次設定 ──
             if all_sessions:
                 st.markdown('<div class="admin-section"><div class="admin-section-title">⚙️ 場次設定</div>', unsafe_allow_html=True)
-                hidden = st.multiselect("👁️ 隱藏場次", all_sessions, default=st.session_state.data.get("hidden", []))
+                _hidden_all     = st.session_state.data.get("hidden", [])
+                _hidden_default = [d for d in _hidden_all if d in all_sessions]        # 已封存的舊場次不在選項裡，預設值要濾掉，不然選單會報錯
+                _hidden_archived = [d for d in _hidden_all if d not in all_sessions]   # 已封存的維持隱藏狀態，存檔時要補回去，不然會被誤判成「取消隱藏」
+                hidden = st.multiselect("👁️ 隱藏場次", all_sessions, default=_hidden_default)
                 if st.button("更新隱藏設定", use_container_width=True):
                     load_data.clear()
                     data = load_data()
-                    newly_hidden = [k for k in hidden if k not in data.get("hidden", [])]
-                    data["hidden"] = hidden
+                    newly_hidden = [k for k in hidden if k not in _hidden_all]
+                    data["hidden"] = sorted(set(hidden) | set(_hidden_archived))
                     archive_hidden_sessions(newly_hidden, data)  # 搬去封存分頁，避免 A1 塞爆
                     if save_data(data):
                         st.rerun()
                     else:
                         st.error("❌ 更新未成功儲存，請再試一次。")
                 st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
-                new_rained = st.multiselect("☔ 天氣取消場次", all_sessions, default=st.session_state.data.get("rained_out", []), key="rained_multiselect")
+                _rained_default = [d for d in st.session_state.data.get("rained_out", []) if d in all_sessions]
+                new_rained = st.multiselect("☔ 天氣取消場次", all_sessions, default=_rained_default, key="rained_multiselect")
                 if st.button("更新天氣取消設定", use_container_width=True):
                     load_data.clear()
                     data = load_data(); data["rained_out"] = new_rained
