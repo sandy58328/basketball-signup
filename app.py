@@ -484,6 +484,8 @@ def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_v
     player.update({'name': name, 'isMember': False if is_friend(name) else is_member,
                    'bringBall': bring_ball, 'occupyCourt': occupy_court, 'count': 0 if is_visitor else 1})
     if save_data(data):
+        st.session_state.data = data
+        st.session_state['_skip_data_reload'] = True
         _set_tab_for_date(date_key, data)
         st.session_state.edit_target = None
         st.toast("✅ 資料已更新")
@@ -523,6 +525,8 @@ def delete_player(pid, date_key):
     if st.session_state.edit_target == pid:
         st.session_state.edit_target = None
     if save_data(data):
+        st.session_state.data = data
+        st.session_state['_skip_data_reload'] = True
         _set_tab_for_date(date_key, data)
         st.toast("🗑️ 已刪除")
         time.sleep(0.5)
@@ -687,6 +691,8 @@ def _render_stat_row(key, item, signups, future_signups):
                 if old in cur["leaves"]:
                     cur["leaves"][new_display] = cur["leaves"].pop(old)
                 if save_data(cur):
+                    st.session_state.data = cur
+                    st.session_state['_skip_data_reload'] = True
                     build_stats.clear()
                     st.session_state[f"stat_edit_{key}"] = False
                     st.toast("✅ 名稱已更新"); time.sleep(0.5); st.rerun()
@@ -699,6 +705,8 @@ def _render_stat_row(key, item, signups, future_signups):
                 cur = load_data(); cur.setdefault("removed_members", [])
                 if key not in cur["removed_members"]: cur["removed_members"].append(key)
                 if save_data(cur):
+                    st.session_state.data = cur
+                    st.session_state['_skip_data_reload'] = True
                     build_stats.clear()
                     st.session_state[f"stat_edit_{key}"] = False
                     st.toast(f"👋 {item['name']} 已從統計移除"); time.sleep(0.5); st.rerun()
@@ -722,6 +730,8 @@ def _render_stat_row(key, item, signups, future_signups):
                     cur = load_data(); cur.setdefault("removed_members", [])
                     if key not in cur["removed_members"]: cur["removed_members"].append(key)
                     if save_data(cur):
+                        st.session_state.data = cur
+                        st.session_state['_skip_data_reload'] = True
                         build_stats.clear()
                         st.toast(f"👋 {item['name']} 已移除"); time.sleep(0.5); st.rerun()
                     else:
@@ -810,6 +820,8 @@ def render_stats(raw_data: dict):
                         cur = load_data()
                         if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
                         if save_data(cur):
+                            st.session_state.data = cur
+                            st.session_state['_skip_data_reload'] = True
                             build_stats.clear()
                             st.toast(f"✅ {item['name']} 已恢復"); time.sleep(0.5); st.rerun()
                         else:
@@ -826,6 +838,8 @@ def render_stats(raw_data: dict):
                             for rn in list(cur["leaves"].keys()):
                                 if normalize_name(rn) == key: del cur["leaves"][rn]
                             if save_data(cur):
+                                st.session_state.data = cur
+                                st.session_state['_skip_data_reload'] = True
                                 build_stats.clear()
                                 st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
                             else:
@@ -841,6 +855,8 @@ def render_stats(raw_data: dict):
                         cur = load_data()
                         if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
                         if save_data(cur):
+                            st.session_state.data = cur
+                            st.session_state['_skip_data_reload'] = True
                             build_stats.clear()
                             st.toast(f"✅ 已恢復"); time.sleep(0.5); st.rerun()
                         else:
@@ -853,6 +869,8 @@ def render_stats(raw_data: dict):
                             cur = load_data()
                             if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
                             if save_data(cur):
+                                st.session_state.data = cur
+                                st.session_state['_skip_data_reload'] = True
                                 build_stats.clear()
                                 st.toast(f"🗑️ 已永久刪除"); time.sleep(0.5); st.rerun()
                             else:
@@ -884,7 +902,10 @@ if not check_db_connection():
     st.markdown('<div class="db-status-err">❌ 資料庫連線異常，請重新整理或聯絡管理員</div>', unsafe_allow_html=True)
     st.stop()
 
-st.session_state.data = load_data()
+if st.session_state.pop('_skip_data_reload', False):
+    pass  # 上一個動作剛存檔完，已經知道最新資料，不用馬上再問一次 Google，省一次網路來回
+else:
+    st.session_state.data = load_data()
 auto_archive_old_sessions()  # 自動只留近兩個月場次，其餘搬去封存（資料不會不見，統計照算）
 
 
@@ -1415,6 +1436,8 @@ else:
                                                         del latest["leaves"][_ln]
                                                     break
                                         if save_data(latest):
+                                            st.session_state.data = latest
+                                            st.session_state['_skip_data_reload'] = True
                                             build_stats.clear()
                                             st.session_state['_tab_jump'] = i
                                             st.session_state['show_basket_anim'] = True
@@ -1441,6 +1464,8 @@ else:
                         if _ms not in _ld["leaves"][leave_name]:
                             _ld["leaves"][leave_name].append(_ms)
                             if save_data(_ld):
+                                st.session_state.data = _ld
+                                st.session_state['_skip_data_reload'] = True
                                 build_stats.clear()
                                 st.toast("✅ 已登記"); time.sleep(1); st.rerun()
                             else:
@@ -1545,8 +1570,9 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     _d.setdefault("members", {})
                     _d["members"][_new_name] = {"joined": _new_month}
                     if save_data(_d):
-                        build_stats.clear()
                         st.session_state.data = _d
+                        st.session_state['_skip_data_reload'] = True
+                        build_stats.clear()
                         st.toast(f"✅ 已新增 {_new_name}"); time.sleep(0.5); st.rerun()
                     else:
                         st.error("❌ 新增未成功儲存，請再試一次。")
@@ -1566,8 +1592,9 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                         _d.setdefault("members", {})
                         if _mname in _d["members"]: del _d["members"][_mname]
                         if save_data(_d):
-                            build_stats.clear()
                             st.session_state.data = _d
+                            st.session_state['_skip_data_reload'] = True
+                            build_stats.clear()
                             st.toast(f"🗑️ 已刪除 {_mname}"); time.sleep(0.5); st.rerun()
                         else:
                             st.error("❌ 刪除未成功儲存，請再試一次。")
@@ -1592,8 +1619,9 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                         if _em in _d["members"]: del _d["members"][_em]
                         _d["members"][_em_newname] = {"joined": _em_newmonth}
                         if save_data(_d):
-                            build_stats.clear()
                             st.session_state.data = _d
+                            st.session_state['_skip_data_reload'] = True
+                            build_stats.clear()
                             del st.session_state["editing_member"]
                             st.toast(f"✅ 已更新"); time.sleep(0.5); st.rerun()
                         else:
@@ -1616,6 +1644,8 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     if str(new_date) not in data["sessions"]:
                         data["sessions"][str(new_date)] = []
                         if save_data(data):
+                            st.session_state.data = data
+                            st.session_state['_skip_data_reload'] = True
                             st.rerun()
                         else:
                             st.error("❌ 新增未成功儲存，請再試一次。")
@@ -1628,6 +1658,8 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                         load_data.clear()
                         data = load_data(); del data["sessions"][del_target]
                         if save_data(data):
+                            st.session_state.data = data
+                            st.session_state['_skip_data_reload'] = True
                             build_stats.clear(); st.rerun()
                         else:
                             st.error("❌ 刪除未成功儲存，請再試一次。")
@@ -1647,6 +1679,8 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     data["hidden"] = sorted(set(hidden) | set(_hidden_archived))
                     archive_hidden_sessions(newly_hidden, data)  # 搬去封存分頁，避免 A1 塞爆
                     if save_data(data):
+                        st.session_state.data = data
+                        st.session_state['_skip_data_reload'] = True
                         st.rerun()
                     else:
                         st.error("❌ 更新未成功儲存，請再試一次。")
@@ -1657,6 +1691,8 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                     load_data.clear()
                     data = load_data(); data["rained_out"] = new_rained
                     if save_data(data):
+                        st.session_state.data = data
+                        st.session_state['_skip_data_reload'] = True
                         build_stats.clear()
                         st.toast("✅ 已更新"); time.sleep(0.5); st.rerun()
                     else:
