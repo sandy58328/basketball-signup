@@ -890,9 +890,9 @@ load_css()
 # ==========================================
 # 8. 主畫面
 # ==========================================
-components.html(
+st.markdown(
     '''<div style="display:flex;justify-content:center;margin-bottom:16px;"><div style="background:white;border-radius:20px;overflow:hidden;display:inline-flex;align-items:stretch;border:1px solid #e8e6e0;box-shadow:0 2px 12px rgba(0,0,0,0.06);"><div style="width:130px;flex-shrink:0;overflow:hidden;position:relative;"><img src="https://raw.githubusercontent.com/sandy58328/basketball-signup/main/assets/header.jpg" style="width:100%;height:100%;object-fit:cover;object-position:30% center;display:block;" alt=""><div style="position:absolute;top:0;right:0;bottom:0;width:15%;background:linear-gradient(to right,transparent,white);"></div></div><div style="padding:20px 22px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px;"><div style="font-size:17px;font-weight:900;color:#1e293b;line-height:1.3;">晴女 ☀️ 在場邊等妳 🌈</div><div style="font-size:13px;color:#64748b;font-weight:600;">Keep Playing, Keep Shining</div><div style="margin-top:8px;display:table;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:30px;padding:4px 13px;font-size:12px;font-weight:600;color:#475569;white-space:nowrap;">📍 朱崙公園 &nbsp;|&nbsp; 🕑 19:00</div></div></div></div>''',
-    height=140
+    unsafe_allow_html=True
 )
 
 if st.session_state.is_admin:
