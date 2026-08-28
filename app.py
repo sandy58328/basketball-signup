@@ -7,6 +7,10 @@ import re
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
+
+def taipei_today() -> date:
+    """統一用台北時區判斷「今天」，避免伺服器 UTC 時間在月初/日期交界時分類錯誤。"""
+    return datetime.now(TZ_TAIPEI).date()
 from dateutil.relativedelta import relativedelta
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -17,6 +21,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 MAX_CAPACITY         = 20
 APP_URL              = "https://sunny-girls-basketball.streamlit.app"
 SHEET_NAME           = "basketball_db"
+SHEET_KEY            = "1ZUI1YlL2BZZFFa5Cvg5CIGex_wq0l5o_PgoSLB-ua_c"
 ARCHIVE_SHEET_TITLE  = "sessions_archive"
 ABSENCE_LIMIT_MONTHS = 2
 MAX_LEAVE_EXEMPT     = 2
@@ -220,29 +225,33 @@ def load_css():
 # 2. 資料庫
 # ==========================================
 @st.cache_resource
-def get_sheet():
+@st.cache_resource(show_spinner=False)
+def _get_gspread_book():
+    """驗證帳號＋開啟試算表只做一次並快取，之後重複使用同一條連線，避免每次操作都重新驗證造成的延遲與 API 限流。"""
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds  = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+    client = gspread.authorize(creds)
+    return client.open_by_key(SHEET_KEY)  # 用 ID 直接開，比用名稱搜尋快，也避免同名試算表誤開
+
+def get_sheet():
     try:
-        creds  = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        client = gspread.authorize(creds)
-        return client.open(SHEET_NAME).sheet1
+        return _get_gspread_book().sheet1
     except Exception as e:
         st.error(f"❌ 資料庫連線失敗：{e}")
+        _get_gspread_book.clear()  # 連線可能已失效，清掉快取讓下次重新驗證
         return None
 
 def get_archive_sheet():
     """已隱藏的舊場次資料改放這個分頁，避免 A1 撞到 Google Sheets 單一儲存格 50000 字元上限。"""
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     try:
-        creds  = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        client = gspread.authorize(creds)
-        book   = client.open(SHEET_NAME)
+        book = _get_gspread_book()
         try:
             return book.worksheet(ARCHIVE_SHEET_TITLE)
         except gspread.exceptions.WorksheetNotFound:
             return book.add_worksheet(title=ARCHIVE_SHEET_TITLE, rows=10, cols=4)
     except Exception as e:
         st.error(f"❌ 封存分頁連線失敗：{e}")
+        _get_gspread_book.clear()
         return None
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -373,7 +382,7 @@ def format_timestamp(ts: float) -> str:
     if not ts:
         return ""
     dt    = datetime.fromtimestamp(ts)
-    today = date.today()
+    today = taipei_today()
     d     = dt.date()
     if d == today:
         return f"今天 {dt.strftime('%H:%M')}"
@@ -383,7 +392,7 @@ def format_timestamp(ts: float) -> str:
         return dt.strftime("%-m/%-d %H:%M")
 
 def compute_status(last_date: date | None, leave_months: set[str], joined_month: str | None = None) -> str:
-    today             = date.today()
+    today             = taipei_today()
     current_month_str = today.strftime("%Y-%m")
     if last_date is None:
         # 如果有加入月份，計算是否在寬限期內（加入月+2個月）
@@ -429,6 +438,7 @@ def status_to_row_class(status: str) -> str:
 # 4. 報名 CRUD
 # ==========================================
 def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_visitor):
+    load_data.clear()  # 強制重讀最新資料，避免跟同時間的其他操作互相覆蓋
     data   = load_data()
     player = next((p for p in data["sessions"][date_key] if p['id'] == pid), None)
     if not player:
@@ -440,12 +450,14 @@ def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_v
                 p['name'] = p['name'].replace(old_name, name, 1)
     player.update({'name': name, 'isMember': False if is_friend(name) else is_member,
                    'bringBall': bring_ball, 'occupyCourt': occupy_court, 'count': 0 if is_visitor else 1})
-    save_data(data)
-    _set_tab_for_date(date_key, data)
-    st.session_state.edit_target = None
-    st.toast("✅ 資料已更新")
-    time.sleep(0.5)
-    st.rerun()
+    if save_data(data):
+        _set_tab_for_date(date_key, data)
+        st.session_state.edit_target = None
+        st.toast("✅ 資料已更新")
+        time.sleep(0.5)
+        st.rerun()
+    else:
+        st.error("❌ 更新未成功儲存，請再試一次。")
 
 def _set_tab_for_date(date_key: str, data: dict | None = None):
     """rerun 前呼叫，確保畫面停在 date_key 對應的 tab。"""
@@ -460,6 +472,7 @@ def _set_tab_for_date(date_key: str, data: dict | None = None):
         pass
 
 def delete_player(pid, date_key):
+    load_data.clear()  # 強制重讀最新資料，避免跟同時間的其他操作互相覆蓋
     data   = load_data()
     target = next((p for p in data["sessions"][date_key] if p['id'] == pid), None)
     if not target:
@@ -476,11 +489,13 @@ def delete_player(pid, date_key):
         ]
     if st.session_state.edit_target == pid:
         st.session_state.edit_target = None
-    save_data(data)
-    _set_tab_for_date(date_key, data)
-    st.toast("🗑️ 已刪除")
-    time.sleep(0.5)
-    st.rerun()
+    if save_data(data):
+        _set_tab_for_date(date_key, data)
+        st.toast("🗑️ 已刪除")
+        time.sleep(0.5)
+        st.rerun()
+    else:
+        st.error("❌ 刪除未成功儲存，請再試一次。")
 
 # ==========================================
 # 5. 名單渲染
@@ -570,7 +585,7 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
     for sd in all_dates:
         day   = datetime.strptime(sd, "%Y-%m-%d").date()
         label = f"{int(sd.split('-')[1])}/{int(sd.split('-')[2])}"
-        if day > date.today():
+        if day > taipei_today():
             for p in sessions.get(sd, []):
                 if not is_friend(p['name']):
                     future_signups.setdefault(get_norm(p['name']), []).append(label)
@@ -584,7 +599,7 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
     stats: dict[str, dict] = {}
     for sd, players in sessions.items():
         day = datetime.strptime(sd, "%Y-%m-%d").date()
-        if day > date.today():
+        if day > taipei_today():
             continue
         for p in players:
             if not is_friend(p['name']):
@@ -627,6 +642,7 @@ def _render_stat_row(key, item, signups, future_signups):
             new_display = st.text_input("顯示名稱", item['name'])
             b1, b2, b3  = st.columns(3)
             if b1.form_submit_button("💾 儲存", type="primary"):
+                load_data.clear()
                 cur = load_data(); old = item['name']
                 for sd in cur["sessions"]:
                     for p in cur["sessions"][sd]:
@@ -637,17 +653,24 @@ def _render_stat_row(key, item, signups, future_signups):
                                 fp['name'] = fp['name'].replace(old, new_display, 1)
                 if old in cur["leaves"]:
                     cur["leaves"][new_display] = cur["leaves"].pop(old)
-                save_data(cur); build_stats.clear()
-                st.session_state[f"stat_edit_{key}"] = False
-                st.toast("✅ 名稱已更新"); time.sleep(0.5); st.rerun()
+                if save_data(cur):
+                    build_stats.clear()
+                    st.session_state[f"stat_edit_{key}"] = False
+                    st.toast("✅ 名稱已更新"); time.sleep(0.5); st.rerun()
+                else:
+                    st.error("❌ 更新未成功儲存，請再試一次。")
             if b2.form_submit_button("取消"):
                 st.session_state[f"stat_edit_{key}"] = False; st.rerun()
             if b3.form_submit_button("🚪 退群", type="secondary"):
+                load_data.clear()
                 cur = load_data(); cur.setdefault("removed_members", [])
                 if key not in cur["removed_members"]: cur["removed_members"].append(key)
-                save_data(cur); build_stats.clear()
-                st.session_state[f"stat_edit_{key}"] = False
-                st.toast(f"👋 {item['name']} 已從統計移除"); time.sleep(0.5); st.rerun()
+                if save_data(cur):
+                    build_stats.clear()
+                    st.session_state[f"stat_edit_{key}"] = False
+                    st.toast(f"👋 {item['name']} 已從統計移除"); time.sleep(0.5); st.rerun()
+                else:
+                    st.error("❌ 更新未成功儲存，請再試一次。")
     else:
         cols = st.columns([5.5, 1, 1], gap="small")
         with cols[0]:
@@ -662,10 +685,14 @@ def _render_stat_row(key, item, signups, future_signups):
             with st.popover("🚪"):
                 st.write(f"將「{item['name']}」移至已退群？")
                 if st.button("確認退群", key=f"stat_rm_{key}", type="primary"):
+                    load_data.clear()
                     cur = load_data(); cur.setdefault("removed_members", [])
                     if key not in cur["removed_members"]: cur["removed_members"].append(key)
-                    save_data(cur); build_stats.clear()
-                    st.toast(f"👋 {item['name']} 已移除"); time.sleep(0.5); st.rerun()
+                    if save_data(cur):
+                        build_stats.clear()
+                        st.toast(f"👋 {item['name']} 已移除"); time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("❌ 更新未成功儲存，請再試一次。")
 
 
 def render_stats(raw_data: dict):
@@ -746,22 +773,30 @@ def render_stats(raw_data: dict):
                 c1.markdown(f"**{item['name']}**")
                 with c2:
                     if st.button("↩️ 恢復", key=f"stat_restore_{key}"):
+                        load_data.clear()
                         cur = load_data()
                         if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
-                        save_data(cur); build_stats.clear()
-                        st.toast(f"✅ {item['name']} 已恢復"); time.sleep(0.5); st.rerun()
+                        if save_data(cur):
+                            build_stats.clear()
+                            st.toast(f"✅ {item['name']} 已恢復"); time.sleep(0.5); st.rerun()
+                        else:
+                            st.error("❌ 更新未成功儲存，請再試一次。")
                 with c3:
                     with st.popover("🗑️"):
                         st.warning(f"永久刪除「{item['name']}」所有紀錄？此操作無法復原！", icon="⚠️")
                         if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
+                            load_data.clear()
                             cur = load_data()
                             if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
                             for sd in cur["sessions"]:
                                 cur["sessions"][sd] = [p for p in cur["sessions"][sd] if normalize_name(p['name']) != key]
                             for rn in list(cur["leaves"].keys()):
                                 if normalize_name(rn) == key: del cur["leaves"][rn]
-                            save_data(cur); build_stats.clear()
-                            st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
+                            if save_data(cur):
+                                build_stats.clear()
+                                st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
+                            else:
+                                st.error("❌ 刪除未成功儲存，請再試一次。")
             # 沒有歷史紀錄的
             no_record = [k for k in removed if k not in stats]
             for key in sorted(no_record):
@@ -769,18 +804,26 @@ def render_stats(raw_data: dict):
                 c1.markdown(f"**{key}**（無歷史紀錄）")
                 with c2:
                     if st.button("↩️ 恢復", key=f"stat_restore_{key}"):
+                        load_data.clear()
                         cur = load_data()
                         if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
-                        save_data(cur); build_stats.clear()
-                        st.toast(f"✅ 已恢復"); time.sleep(0.5); st.rerun()
+                        if save_data(cur):
+                            build_stats.clear()
+                            st.toast(f"✅ 已恢復"); time.sleep(0.5); st.rerun()
+                        else:
+                            st.error("❌ 更新未成功儲存，請再試一次。")
                 with c3:
                     with st.popover("🗑️"):
                         st.warning(f"永久刪除「{key}」？此操作無法復原！", icon="⚠️")
                         if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
+                            load_data.clear()
                             cur = load_data()
                             if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
-                            save_data(cur); build_stats.clear()
-                            st.toast(f"🗑️ 已永久刪除"); time.sleep(0.5); st.rerun()
+                            if save_data(cur):
+                                build_stats.clear()
+                                st.toast(f"🗑️ 已永久刪除"); time.sleep(0.5); st.rerun()
+                            else:
+                                st.error("❌ 刪除未成功儲存，請再試一次。")
 
 # ==========================================
 # 7. 初始化
@@ -1130,7 +1173,7 @@ else:
         if saved is not None and 0 <= saved < len(visible_dates):
             return saved
         # 預設：最近的未來或今天場次
-        _today = date.today()
+        _today = taipei_today()
         for j, d in enumerate(visible_dates):
             if datetime.strptime(d, "%Y-%m-%d").date() >= _today:
                 st.session_state['_active_session'] = j
@@ -1154,7 +1197,7 @@ else:
         rain_icon  = "☔ " if is_rain else ""
         count_txt  = f"{play_cnt}/{MAX_CAPACITY}" + (f" +{wait_cnt}" if wait_cnt > 0 else "")
         # 整張卡片就是按鈕，用 label 排版
-        _today_d   = date.today()
+        _today_d   = taipei_today()
         _dobj      = datetime.strptime(d, "%Y-%m-%d").date()
         _delta     = (_dobj - _today_d).days
         if _delta < 0:    _day_hint = "已結束"
@@ -1291,6 +1334,7 @@ else:
                                 if "友" in player_name:
                                     st.error("❌ 請輸入團員姓名")
                                 elif player_name:
+                                    load_data.clear()  # 強制重讀最新資料，避免跟同時間報名的人互相覆蓋
                                     latest        = load_data()
                                     existing      = latest["sessions"].get(dk, [])
                                     related_count = len([
@@ -1344,17 +1388,21 @@ else:
             with st.expander("🏖️ 我要請假（長假登記）", expanded=False):
                 with st.form(f"leave_form_{dk}", clear_on_submit=True):
                     leave_name  = st.text_input("姓名", key=f"ln_{dk}")
-                    _today = date.today()
+                    _today = taipei_today()
                     _months = [((_today + relativedelta(months=i)).strftime("%Y-%m"), (_today + relativedelta(months=i)).strftime("%Y 年 %m 月")) for i in range(0, 4)]
                     leave_month = st.selectbox("請假月份", options=[m[0] for m in _months], format_func=lambda x: dict(_months)[x], key=f"lm_{dk}")
                     if st.form_submit_button("送出假單") and leave_name:
+                        load_data.clear()
                         _ld = load_data()
                         _ms = leave_month
                         _ld["leaves"].setdefault(leave_name, [])
                         if _ms not in _ld["leaves"][leave_name]:
                             _ld["leaves"][leave_name].append(_ms)
-                            save_data(_ld); build_stats.clear()
-                            st.toast("✅ 已登記"); time.sleep(1); st.rerun()
+                            if save_data(_ld):
+                                build_stats.clear()
+                                st.toast("✅ 已登記"); time.sleep(1); st.rerun()
+                            else:
+                                st.error("❌ 請假未成功儲存，請重新送出一次。")
                         else:
                             st.warning("已登記過這個月了")
 
@@ -1393,7 +1441,7 @@ else:
                     _k = normalize_name(_rn)
                     _leave_merged.setdefault(_k, set()).update(_ms)
                     _leave_display.setdefault(_k, _rn)
-                _now = date.today()
+                _now = taipei_today()
                 _recent = set((_now - __import__("dateutil.relativedelta", fromlist=["relativedelta"]).relativedelta(months=i)).strftime("%Y-%m") for i in range(2))
                 _leave_list = [((_leave_display[k], [m for m in sorted(_leave_merged[k]) if m >= (_now - __import__("dateutil.relativedelta", fromlist=["relativedelta"]).relativedelta(months=1)).strftime("%Y-%m")])) for k in sorted(_leave_merged) if _leave_merged[k]]
                 _leave_list = [x for x in _leave_list if x[1]]
@@ -1443,16 +1491,20 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             _mc1, _mc2, _mc3 = st.columns([2, 2, 1])
             _new_name  = _mc1.text_input("姓名", placeholder="輸入成員姓名")
             _new_month = _mc2.selectbox("加入月份",
-                options=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
+                options=[(taipei_today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
                 format_func=lambda x: x[:4] + " 年 " + x[5:] + " 月"
             )
             if _mc3.form_submit_button("➕ 新增", use_container_width=True) and _new_name:
+                load_data.clear()
                 _d = load_data()
                 _d.setdefault("members", {})
                 _d["members"][_new_name] = {"joined": _new_month}
-                save_data(_d); build_stats.clear()
-                st.session_state.data = _d
-                st.toast(f"✅ 已新增 {_new_name}"); time.sleep(0.5); st.rerun()
+                if save_data(_d):
+                    build_stats.clear()
+                    st.session_state.data = _d
+                    st.toast(f"✅ 已新增 {_new_name}"); time.sleep(0.5); st.rerun()
+                else:
+                    st.error("❌ 新增未成功儲存，請再試一次。")
 
         # 成員清單
         if _members:
@@ -1464,12 +1516,16 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 if _mc3.button("✏️", key=f"edit_m_{_mname}", help="修改"):
                     st.session_state[f"editing_member"] = _mname
                 if _mc4.button("🗑️", key=f"del_m_{_mname}", help="刪除"):
+                    load_data.clear()
                     _d = load_data()
                     _d.setdefault("members", {})
                     if _mname in _d["members"]: del _d["members"][_mname]
-                    save_data(_d); build_stats.clear()
-                    st.session_state.data = _d
-                    st.toast(f"🗑️ 已刪除 {_mname}"); time.sleep(0.5); st.rerun()
+                    if save_data(_d):
+                        build_stats.clear()
+                        st.session_state.data = _d
+                        st.toast(f"🗑️ 已刪除 {_mname}"); time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("❌ 刪除未成功儲存，請再試一次。")
         # 編輯成員
         if st.session_state.get("editing_member"):
             _em = st.session_state["editing_member"]
@@ -1479,20 +1535,24 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
                 _em_c1, _em_c2 = st.columns(2)
                 _em_newname  = _em_c1.text_input("新名字", value=_em)
                 _em_newmonth = _em_c2.selectbox("加入月份",
-                    options=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
+                    options=[(taipei_today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
                     format_func=lambda x: x[:4] + " 年 " + x[5:] + " 月",
-                    index=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)].index(_em_info.get("joined", date.today().strftime("%Y-%m"))) if _em_info.get("joined") in [(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)] else 0
+                    index=[(taipei_today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)].index(_em_info.get("joined", taipei_today().strftime("%Y-%m"))) if _em_info.get("joined") in [(taipei_today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)] else 0
                 )
                 _save, _cancel = st.columns(2)
                 if _save.form_submit_button("💾 儲存", use_container_width=True):
+                    load_data.clear()
                     _d = load_data()
                     _d.setdefault("members", {})
                     if _em in _d["members"]: del _d["members"][_em]
                     _d["members"][_em_newname] = {"joined": _em_newmonth}
-                    save_data(_d); build_stats.clear()
-                    st.session_state.data = _d
-                    del st.session_state["editing_member"]
-                    st.toast(f"✅ 已更新"); time.sleep(0.5); st.rerun()
+                    if save_data(_d):
+                        build_stats.clear()
+                        st.session_state.data = _d
+                        del st.session_state["editing_member"]
+                        st.toast(f"✅ 已更新"); time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("❌ 更新未成功儲存，請再試一次。")
                 if _cancel.form_submit_button("取消", use_container_width=True):
                     del st.session_state["editing_member"]
                     st.rerun()
@@ -1505,17 +1565,26 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             new_date = st.date_input("新增日期", label_visibility="collapsed")
         with c2:
             if st.button("➕ 新增", use_container_width=True):
+                load_data.clear()
                 data = load_data()
                 if str(new_date) not in data["sessions"]:
-                    data["sessions"][str(new_date)] = []; save_data(data); st.rerun()
+                    data["sessions"][str(new_date)] = []
+                    if save_data(data):
+                        st.rerun()
+                    else:
+                        st.error("❌ 新增未成功儲存，請再試一次。")
         if all_sessions:
             c1, c2 = st.columns([3, 1])
             with c1:
                 del_target = st.selectbox("刪除場次", all_sessions, label_visibility="collapsed")
             with c2:
                 if st.button("🗑️ 刪除", use_container_width=True):
+                    load_data.clear()
                     data = load_data(); del data["sessions"][del_target]
-                    save_data(data); build_stats.clear(); st.rerun()
+                    if save_data(data):
+                        build_stats.clear(); st.rerun()
+                    else:
+                        st.error("❌ 刪除未成功儲存，請再試一次。")
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ── 場次設定 ──
@@ -1523,17 +1592,25 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             st.markdown('<div class="admin-section"><div class="admin-section-title">⚙️ 場次設定</div>', unsafe_allow_html=True)
             hidden = st.multiselect("👁️ 隱藏場次", all_sessions, default=st.session_state.data.get("hidden", []))
             if st.button("更新隱藏設定", use_container_width=True):
+                load_data.clear()
                 data = load_data()
                 newly_hidden = [k for k in hidden if k not in data.get("hidden", [])]
                 data["hidden"] = hidden
                 archive_hidden_sessions(newly_hidden, data)  # 搬去封存分頁，避免 A1 塞爆
-                save_data(data); st.rerun()
+                if save_data(data):
+                    st.rerun()
+                else:
+                    st.error("❌ 更新未成功儲存，請再試一次。")
             st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
             new_rained = st.multiselect("☔ 天氣取消場次", all_sessions, default=st.session_state.data.get("rained_out", []), key="rained_multiselect")
             if st.button("更新天氣取消設定", use_container_width=True):
+                load_data.clear()
                 data = load_data(); data["rained_out"] = new_rained
-                save_data(data); build_stats.clear()
-                st.toast("✅ 已更新"); time.sleep(0.5); st.rerun()
+                if save_data(data):
+                    build_stats.clear()
+                    st.toast("✅ 已更新"); time.sleep(0.5); st.rerun()
+                else:
+                    st.error("❌ 更新未成功儲存，請再試一次。")
             st.markdown('</div></div>', unsafe_allow_html=True)
 
         # ── 編輯隱藏場次 ──
@@ -1542,7 +1619,9 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             if hidden_dates:
                 target_hidden = st.selectbox("選擇日期", sorted(hidden_dates))
                 if target_hidden:
-                    render_list(st.session_state.data["sessions"].get(target_hidden, []), target_hidden, is_admin_mode=True)
+                    _archive = load_archive()
+                    _hidden_players = st.session_state.data["sessions"].get(target_hidden) or _archive.get(target_hidden, [])
+                    render_list(_hidden_players, target_hidden, can_edit=False, is_admin_mode=True)
             else:
                 st.write("目前無隱藏場次")
 
