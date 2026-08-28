@@ -277,10 +277,11 @@ def load_data() -> dict:
     except Exception:
         return _empty_data()
 
-def save_data(data: dict):
+def save_data(data: dict) -> bool:
     sheet = get_sheet()
     if not sheet:
-        return
+        st.error("❌ 資料庫連線失敗，未儲存。請稍後再試或聯絡管理員。")
+        return False
     try:
         meta = {
             "hidden":           data.get("hidden", []),
@@ -295,8 +296,10 @@ def save_data(data: dict):
             {"range": "D1", "values": [[json.dumps(data.get("members", {}),  ensure_ascii=False)]]},
         ])
         load_data.clear()  # 寫完立刻讓 cache 失效，下次讀到最新資料
+        return True
     except Exception as e:
-        st.error(f"❌ 資料儲存失敗：{e}")
+        st.error(f"❌ 資料儲存失敗，未儲存：{e}")
+        return False
 
 def _empty_data() -> dict:
     return {"sessions": {}, "hidden": [], "leaves": {}, "removed_members": [], "rained_out": [], "members": {}}
@@ -1277,11 +1280,14 @@ else:
                                                     if not latest["leaves"][_ln]:
                                                         del latest["leaves"][_ln]
                                                     break
-                                        save_data(latest); build_stats.clear()
-                                        st.session_state['_tab_jump'] = i
-                                        st.session_state['show_basket_anim'] = True
-                                        st.session_state['scroll_to'] = full_name
-                                        st.rerun()
+                                        if save_data(latest):
+                                            build_stats.clear()
+                                            st.session_state['_tab_jump'] = i
+                                            st.session_state['show_basket_anim'] = True
+                                            st.session_state['scroll_to'] = full_name
+                                            st.rerun()
+                                        else:
+                                            st.error("❌ 報名未成功儲存，請重新送出一次。")
 
             else:
                 st.caption("⛔ 報名已截止（前一日 12:00）")
