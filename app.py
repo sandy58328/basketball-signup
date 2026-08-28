@@ -229,35 +229,43 @@ def get_sheet():
         st.error(f"❌ 資料庫連線失敗：{e}")
         return None
 
-def _read_cell(sheet, cell: str, default):
+def _parse(raw, default):
     try:
-        raw = sheet.acell(cell).value
         return json.loads(raw) if raw else default
     except Exception:
         return default
 
+@st.cache_data(ttl=8, show_spinner=False)
 def load_data() -> dict:
     sheet = get_sheet()
     if not sheet:
         return _empty_data()
     try:
-        a1_raw = _read_cell(sheet, 'A1', {})
-        if isinstance(a1_raw, dict) and "sessions" in a1_raw:
-            old      = a1_raw
-            sessions = old.get("sessions", {})
-            leaves   = old.get("leaves", {})
-            meta     = {"hidden": old.get("hidden", []), "rained_out": old.get("rained_out", []), "removed_members": old.get("removed_members", [])}
-            try:
-                sheet.update_acell('A1', json.dumps(sessions, ensure_ascii=False))
-                sheet.update_acell('B1', json.dumps(meta,     ensure_ascii=False))
-                sheet.update_acell('C1', json.dumps(leaves,   ensure_ascii=False))
-            except Exception:
-                pass
+        # 一次 batch_get 取 A1:D1，只打 1 個 API 請求
+        rows = sheet.batch_get(["A1", "B1", "C1", "D1"])
+        a1_raw = rows[0][0][0] if rows[0] else ""
+        b1_raw = rows[1][0][0] if rows[1] else ""
+        c1_raw = rows[2][0][0] if rows[2] else ""
+        d1_raw = rows[3][0][0] if rows[3] else ""
+
+        a1 = _parse(a1_raw, {})
+
+        # 舊格式自動遷移（第一次讀到就在 save_data 時一起寫回，不在這裡寫）
+        if isinstance(a1, dict) and "sessions" in a1:
+            sessions = a1.get("sessions", {})
+            leaves   = a1.get("leaves", {})
+            meta     = {
+                "hidden":           a1.get("hidden", []),
+                "rained_out":       a1.get("rained_out", []),
+                "removed_members":  a1.get("removed_members", []),
+            }
         else:
-            sessions = a1_raw
-            meta     = _read_cell(sheet, 'B1', {})
-            leaves   = _read_cell(sheet, 'C1', {})
-        members = _read_cell(sheet, 'D1', {})
+            sessions = a1
+            meta     = _parse(b1_raw, {})
+            leaves   = _parse(c1_raw, {})
+
+        members = _parse(d1_raw, {})
+
         return {
             "sessions":        sessions,
             "leaves":          leaves,
@@ -274,11 +282,19 @@ def save_data(data: dict):
     if not sheet:
         return
     try:
-        meta = {"hidden": data.get("hidden", []), "rained_out": data.get("rained_out", []), "removed_members": data.get("removed_members", [])}
-        sheet.update_acell('A1', json.dumps(data.get("sessions", {}), ensure_ascii=False))
-        sheet.update_acell('B1', json.dumps(meta,                     ensure_ascii=False))
-        sheet.update_acell('C1', json.dumps(data.get("leaves", {}),   ensure_ascii=False))
-        sheet.update_acell('D1', json.dumps(data.get("members", {}),  ensure_ascii=False))
+        meta = {
+            "hidden":           data.get("hidden", []),
+            "rained_out":       data.get("rained_out", []),
+            "removed_members":  data.get("removed_members", []),
+        }
+        # 一次 batch update，只打 1 個 API 請求
+        sheet.batch_update([
+            {"range": "A1", "values": [[json.dumps(data.get("sessions", {}), ensure_ascii=False)]]},
+            {"range": "B1", "values": [[json.dumps(meta,                     ensure_ascii=False)]]},
+            {"range": "C1", "values": [[json.dumps(data.get("leaves", {}),   ensure_ascii=False)]]},
+            {"range": "D1", "values": [[json.dumps(data.get("members", {}),  ensure_ascii=False)]]},
+        ])
+        load_data.clear()  # 寫完立刻讓 cache 失效，下次讀到最新資料
     except Exception as e:
         st.error(f"❌ 資料儲存失敗：{e}")
 
