@@ -224,7 +224,6 @@ def load_css():
 # ==========================================
 # 2. 資料庫
 # ==========================================
-@st.cache_resource
 @st.cache_resource(show_spinner=False)
 def _get_gspread_book():
     """驗證帳號＋開啟試算表只做一次並快取，之後重複使用同一條連線，避免每次操作都重新驗證造成的延遲與 API 限流。"""
@@ -241,17 +240,21 @@ def get_sheet():
         _get_gspread_book.clear()  # 連線可能已失效，清掉快取讓下次重新驗證
         return None
 
+@st.cache_resource(show_spinner=False)
+def _get_archive_worksheet_handle():
+    book = _get_gspread_book()
+    try:
+        return book.worksheet(ARCHIVE_SHEET_TITLE)
+    except gspread.exceptions.WorksheetNotFound:
+        return book.add_worksheet(title=ARCHIVE_SHEET_TITLE, rows=10, cols=4)
+
 def get_archive_sheet():
     """已隱藏的舊場次資料改放這個分頁，避免 A1 撞到 Google Sheets 單一儲存格 50000 字元上限。"""
     try:
-        book = _get_gspread_book()
-        try:
-            return book.worksheet(ARCHIVE_SHEET_TITLE)
-        except gspread.exceptions.WorksheetNotFound:
-            return book.add_worksheet(title=ARCHIVE_SHEET_TITLE, rows=10, cols=4)
+        return _get_archive_worksheet_handle()
     except Exception as e:
         st.error(f"❌ 封存分頁連線失敗：{e}")
-        _get_gspread_book.clear()
+        _get_archive_worksheet_handle.clear()
         return None
 
 @st.cache_data(ttl=60, show_spinner=False)
