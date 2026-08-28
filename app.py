@@ -1197,9 +1197,9 @@ else:
                     if is_rained_out and not st.session_state.is_admin:
                         st.warning("⛔ 本場次已因天氣取消，無法報名")
                     else:
+                        st.caption("⚠️ 請輸入與 Line 群組**相同**的名字")
                         with st.form(f"signup_{dk}", clear_on_submit=True):
                             player_name  = st.text_input("✏️ 球員姓名", placeholder="請輸入你的名字", disabled=submit_disabled)
-                            st.caption("⚠️ 請輸入與 Line 群組**相同**的名字")
 
                             # checkbox 兩列排版，手機不擠
                             r1c1, r1c2 = st.columns(2)
