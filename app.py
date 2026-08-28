@@ -17,6 +17,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 MAX_CAPACITY         = 20
 APP_URL              = "https://sunny-girls-basketball.streamlit.app"
 SHEET_NAME           = "basketball_db"
+ARCHIVE_SHEET_TITLE  = "sessions_archive"
 ABSENCE_LIMIT_MONTHS = 2
 MAX_LEAVE_EXEMPT     = 2
 
@@ -228,6 +229,51 @@ def get_sheet():
     except Exception as e:
         st.error(f"❌ 資料庫連線失敗：{e}")
         return None
+
+def get_archive_sheet():
+    """已隱藏的舊場次資料改放這個分頁，避免 A1 撞到 Google Sheets 單一儲存格 50000 字元上限。"""
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    try:
+        creds  = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+        client = gspread.authorize(creds)
+        book   = client.open(SHEET_NAME)
+        try:
+            return book.worksheet(ARCHIVE_SHEET_TITLE)
+        except gspread.exceptions.WorksheetNotFound:
+            return book.add_worksheet(title=ARCHIVE_SHEET_TITLE, rows=10, cols=4)
+    except Exception as e:
+        st.error(f"❌ 封存分頁連線失敗：{e}")
+        return None
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_archive() -> dict:
+    """讀取已封存（已隱藏）場次的歷史報名資料，供統計使用。"""
+    sheet = get_archive_sheet()
+    if not sheet:
+        return {}
+    try:
+        raw = sheet.acell('A1').value
+        return json.loads(raw) if raw else {}
+    except Exception:
+        return {}
+
+def archive_hidden_sessions(newly_hidden_keys: list[str], data: dict) -> None:
+    """把新被隱藏的場次資料搬進封存分頁，並從 data['sessions'] 移除，讓 A1 不會無限長大。"""
+    if not newly_hidden_keys:
+        return
+    sheet = get_archive_sheet()
+    if not sheet:
+        return
+    try:
+        raw = sheet.acell('A1').value
+        archive = json.loads(raw) if raw else {}
+    except Exception:
+        archive = {}
+    for k in newly_hidden_keys:
+        if k in data["sessions"]:
+            archive[k] = data["sessions"].pop(k)
+    sheet.update_acell('A1', json.dumps(archive, ensure_ascii=False))
+    load_archive.clear()
 
 def _parse(raw, default):
     try:
@@ -623,11 +669,13 @@ def _render_stat_row(key, item, signups, future_signups):
 
 
 def render_stats(raw_data: dict):
-    all_dates_tuple  = tuple(sorted(raw_data["sessions"].keys()))
+    # 已隱藏的舊場次搬到封存分頁了，這裡合併回來，統計數字（出席率/警示狀態）才會跟以前一樣準確
+    combined_sessions = {**load_archive(), **raw_data["sessions"]}
+    all_dates_tuple  = tuple(sorted(combined_sessions.keys()))
     rained_out_tuple = tuple(raw_data.get("rained_out", []))
 
     stats, signups, future_signups = build_stats(
-        sessions_json    = json.dumps(raw_data["sessions"], ensure_ascii=False),
+        sessions_json    = json.dumps(combined_sessions, ensure_ascii=False),
         leaves_json      = json.dumps(raw_data["leaves"],   ensure_ascii=False),
         rained_out_tuple = rained_out_tuple,
         all_dates_tuple  = all_dates_tuple,
@@ -1475,7 +1523,11 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
             st.markdown('<div class="admin-section"><div class="admin-section-title">⚙️ 場次設定</div>', unsafe_allow_html=True)
             hidden = st.multiselect("👁️ 隱藏場次", all_sessions, default=st.session_state.data.get("hidden", []))
             if st.button("更新隱藏設定", use_container_width=True):
-                data = load_data(); data["hidden"] = hidden; save_data(data); st.rerun()
+                data = load_data()
+                newly_hidden = [k for k in hidden if k not in data.get("hidden", [])]
+                data["hidden"] = hidden
+                archive_hidden_sessions(newly_hidden, data)  # 搬去封存分頁，避免 A1 塞爆
+                save_data(data); st.rerun()
             st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
             new_rained = st.multiselect("☔ 天氣取消場次", all_sessions, default=st.session_state.data.get("rained_out", []), key="rained_multiselect")
             if st.button("更新天氣取消設定", use_container_width=True):
