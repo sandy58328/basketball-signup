@@ -461,6 +461,21 @@ def compute_status(last_date: date | None, leave_months: set[str], joined_month:
     else:
         return "🟢 活躍"
 
+def leave_run_length(existing_months: set[str], new_month: str) -> int:
+    """算出加上 new_month 之後，包含它在內的連續請假月份共有幾個月。"""
+    all_months = existing_months | {new_month}
+    cur  = date(int(new_month[:4]), int(new_month[5:7]), 1)
+    run  = 1
+    back = cur - relativedelta(months=1)
+    while back.strftime("%Y-%m") in all_months:
+        run += 1
+        back -= relativedelta(months=1)
+    fwd = cur + relativedelta(months=1)
+    while fwd.strftime("%Y-%m") in all_months:
+        run += 1
+        fwd += relativedelta(months=1)
+    return run
+
 def status_to_row_class(status: str) -> str:
     if "🔴" in status: return "stat-row stat-row-red"
     if "🟡" in status: return "stat-row stat-row-yellow"
@@ -1461,7 +1476,16 @@ else:
                         _ld = load_data()
                         _ms = leave_month
                         _ld["leaves"].setdefault(leave_name, [])
-                        if _ms not in _ld["leaves"][leave_name]:
+                        _norm_target = normalize_name(leave_name)
+                        _existing_all = set()
+                        for _rn, _ms_list in _ld["leaves"].items():
+                            if normalize_name(_rn) == _norm_target:
+                                _existing_all.update(_ms_list)
+                        if _ms in _existing_all:
+                            st.warning("已登記過這個月了")
+                        elif leave_run_length(_existing_all, _ms) > ABSENCE_LIMIT_MONTHS:
+                            st.error(f"❌ 依社群規定，請假不得連續超過 {ABSENCE_LIMIT_MONTHS} 個月，這個月份會讓連續請假變成 {leave_run_length(_existing_all, _ms)} 個月。如有特殊情況，請聯繫管理員。")
+                        else:
                             _ld["leaves"][leave_name].append(_ms)
                             if save_data(_ld):
                                 st.session_state.data = _ld
@@ -1470,8 +1494,6 @@ else:
                                 st.toast("✅ 已登記"); time.sleep(1); st.rerun()
                             else:
                                 st.error("❌ 請假未成功儲存，請重新送出一次。")
-                        else:
-                            st.warning("已登記過這個月了")
 
             # ── 出席 & 請假狀態公開版 ──
             with st.expander("📊 出席 & 請假狀況", expanded=False):
