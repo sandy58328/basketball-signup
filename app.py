@@ -1475,11 +1475,12 @@ else:
 
             # ── 出席 & 請假狀態公開版 ──
             with st.expander("📊 出席 & 請假狀況", expanded=False):
+                _combined_sessions = {**load_archive(), **st.session_state.data["sessions"]}  # 封存資料也要合併，不然逾期會誤判
                 _stats, _, _ = build_stats(
-                    json.dumps(st.session_state.data["sessions"]),
+                    json.dumps(_combined_sessions),
                     json.dumps(st.session_state.data.get("leaves", {})),
                     tuple(st.session_state.data.get("rained_out", [])),
-                    tuple(sorted(st.session_state.data["sessions"].keys()))
+                    tuple(sorted(_combined_sessions.keys()))
                 )
                 # 手動加入的成員也納入
                 _removed = set(st.session_state.data.get("removed_members", []))
