@@ -1480,7 +1480,8 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
         # ── 場次設定 ──
         if all_sessions:
             st.markdown('<div class="admin-section"><div class="admin-section-title">⚙️ 場次設定</div>', unsafe_allow_html=True)
-            hidden = st.multiselect("👁️ 隱藏場次", all_sessions, default=st.session_state.data.get("hidden", []))
+            _hidden_default = [h for h in st.session_state.data.get("hidden", []) if h in all_sessions]
+            hidden = st.multiselect("👁️ 隱藏場次", all_sessions, default=_hidden_default)
             if st.button("更新隱藏設定", use_container_width=True):
                 data = load_data(); data["hidden"] = hidden; save_data(data); st.rerun()
             st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
