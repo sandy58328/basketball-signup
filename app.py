@@ -7,6 +7,10 @@ import re
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
+
+def taipei_today() -> date:
+    """統一用台北時區判斷「今天」，避免伺服器 UTC 時間在月初/日期交界時分類錯誤。"""
+    return datetime.now(TZ_TAIPEI).date()
 from dateutil.relativedelta import relativedelta
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -17,6 +21,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 MAX_CAPACITY         = 20
 APP_URL              = "https://sunny-girls-basketball.streamlit.app"
 SHEET_NAME           = "basketball_db"
+SHEET_KEY            = "1ZUI1YlL2BZZFFa5Cvg5CIGex_wq0l5o_PgoSLB-ua_c"
+ARCHIVE_SHEET_TITLE  = "sessions_archive"
 ABSENCE_LIMIT_MONTHS = 2
 MAX_LEAVE_EXEMPT     = 2
 
@@ -218,16 +224,98 @@ def load_css():
 # ==========================================
 # 2. 資料庫
 # ==========================================
-@st.cache_resource
-def get_sheet():
+@st.cache_resource(show_spinner=False)
+def _get_gspread_book():
+    """驗證帳號＋開啟試算表只做一次並快取，之後重複使用同一條連線，避免每次操作都重新驗證造成的延遲與 API 限流。"""
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds  = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+    client = gspread.authorize(creds)
+    return client.open_by_key(SHEET_KEY)  # 用 ID 直接開，比用名稱搜尋快，也避免同名試算表誤開
+
+def get_sheet():
     try:
-        creds  = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        client = gspread.authorize(creds)
-        return client.open(SHEET_NAME).sheet1
+        return _get_gspread_book().sheet1
     except Exception as e:
         st.error(f"❌ 資料庫連線失敗：{e}")
+        _get_gspread_book.clear()  # 連線可能已失效，清掉快取讓下次重新驗證
         return None
+
+@st.cache_resource(show_spinner=False)
+def _get_archive_worksheet_handle():
+    book = _get_gspread_book()
+    try:
+        return book.worksheet(ARCHIVE_SHEET_TITLE)
+    except gspread.exceptions.WorksheetNotFound:
+        return book.add_worksheet(title=ARCHIVE_SHEET_TITLE, rows=10, cols=4)
+
+def get_archive_sheet():
+    """已隱藏的舊場次資料改放這個分頁，避免 A1 撞到 Google Sheets 單一儲存格 50000 字元上限。"""
+    try:
+        return _get_archive_worksheet_handle()
+    except Exception as e:
+        st.error(f"❌ 封存分頁連線失敗：{e}")
+        _get_archive_worksheet_handle.clear()
+        return None
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_archive() -> dict:
+    """讀取已封存（已隱藏）場次的歷史報名資料，供統計使用。"""
+    sheet = get_archive_sheet()
+    if not sheet:
+        return {}
+    try:
+        raw = sheet.acell('A1').value
+        return json.loads(raw) if raw else {}
+    except Exception:
+        return {}
+
+def archive_hidden_sessions(newly_hidden_keys: list[str], data: dict) -> None:
+    """把新被隱藏的場次資料搬進封存分頁，並從 data['sessions'] 移除，讓 A1 不會無限長大。"""
+    if not newly_hidden_keys:
+        return
+    sheet = get_archive_sheet()
+    if not sheet:
+        return
+    try:
+        raw = sheet.acell('A1').value
+        archive = json.loads(raw) if raw else {}
+    except Exception:
+        archive = {}
+    for k in newly_hidden_keys:
+        if k in data["sessions"]:
+            archive[k] = data["sessions"].pop(k)
+    sheet.update_acell('A1', json.dumps(archive, ensure_ascii=False))
+    load_archive.clear()
+
+def auto_archive_old_sessions():
+    """只保留「這個月＋下個月」的場次顯示，其餘自動隱藏並搬進封存分頁。
+    每次開啟 app 都會檢查，視窗會隨月份自動往後推移，不用手動維護。
+    資料不會不見：只是搬去 sessions_archive 分頁，統計會自動合併回來計算。"""
+    data = st.session_state.data
+    _keep_months = {
+        taipei_today().strftime("%Y-%m"),
+        (taipei_today() + relativedelta(months=1)).strftime("%Y-%m"),
+    }
+    _hidden_now = set(data.get("hidden", []))
+    _to_hide = [
+        d for d in data["sessions"].keys()
+        if d[:7] not in _keep_months and d not in _hidden_now
+    ]
+    if not _to_hide:
+        return  # 沒有新的要處理，不用多打 API
+    load_data.clear()
+    fresh = load_data()
+    _hidden_now = set(fresh.get("hidden", []))
+    _to_hide = [
+        d for d in fresh["sessions"].keys()
+        if d[:7] not in _keep_months and d not in _hidden_now
+    ]
+    if not _to_hide:
+        return
+    fresh["hidden"] = sorted(_hidden_now | set(_to_hide))
+    archive_hidden_sessions(_to_hide, fresh)
+    if save_data(fresh):
+        st.session_state.data = fresh
 
 def _parse(raw, default):
     try:
@@ -235,7 +323,7 @@ def _parse(raw, default):
     except Exception:
         return default
 
-@st.cache_data(ttl=8, show_spinner=False)
+@st.cache_data(ttl=20, show_spinner=False)
 def load_data() -> dict:
     sheet = get_sheet()
     if not sheet:
@@ -277,10 +365,11 @@ def load_data() -> dict:
     except Exception:
         return _empty_data()
 
-def save_data(data: dict):
+def save_data(data: dict) -> bool:
     sheet = get_sheet()
     if not sheet:
-        return
+        st.error("❌ 資料庫連線失敗，未儲存。請稍後再試或聯絡管理員。")
+        return False
     try:
         meta = {
             "hidden":           data.get("hidden", []),
@@ -295,8 +384,10 @@ def save_data(data: dict):
             {"range": "D1", "values": [[json.dumps(data.get("members", {}),  ensure_ascii=False)]]},
         ])
         load_data.clear()  # 寫完立刻讓 cache 失效，下次讀到最新資料
+        return True
     except Exception as e:
-        st.error(f"❌ 資料儲存失敗：{e}")
+        st.error(f"❌ 資料儲存失敗，未儲存：{e}")
+        return False
 
 def _empty_data() -> dict:
     return {"sessions": {}, "hidden": [], "leaves": {}, "removed_members": [], "rained_out": [], "members": {}}
@@ -324,7 +415,7 @@ def format_timestamp(ts: float) -> str:
     if not ts:
         return ""
     dt    = datetime.fromtimestamp(ts)
-    today = date.today()
+    today = taipei_today()
     d     = dt.date()
     if d == today:
         return f"今天 {dt.strftime('%H:%M')}"
@@ -334,7 +425,7 @@ def format_timestamp(ts: float) -> str:
         return dt.strftime("%-m/%-d %H:%M")
 
 def compute_status(last_date: date | None, leave_months: set[str], joined_month: str | None = None) -> str:
-    today             = date.today()
+    today             = taipei_today()
     current_month_str = today.strftime("%Y-%m")
     if last_date is None:
         # 如果有加入月份，計算是否在寬限期內（加入月+2個月）
@@ -370,6 +461,21 @@ def compute_status(last_date: date | None, leave_months: set[str], joined_month:
     else:
         return "🟢 活躍"
 
+def leave_run_length(existing_months: set[str], new_month: str) -> int:
+    """算出加上 new_month 之後，包含它在內的連續請假月份共有幾個月。"""
+    all_months = existing_months | {new_month}
+    cur  = date(int(new_month[:4]), int(new_month[5:7]), 1)
+    run  = 1
+    back = cur - relativedelta(months=1)
+    while back.strftime("%Y-%m") in all_months:
+        run += 1
+        back -= relativedelta(months=1)
+    fwd = cur + relativedelta(months=1)
+    while fwd.strftime("%Y-%m") in all_months:
+        run += 1
+        fwd += relativedelta(months=1)
+    return run
+
 def status_to_row_class(status: str) -> str:
     if "🔴" in status: return "stat-row stat-row-red"
     if "🟡" in status: return "stat-row stat-row-yellow"
@@ -380,6 +486,7 @@ def status_to_row_class(status: str) -> str:
 # 4. 報名 CRUD
 # ==========================================
 def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_visitor):
+    load_data.clear()  # 強制重讀最新資料，避免跟同時間的其他操作互相覆蓋
     data   = load_data()
     player = next((p for p in data["sessions"][date_key] if p['id'] == pid), None)
     if not player:
@@ -391,12 +498,16 @@ def update_player(pid, date_key, name, is_member, bring_ball, occupy_court, is_v
                 p['name'] = p['name'].replace(old_name, name, 1)
     player.update({'name': name, 'isMember': False if is_friend(name) else is_member,
                    'bringBall': bring_ball, 'occupyCourt': occupy_court, 'count': 0 if is_visitor else 1})
-    save_data(data)
-    _set_tab_for_date(date_key, data)
-    st.session_state.edit_target = None
-    st.toast("✅ 資料已更新")
-    time.sleep(0.5)
-    st.rerun()
+    if save_data(data):
+        st.session_state.data = data
+        st.session_state['_skip_data_reload'] = True
+        _set_tab_for_date(date_key, data)
+        st.session_state.edit_target = None
+        st.toast("✅ 資料已更新")
+        time.sleep(0.5)
+        st.rerun()
+    else:
+        st.error("❌ 更新未成功儲存，請再試一次。")
 
 def _set_tab_for_date(date_key: str, data: dict | None = None):
     """rerun 前呼叫，確保畫面停在 date_key 對應的 tab。"""
@@ -411,6 +522,7 @@ def _set_tab_for_date(date_key: str, data: dict | None = None):
         pass
 
 def delete_player(pid, date_key):
+    load_data.clear()  # 強制重讀最新資料，避免跟同時間的其他操作互相覆蓋
     data   = load_data()
     target = next((p for p in data["sessions"][date_key] if p['id'] == pid), None)
     if not target:
@@ -427,11 +539,15 @@ def delete_player(pid, date_key):
         ]
     if st.session_state.edit_target == pid:
         st.session_state.edit_target = None
-    save_data(data)
-    _set_tab_for_date(date_key, data)
-    st.toast("🗑️ 已刪除")
-    time.sleep(0.5)
-    st.rerun()
+    if save_data(data):
+        st.session_state.data = data
+        st.session_state['_skip_data_reload'] = True
+        _set_tab_for_date(date_key, data)
+        st.toast("🗑️ 已刪除")
+        time.sleep(0.5)
+        st.rerun()
+    else:
+        st.error("❌ 刪除未成功儲存，請再試一次。")
 
 # ==========================================
 # 5. 名單渲染
@@ -521,7 +637,7 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
     for sd in all_dates:
         day   = datetime.strptime(sd, "%Y-%m-%d").date()
         label = f"{int(sd.split('-')[1])}/{int(sd.split('-')[2])}"
-        if day > date.today():
+        if day > taipei_today():
             for p in sessions.get(sd, []):
                 if not is_friend(p['name']):
                     future_signups.setdefault(get_norm(p['name']), []).append(label)
@@ -535,7 +651,7 @@ def build_stats(sessions_json: str, leaves_json: str, rained_out_tuple: tuple, a
     stats: dict[str, dict] = {}
     for sd, players in sessions.items():
         day = datetime.strptime(sd, "%Y-%m-%d").date()
-        if day > date.today():
+        if day > taipei_today():
             continue
         for p in players:
             if not is_friend(p['name']):
@@ -578,6 +694,7 @@ def _render_stat_row(key, item, signups, future_signups):
             new_display = st.text_input("顯示名稱", item['name'])
             b1, b2, b3  = st.columns(3)
             if b1.form_submit_button("💾 儲存", type="primary"):
+                load_data.clear()
                 cur = load_data(); old = item['name']
                 for sd in cur["sessions"]:
                     for p in cur["sessions"][sd]:
@@ -588,17 +705,28 @@ def _render_stat_row(key, item, signups, future_signups):
                                 fp['name'] = fp['name'].replace(old, new_display, 1)
                 if old in cur["leaves"]:
                     cur["leaves"][new_display] = cur["leaves"].pop(old)
-                save_data(cur); build_stats.clear()
-                st.session_state[f"stat_edit_{key}"] = False
-                st.toast("✅ 名稱已更新"); time.sleep(0.5); st.rerun()
+                if save_data(cur):
+                    st.session_state.data = cur
+                    st.session_state['_skip_data_reload'] = True
+                    build_stats.clear()
+                    st.session_state[f"stat_edit_{key}"] = False
+                    st.toast("✅ 名稱已更新"); time.sleep(0.5); st.rerun()
+                else:
+                    st.error("❌ 更新未成功儲存，請再試一次。")
             if b2.form_submit_button("取消"):
                 st.session_state[f"stat_edit_{key}"] = False; st.rerun()
             if b3.form_submit_button("🚪 退群", type="secondary"):
+                load_data.clear()
                 cur = load_data(); cur.setdefault("removed_members", [])
                 if key not in cur["removed_members"]: cur["removed_members"].append(key)
-                save_data(cur); build_stats.clear()
-                st.session_state[f"stat_edit_{key}"] = False
-                st.toast(f"👋 {item['name']} 已從統計移除"); time.sleep(0.5); st.rerun()
+                if save_data(cur):
+                    st.session_state.data = cur
+                    st.session_state['_skip_data_reload'] = True
+                    build_stats.clear()
+                    st.session_state[f"stat_edit_{key}"] = False
+                    st.toast(f"👋 {item['name']} 已從統計移除"); time.sleep(0.5); st.rerun()
+                else:
+                    st.error("❌ 更新未成功儲存，請再試一次。")
     else:
         cols = st.columns([5.5, 1, 1], gap="small")
         with cols[0]:
@@ -613,18 +741,26 @@ def _render_stat_row(key, item, signups, future_signups):
             with st.popover("🚪"):
                 st.write(f"將「{item['name']}」移至已退群？")
                 if st.button("確認退群", key=f"stat_rm_{key}", type="primary"):
+                    load_data.clear()
                     cur = load_data(); cur.setdefault("removed_members", [])
                     if key not in cur["removed_members"]: cur["removed_members"].append(key)
-                    save_data(cur); build_stats.clear()
-                    st.toast(f"👋 {item['name']} 已移除"); time.sleep(0.5); st.rerun()
+                    if save_data(cur):
+                        st.session_state.data = cur
+                        st.session_state['_skip_data_reload'] = True
+                        build_stats.clear()
+                        st.toast(f"👋 {item['name']} 已移除"); time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("❌ 更新未成功儲存，請再試一次。")
 
 
 def render_stats(raw_data: dict):
-    all_dates_tuple  = tuple(sorted(raw_data["sessions"].keys()))
+    # 已隱藏的舊場次搬到封存分頁了，這裡合併回來，統計數字（出席率/警示狀態）才會跟以前一樣準確
+    combined_sessions = {**load_archive(), **raw_data["sessions"]}
+    all_dates_tuple  = tuple(sorted(combined_sessions.keys()))
     rained_out_tuple = tuple(raw_data.get("rained_out", []))
 
     stats, signups, future_signups = build_stats(
-        sessions_json    = json.dumps(raw_data["sessions"], ensure_ascii=False),
+        sessions_json    = json.dumps(combined_sessions, ensure_ascii=False),
         leaves_json      = json.dumps(raw_data["leaves"],   ensure_ascii=False),
         rained_out_tuple = rained_out_tuple,
         all_dates_tuple  = all_dates_tuple,
@@ -695,22 +831,34 @@ def render_stats(raw_data: dict):
                 c1.markdown(f"**{item['name']}**")
                 with c2:
                     if st.button("↩️ 恢復", key=f"stat_restore_{key}"):
+                        load_data.clear()
                         cur = load_data()
                         if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
-                        save_data(cur); build_stats.clear()
-                        st.toast(f"✅ {item['name']} 已恢復"); time.sleep(0.5); st.rerun()
+                        if save_data(cur):
+                            st.session_state.data = cur
+                            st.session_state['_skip_data_reload'] = True
+                            build_stats.clear()
+                            st.toast(f"✅ {item['name']} 已恢復"); time.sleep(0.5); st.rerun()
+                        else:
+                            st.error("❌ 更新未成功儲存，請再試一次。")
                 with c3:
                     with st.popover("🗑️"):
                         st.warning(f"永久刪除「{item['name']}」所有紀錄？此操作無法復原！", icon="⚠️")
                         if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
+                            load_data.clear()
                             cur = load_data()
                             if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
                             for sd in cur["sessions"]:
                                 cur["sessions"][sd] = [p for p in cur["sessions"][sd] if normalize_name(p['name']) != key]
                             for rn in list(cur["leaves"].keys()):
                                 if normalize_name(rn) == key: del cur["leaves"][rn]
-                            save_data(cur); build_stats.clear()
-                            st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
+                            if save_data(cur):
+                                st.session_state.data = cur
+                                st.session_state['_skip_data_reload'] = True
+                                build_stats.clear()
+                                st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
+                            else:
+                                st.error("❌ 刪除未成功儲存，請再試一次。")
             # 沒有歷史紀錄的
             no_record = [k for k in removed if k not in stats]
             for key in sorted(no_record):
@@ -718,18 +866,30 @@ def render_stats(raw_data: dict):
                 c1.markdown(f"**{key}**（無歷史紀錄）")
                 with c2:
                     if st.button("↩️ 恢復", key=f"stat_restore_{key}"):
+                        load_data.clear()
                         cur = load_data()
                         if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
-                        save_data(cur); build_stats.clear()
-                        st.toast(f"✅ 已恢復"); time.sleep(0.5); st.rerun()
+                        if save_data(cur):
+                            st.session_state.data = cur
+                            st.session_state['_skip_data_reload'] = True
+                            build_stats.clear()
+                            st.toast(f"✅ 已恢復"); time.sleep(0.5); st.rerun()
+                        else:
+                            st.error("❌ 更新未成功儲存，請再試一次。")
                 with c3:
                     with st.popover("🗑️"):
                         st.warning(f"永久刪除「{key}」？此操作無法復原！", icon="⚠️")
                         if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
+                            load_data.clear()
                             cur = load_data()
                             if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
-                            save_data(cur); build_stats.clear()
-                            st.toast(f"🗑️ 已永久刪除"); time.sleep(0.5); st.rerun()
+                            if save_data(cur):
+                                st.session_state.data = cur
+                                st.session_state['_skip_data_reload'] = True
+                                build_stats.clear()
+                                st.toast(f"🗑️ 已永久刪除"); time.sleep(0.5); st.rerun()
+                            else:
+                                st.error("❌ 刪除未成功儲存，請再試一次。")
 
 # ==========================================
 # 7. 初始化
@@ -745,9 +905,9 @@ load_css()
 # ==========================================
 # 8. 主畫面
 # ==========================================
-components.html(
-    '''<div style="display:flex;justify-content:center;margin-bottom:16px;"><div style="background:white;border-radius:20px;overflow:hidden;display:inline-flex;align-items:stretch;border:1px solid #e8e6e0;box-shadow:0 2px 12px rgba(0,0,0,0.06);"><div style="width:130px;flex-shrink:0;overflow:hidden;position:relative;"><img src="data:image/jpeg;base64,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" style="width:100%;height:100%;object-fit:cover;object-position:30% center;display:block;" alt=""><div style="position:absolute;top:0;right:0;bottom:0;width:15%;background:linear-gradient(to right,transparent,white);"></div></div><div style="padding:20px 22px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px;"><div style="font-size:17px;font-weight:900;color:#1e293b;line-height:1.3;">晴女 ☀️ 在場邊等妳 🌈</div><div style="font-size:13px;color:#64748b;font-weight:600;">Keep Playing, Keep Shining</div><div style="margin-top:8px;display:table;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:30px;padding:4px 13px;font-size:12px;font-weight:600;color:#475569;white-space:nowrap;">📍 朱崙公園 &nbsp;|&nbsp; 🕑 19:00</div></div></div></div>''',
-    height=140
+st.markdown(
+    '''<div style="display:flex;justify-content:center;margin-bottom:16px;"><div style="background:white;border-radius:20px;overflow:hidden;display:inline-flex;align-items:stretch;border:1px solid #e8e6e0;box-shadow:0 2px 12px rgba(0,0,0,0.06);"><div style="width:130px;flex-shrink:0;overflow:hidden;position:relative;"><img src="https://raw.githubusercontent.com/sandy58328/basketball-signup/main/assets/header.jpg" style="width:100%;height:100%;object-fit:cover;object-position:30% center;display:block;" alt=""><div style="position:absolute;top:0;right:0;bottom:0;width:15%;background:linear-gradient(to right,transparent,white);"></div></div><div style="padding:20px 22px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px;"><div style="font-size:17px;font-weight:900;color:#1e293b;line-height:1.3;">晴女 ☀️ 在場邊等妳 🌈</div><div style="font-size:13px;color:#64748b;font-weight:600;">Keep Playing, Keep Shining</div><div style="margin-top:8px;display:table;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:30px;padding:4px 13px;font-size:12px;font-weight:600;color:#475569;white-space:nowrap;">📍 朱崙公園 &nbsp;|&nbsp; 🕑 19:00</div></div></div></div>''',
+    unsafe_allow_html=True
 )
 
 if st.session_state.is_admin:
@@ -757,7 +917,11 @@ if not check_db_connection():
     st.markdown('<div class="db-status-err">❌ 資料庫連線異常，請重新整理或聯絡管理員</div>', unsafe_allow_html=True)
     st.stop()
 
-st.session_state.data = load_data()
+if st.session_state.pop('_skip_data_reload', False):
+    pass  # 上一個動作剛存檔完，已經知道最新資料，不用馬上再問一次 Google，省一次網路來回
+else:
+    st.session_state.data = load_data()
+auto_archive_old_sessions()  # 自動只留近兩個月場次，其餘搬去封存（資料不會不見，統計照算）
 
 
 # ── 場次 ──
@@ -1079,7 +1243,7 @@ else:
         if saved is not None and 0 <= saved < len(visible_dates):
             return saved
         # 預設：最近的未來或今天場次
-        _today = date.today()
+        _today = taipei_today()
         for j, d in enumerate(visible_dates):
             if datetime.strptime(d, "%Y-%m-%d").date() >= _today:
                 st.session_state['_active_session'] = j
@@ -1100,17 +1264,25 @@ else:
         day        = int(d.split('-')[2])
         is_rain    = d in rained_out
         is_sel     = (ci == active_idx)
-        rain_icon  = "☔ " if is_rain else ""
         count_txt  = f"{play_cnt}/{MAX_CAPACITY}" + (f" +{wait_cnt}" if wait_cnt > 0 else "")
         # 整張卡片就是按鈕，用 label 排版
-        _today_d   = date.today()
+        _today_d   = taipei_today()
         _dobj      = datetime.strptime(d, "%Y-%m-%d").date()
         _delta     = (_dobj - _today_d).days
         if _delta < 0:    _day_hint = "已結束"
         elif _delta == 0: _day_hint = "今天 🔥"
         elif _delta == 1: _day_hint = "明天"
         else:             _day_hint = f"{_delta} 天後"
-        btn_label  = f"{rain_icon}{month}/{day}\n{_day_hint} · {count_txt} 人"
+        # 報名狀態圖示：一眼看出可不可以報名，不用點進去
+        _cutoff       = (datetime.strptime(d, "%Y-%m-%d") - timedelta(days=1)).replace(hour=12, minute=0, second=0)
+        _now          = datetime.now(TZ_TAIPEI).replace(tzinfo=None)
+        _card_expired = _now > _cutoff
+        _hours_left   = (_cutoff - _now).total_seconds() / 3600
+        if is_rain:            status_icon = "☔"
+        elif _card_expired:    status_icon = "⛔"
+        elif _hours_left <= 6: status_icon = "⏰"
+        else:                  status_icon = "✅"
+        btn_label  = f"{status_icon} {month}/{day}\n{_day_hint} · {count_txt} 人"
         with card_cols[ci]:
             if st.button(
                 btn_label,
@@ -1240,6 +1412,7 @@ else:
                                 if "友" in player_name:
                                     st.error("❌ 請輸入團員姓名")
                                 elif player_name:
+                                    load_data.clear()  # 強制重讀最新資料，避免跟同時間報名的人互相覆蓋
                                     latest        = load_data()
                                     # 防呆：members 名單 + 歷史報名過的人 合併為允許清單
                                     _allowed_keys = {normalize_name(n) for n in latest.get("members", {}).keys()}
@@ -1287,11 +1460,16 @@ else:
                                                     if not latest["leaves"][_ln]:
                                                         del latest["leaves"][_ln]
                                                     break
-                                        save_data(latest); build_stats.clear()
-                                        st.session_state['_tab_jump'] = i
-                                        st.session_state['show_basket_anim'] = True
-                                        st.session_state['scroll_to'] = full_name
-                                        st.rerun()
+                                        if save_data(latest):
+                                            st.session_state.data = latest
+                                            st.session_state['_skip_data_reload'] = True
+                                            build_stats.clear()
+                                            st.session_state['_tab_jump'] = i
+                                            st.session_state['show_basket_anim'] = True
+                                            st.session_state['scroll_to'] = full_name
+                                            st.rerun()
+                                        else:
+                                            st.error("❌ 報名未成功儲存，請重新送出一次。")
 
             else:
                 st.caption("⛔ 報名已截止（前一日 12:00）")
@@ -1300,27 +1478,41 @@ else:
             with st.expander("🏖️ 我要請假（長假登記）", expanded=False):
                 with st.form(f"leave_form_{dk}", clear_on_submit=True):
                     leave_name  = st.text_input("姓名", key=f"ln_{dk}")
-                    _today = date.today()
+                    _today = taipei_today()
                     _months = [((_today + relativedelta(months=i)).strftime("%Y-%m"), (_today + relativedelta(months=i)).strftime("%Y 年 %m 月")) for i in range(0, 4)]
                     leave_month = st.selectbox("請假月份", options=[m[0] for m in _months], format_func=lambda x: dict(_months)[x], key=f"lm_{dk}")
                     if st.form_submit_button("送出假單") and leave_name:
+                        load_data.clear()
                         _ld = load_data()
                         _ms = leave_month
                         _ld["leaves"].setdefault(leave_name, [])
-                        if _ms not in _ld["leaves"][leave_name]:
-                            _ld["leaves"][leave_name].append(_ms)
-                            save_data(_ld); build_stats.clear()
-                            st.toast("✅ 已登記"); time.sleep(1); st.rerun()
-                        else:
+                        _norm_target = normalize_name(leave_name)
+                        _existing_all = set()
+                        for _rn, _ms_list in _ld["leaves"].items():
+                            if normalize_name(_rn) == _norm_target:
+                                _existing_all.update(_ms_list)
+                        if _ms in _existing_all:
                             st.warning("已登記過這個月了")
+                        elif leave_run_length(_existing_all, _ms) > ABSENCE_LIMIT_MONTHS:
+                            st.error(f"❌ 依社群規定，請假不得連續超過 {ABSENCE_LIMIT_MONTHS} 個月，這個月份會讓連續請假變成 {leave_run_length(_existing_all, _ms)} 個月。如有特殊情況，請聯繫管理員。")
+                        else:
+                            _ld["leaves"][leave_name].append(_ms)
+                            if save_data(_ld):
+                                st.session_state.data = _ld
+                                st.session_state['_skip_data_reload'] = True
+                                build_stats.clear()
+                                st.toast("✅ 已登記"); time.sleep(1); st.rerun()
+                            else:
+                                st.error("❌ 請假未成功儲存，請重新送出一次。")
 
             # ── 出席 & 請假狀態公開版 ──
             with st.expander("📊 出席 & 請假狀況", expanded=False):
+                _combined_sessions = {**load_archive(), **st.session_state.data["sessions"]}  # 封存資料也要合併，不然逾期會誤判
                 _stats, _, _ = build_stats(
-                    json.dumps(st.session_state.data["sessions"]),
+                    json.dumps(_combined_sessions),
                     json.dumps(st.session_state.data.get("leaves", {})),
                     tuple(st.session_state.data.get("rained_out", [])),
-                    tuple(sorted(st.session_state.data["sessions"].keys()))
+                    tuple(sorted(_combined_sessions.keys()))
                 )
                 # 手動加入的成員也納入
                 _removed = set(st.session_state.data.get("removed_members", []))
@@ -1349,7 +1541,7 @@ else:
                     _k = normalize_name(_rn)
                     _leave_merged.setdefault(_k, set()).update(_ms)
                     _leave_display.setdefault(_k, _rn)
-                _now = date.today()
+                _now = taipei_today()
                 _recent = set((_now - __import__("dateutil.relativedelta", fromlist=["relativedelta"]).relativedelta(months=i)).strftime("%Y-%m") for i in range(2))
                 _leave_list = [((_leave_display[k], [m for m in sorted(_leave_merged[k]) if m >= (_now - __import__("dateutil.relativedelta", fromlist=["relativedelta"]).relativedelta(months=1)).strftime("%Y-%m")])) for k in sorted(_leave_merged) if _leave_merged[k]]
                 _leave_list = [x for x in _leave_list if x[1]]
@@ -1390,120 +1582,174 @@ with st.expander("⚙️ 管理員專區 (Admin)", expanded=st.session_state.is_
 
         all_sessions = sorted(st.session_state.data["sessions"].keys())
 
-        # ── 成員管理 ──
-        st.markdown('<div class="admin-section"><div class="admin-section-title">👥 成員管理</div>', unsafe_allow_html=True)
-        _members = st.session_state.data.get("members", {})
+        tab_members, tab_sessions, tab_stats = st.tabs(["👥 成員", "📅 場次", "📊 統計"])
 
-        # 新增成員
-        with st.form("add_member_form", clear_on_submit=True):
-            _mc1, _mc2, _mc3 = st.columns([2, 2, 1])
-            _new_name  = _mc1.text_input("姓名", placeholder="輸入成員姓名")
-            _new_month = _mc2.selectbox("加入月份",
-                options=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
-                format_func=lambda x: x[:4] + " 年 " + x[5:] + " 月"
-            )
-            if _mc3.form_submit_button("➕ 新增", use_container_width=True) and _new_name:
-                _d = load_data()
-                _d.setdefault("members", {})
-                _d["members"][_new_name] = {"joined": _new_month}
-                save_data(_d); build_stats.clear()
-                st.session_state.data = _d
-                st.toast(f"✅ 已新增 {_new_name}"); time.sleep(0.5); st.rerun()
+        with tab_members:
+            # ── 成員管理 ──
+            st.markdown('<div class="admin-section"><div class="admin-section-title">👥 成員管理</div>', unsafe_allow_html=True)
+            _members = st.session_state.data.get("members", {})
 
-        # 成員清單
-        if _members:
-            for _mname, _minfo in sorted(_members.items()):
-                _joined = _minfo.get("joined", "未知")
-                _mc1, _mc2, _mc3, _mc4 = st.columns([2, 2, 1, 1])
-                _mc1.markdown(f"**{_mname}**")
-                _mc2.caption(f"加入：{_joined[:4]}年{_joined[5:]}月" if len(_joined) >= 7 else _joined)
-                if _mc3.button("✏️", key=f"edit_m_{_mname}", help="修改"):
-                    st.session_state[f"editing_member"] = _mname
-                if _mc4.button("🗑️", key=f"del_m_{_mname}", help="刪除"):
-                    _d = load_data()
-                    _d.setdefault("members", {})
-                    _d.setdefault("removed_members", [])
-                    if _mname in _d["members"]: del _d["members"][_mname]
-                    _mk = normalize_name(_mname)
-                    if _mk not in _d["removed_members"]: _d["removed_members"].append(_mk)
-                    save_data(_d); build_stats.clear()
-                    st.session_state.data = _d
-                    st.toast(f"🗑️ 已刪除 {_mname}"); time.sleep(0.5); st.rerun()
-        # 編輯成員
-        if st.session_state.get("editing_member"):
-            _em = st.session_state["editing_member"]
-            _em_info = _members.get(_em, {})
-            with st.form(f"edit_member_{_em}", clear_on_submit=True):
-                st.caption(f"修改：{_em}")
-                _em_c1, _em_c2 = st.columns(2)
-                _em_newname  = _em_c1.text_input("新名字", value=_em)
-                _em_newmonth = _em_c2.selectbox("加入月份",
-                    options=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
-                    format_func=lambda x: x[:4] + " 年 " + x[5:] + " 月",
-                    index=[(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)].index(_em_info.get("joined", date.today().strftime("%Y-%m"))) if _em_info.get("joined") in [(date.today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)] else 0
+            # 新增成員
+            with st.form("add_member_form", clear_on_submit=True):
+                _mc1, _mc2, _mc3 = st.columns([2, 2, 1])
+                _new_name  = _mc1.text_input("姓名", placeholder="輸入成員姓名")
+                _new_month = _mc2.selectbox("加入月份",
+                    options=[(taipei_today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
+                    format_func=lambda x: x[:4] + " 年 " + x[5:] + " 月"
                 )
-                _save, _cancel = st.columns(2)
-                if _save.form_submit_button("💾 儲存", use_container_width=True):
+                if _mc3.form_submit_button("➕ 新增", use_container_width=True) and _new_name:
+                    load_data.clear()
                     _d = load_data()
                     _d.setdefault("members", {})
-                    if _em in _d["members"]: del _d["members"][_em]
-                    _d["members"][_em_newname] = {"joined": _em_newmonth}
-                    save_data(_d); build_stats.clear()
-                    st.session_state.data = _d
-                    del st.session_state["editing_member"]
-                    st.toast(f"✅ 已更新"); time.sleep(0.5); st.rerun()
-                if _cancel.form_submit_button("取消", use_container_width=True):
-                    del st.session_state["editing_member"]
-                    st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+                    _d["members"][_new_name] = {"joined": _new_month}
+                    if save_data(_d):
+                        st.session_state.data = _d
+                        st.session_state['_skip_data_reload'] = True
+                        build_stats.clear()
+                        st.toast(f"✅ 已新增 {_new_name}"); time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("❌ 新增未成功儲存，請再試一次。")
 
-        # ── 場次管理 ──
-        st.markdown('<div class="admin-section"><div class="admin-section-title">📅 場次管理</div>', unsafe_allow_html=True)
-        c1, c2 = st.columns([3, 1])
-        with c1:
-            new_date = st.date_input("新增日期", label_visibility="collapsed")
-        with c2:
-            if st.button("➕ 新增", use_container_width=True):
-                data = load_data()
-                if str(new_date) not in data["sessions"]:
-                    data["sessions"][str(new_date)] = []; save_data(data); st.rerun()
-        if all_sessions:
+            # 成員清單
+            if _members:
+                for _mname, _minfo in sorted(_members.items()):
+                    _joined = _minfo.get("joined", "未知")
+                    _mc1, _mc2, _mc3, _mc4 = st.columns([2, 2, 1, 1])
+                    _mc1.markdown(f"**{_mname}**")
+                    _mc2.caption(f"加入：{_joined[:4]}年{_joined[5:]}月" if len(_joined) >= 7 else _joined)
+                    if _mc3.button("✏️", key=f"edit_m_{_mname}", help="修改"):
+                        st.session_state[f"editing_member"] = _mname
+                    if _mc4.button("🗑️", key=f"del_m_{_mname}", help="刪除"):
+                        load_data.clear()
+                        _d = load_data()
+                        _d.setdefault("members", {})
+                        _d.setdefault("removed_members", [])
+                        if _mname in _d["members"]: del _d["members"][_mname]
+                        _mk = normalize_name(_mname)
+                        if _mk not in _d["removed_members"]: _d["removed_members"].append(_mk)
+                        if save_data(_d):
+                            st.session_state.data = _d
+                            st.session_state['_skip_data_reload'] = True
+                            build_stats.clear()
+                            st.toast(f"🗑️ 已刪除 {_mname}"); time.sleep(0.5); st.rerun()
+                        else:
+                            st.error("❌ 刪除未成功儲存，請再試一次。")
+            # 編輯成員
+            if st.session_state.get("editing_member"):
+                _em = st.session_state["editing_member"]
+                _em_info = _members.get(_em, {})
+                with st.form(f"edit_member_{_em}", clear_on_submit=True):
+                    st.caption(f"修改：{_em}")
+                    _em_c1, _em_c2 = st.columns(2)
+                    _em_newname  = _em_c1.text_input("新名字", value=_em)
+                    _em_newmonth = _em_c2.selectbox("加入月份",
+                        options=[(taipei_today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)],
+                        format_func=lambda x: x[:4] + " 年 " + x[5:] + " 月",
+                        index=[(taipei_today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)].index(_em_info.get("joined", taipei_today().strftime("%Y-%m"))) if _em_info.get("joined") in [(taipei_today() - relativedelta(months=i)).strftime("%Y-%m") for i in range(24)] else 0
+                    )
+                    _save, _cancel = st.columns(2)
+                    if _save.form_submit_button("💾 儲存", use_container_width=True):
+                        load_data.clear()
+                        _d = load_data()
+                        _d.setdefault("members", {})
+                        if _em in _d["members"]: del _d["members"][_em]
+                        _d["members"][_em_newname] = {"joined": _em_newmonth}
+                        if save_data(_d):
+                            st.session_state.data = _d
+                            st.session_state['_skip_data_reload'] = True
+                            build_stats.clear()
+                            del st.session_state["editing_member"]
+                            st.toast(f"✅ 已更新"); time.sleep(0.5); st.rerun()
+                        else:
+                            st.error("❌ 更新未成功儲存，請再試一次。")
+                    if _cancel.form_submit_button("取消", use_container_width=True):
+                        del st.session_state["editing_member"]
+                        st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with tab_sessions:
+            # ── 場次管理 ──
+            st.markdown('<div class="admin-section"><div class="admin-section-title">📅 場次管理</div>', unsafe_allow_html=True)
             c1, c2 = st.columns([3, 1])
             with c1:
-                del_target = st.selectbox("刪除場次", all_sessions, label_visibility="collapsed")
+                new_date = st.date_input("新增日期", label_visibility="collapsed")
             with c2:
-                if st.button("🗑️ 刪除", use_container_width=True):
-                    data = load_data(); del data["sessions"][del_target]
-                    save_data(data); build_stats.clear(); st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+                if st.button("➕ 新增", use_container_width=True):
+                    load_data.clear()
+                    data = load_data()
+                    if str(new_date) not in data["sessions"]:
+                        data["sessions"][str(new_date)] = []
+                        if save_data(data):
+                            st.session_state.data = data
+                            st.session_state['_skip_data_reload'] = True
+                            st.rerun()
+                        else:
+                            st.error("❌ 新增未成功儲存，請再試一次。")
+            if all_sessions:
+                c1, c2 = st.columns([3, 1])
+                with c1:
+                    del_target = st.selectbox("刪除場次", all_sessions, label_visibility="collapsed")
+                with c2:
+                    if st.button("🗑️ 刪除", use_container_width=True):
+                        load_data.clear()
+                        data = load_data(); del data["sessions"][del_target]
+                        if save_data(data):
+                            st.session_state.data = data
+                            st.session_state['_skip_data_reload'] = True
+                            build_stats.clear(); st.rerun()
+                        else:
+                            st.error("❌ 刪除未成功儲存，請再試一次。")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── 場次設定 ──
-        if all_sessions:
-            st.markdown('<div class="admin-section"><div class="admin-section-title">⚙️ 場次設定</div>', unsafe_allow_html=True)
-            _hidden_default = [h for h in st.session_state.data.get("hidden", []) if h in all_sessions]
-            hidden = st.multiselect("👁️ 隱藏場次", all_sessions, default=_hidden_default)
-            if st.button("更新隱藏設定", use_container_width=True):
-                data = load_data(); data["hidden"] = hidden; save_data(data); st.rerun()
-            st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
-            new_rained = st.multiselect("☔ 天氣取消場次", all_sessions, default=st.session_state.data.get("rained_out", []), key="rained_multiselect")
-            if st.button("更新天氣取消設定", use_container_width=True):
-                data = load_data(); data["rained_out"] = new_rained
-                save_data(data); build_stats.clear()
-                st.toast("✅ 已更新"); time.sleep(0.5); st.rerun()
-            st.markdown('</div></div>', unsafe_allow_html=True)
+            # ── 場次設定 ──
+            if all_sessions:
+                st.markdown('<div class="admin-section"><div class="admin-section-title">⚙️ 場次設定</div>', unsafe_allow_html=True)
+                _hidden_all     = st.session_state.data.get("hidden", [])
+                _hidden_default = [d for d in _hidden_all if d in all_sessions]        # 已封存的舊場次不在選項裡，預設值要濾掉，不然選單會報錯
+                _hidden_archived = [d for d in _hidden_all if d not in all_sessions]   # 已封存的維持隱藏狀態，存檔時要補回去，不然會被誤判成「取消隱藏」
+                hidden = st.multiselect("👁️ 隱藏場次", all_sessions, default=_hidden_default)
+                if st.button("更新隱藏設定", use_container_width=True):
+                    load_data.clear()
+                    data = load_data()
+                    newly_hidden = [k for k in hidden if k not in _hidden_all]
+                    data["hidden"] = sorted(set(hidden) | set(_hidden_archived))
+                    archive_hidden_sessions(newly_hidden, data)  # 搬去封存分頁，避免 A1 塞爆
+                    if save_data(data):
+                        st.session_state.data = data
+                        st.session_state['_skip_data_reload'] = True
+                        st.rerun()
+                    else:
+                        st.error("❌ 更新未成功儲存，請再試一次。")
+                st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
+                _rained_default = [d for d in st.session_state.data.get("rained_out", []) if d in all_sessions]
+                new_rained = st.multiselect("☔ 天氣取消場次", all_sessions, default=_rained_default, key="rained_multiselect")
+                if st.button("更新天氣取消設定", use_container_width=True):
+                    load_data.clear()
+                    data = load_data(); data["rained_out"] = new_rained
+                    if save_data(data):
+                        st.session_state.data = data
+                        st.session_state['_skip_data_reload'] = True
+                        build_stats.clear()
+                        st.toast("✅ 已更新"); time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("❌ 更新未成功儲存，請再試一次。")
+                st.markdown('</div></div>', unsafe_allow_html=True)
 
-        # ── 編輯隱藏場次 ──
-        with st.expander("🕵️ 編輯隱藏場次資料", expanded=False):
-            hidden_dates = st.session_state.data.get("hidden", [])
-            if hidden_dates:
-                target_hidden = st.selectbox("選擇日期", sorted(hidden_dates))
-                if target_hidden:
-                    render_list(st.session_state.data["sessions"].get(target_hidden, []), target_hidden, is_admin_mode=True)
-            else:
-                st.write("目前無隱藏場次")
+            # ── 編輯隱藏場次 ──
+            with st.expander("🕵️ 編輯隱藏場次資料", expanded=False):
+                hidden_dates = st.session_state.data.get("hidden", [])
+                if hidden_dates:
+                    target_hidden = st.selectbox("選擇日期", sorted(hidden_dates))
+                    if target_hidden:
+                        _archive = load_archive()
+                        _hidden_players = st.session_state.data["sessions"].get(target_hidden) or _archive.get(target_hidden, [])
+                        render_list(_hidden_players, target_hidden, can_edit=False, is_admin_mode=True)
+                else:
+                    st.write("目前無隱藏場次")
 
-        # ── 出席統計 ──
-        st.markdown('<div class="admin-section"><div class="admin-section-title">📊 出席統計報表</div>', unsafe_allow_html=True)
-        st.caption("✏️ 改名　🚪 退群（移至下方，可恢復或永久刪除）")
-        st.markdown('</div>', unsafe_allow_html=True)
-        render_stats(st.session_state.data)
+        with tab_stats:
+            # ── 出席統計 ──
+            st.markdown('<div class="admin-section"><div class="admin-section-title">📊 出席統計報表</div>', unsafe_allow_html=True)
+            st.caption("✏️ 改名　🚪 退群（移至下方，可恢復或永久刪除）")
+            st.markdown('</div>', unsafe_allow_html=True)
+            render_stats(st.session_state.data)
