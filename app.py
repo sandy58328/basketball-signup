@@ -287,6 +287,31 @@ def archive_hidden_sessions(newly_hidden_keys: list[str], data: dict) -> None:
     sheet.update_acell('A1', json.dumps(archive, ensure_ascii=False))
     load_archive.clear()
 
+def purge_member_from_archive(key: str) -> bool:
+    """永久刪除時，把這個人在封存分頁（sessions_archive）裡的報名紀錄也一併清掉，
+    不然只清 A1 目前看得到的場次，封存資料合併回統計時人又會冒出來。回傳是否成功寫回。"""
+    sheet = get_archive_sheet()
+    if not sheet:
+        return False
+    try:
+        raw = sheet.acell('A1').value
+        archive = json.loads(raw) if raw else {}
+    except Exception:
+        return False
+    changed = False
+    for sd in list(archive.keys()):
+        new_players = [p for p in archive[sd] if normalize_name(p['name']) != key]
+        if len(new_players) != len(archive[sd]):
+            archive[sd] = new_players
+            changed = True
+    if changed:
+        try:
+            sheet.update_acell('A1', json.dumps(archive, ensure_ascii=False))
+            load_archive.clear()
+        except Exception:
+            return False
+    return True
+
 def auto_archive_old_sessions():
     """只保留「這個月＋下個月」的場次顯示，其餘自動隱藏並搬進封存分頁。
     每次開啟 app 都會檢查，視窗會隨月份自動往後推移，不用手動維護。
@@ -847,16 +872,21 @@ def render_stats(raw_data: dict):
                         if st.button("確定永久刪除", key=f"stat_purge_{key}", type="primary"):
                             load_data.clear()
                             cur = load_data()
-                            if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
                             for sd in cur["sessions"]:
                                 cur["sessions"][sd] = [p for p in cur["sessions"][sd] if normalize_name(p['name']) != key]
                             for rn in list(cur["leaves"].keys()):
                                 if normalize_name(rn) == key: del cur["leaves"][rn]
-                            if save_data(cur):
-                                st.session_state.data = cur
-                                st.session_state['_skip_data_reload'] = True
-                                build_stats.clear()
-                                st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
+                            _archive_ok = purge_member_from_archive(key)
+                            if not _archive_ok:
+                                st.error("❌ 封存分頁清除失敗，請再試一次（目前資料未變更）。")
+                            elif save_data(cur):
+                                # 封存資料已清乾淨，才可以真正從 removed_members 移除
+                                if key in cur.get("removed_members", []): cur["removed_members"].remove(key)
+                                if save_data(cur):
+                                    st.session_state.data = cur
+                                    st.session_state['_skip_data_reload'] = True
+                                    build_stats.clear()
+                                    st.toast(f"🗑️ {item['name']} 所有資料已永久刪除"); time.sleep(0.5); st.rerun()
                             else:
                                 st.error("❌ 刪除未成功儲存，請再試一次。")
             # 沒有歷史紀錄的
