@@ -1241,10 +1241,14 @@ else:
                                     st.error("❌ 請輸入團員姓名")
                                 elif player_name:
                                     latest        = load_data()
-                                    # 防呆：名字必須在成員名單裡
-                                    _all_member_keys = {normalize_name(n) for n in latest.get("members", {}).keys()}
+                                    # 防呆：members 名單 + 歷史報名過的人 合併為允許清單
+                                    _allowed_keys = {normalize_name(n) for n in latest.get("members", {}).keys()}
+                                    for _sd, _sp in latest.get("sessions", {}).items():
+                                        for _p in _sp:
+                                            if not is_friend(_p["name"]):
+                                                _allowed_keys.add(normalize_name(_p["name"]))
                                     _input_key = normalize_name(player_name)
-                                    _name_invalid = bool(_all_member_keys) and _input_key not in _all_member_keys
+                                    _name_invalid = bool(_allowed_keys) and _input_key not in _allowed_keys
                                     existing      = latest["sessions"].get(dk, [])
                                     related_count = len([
                                         x for x in existing
