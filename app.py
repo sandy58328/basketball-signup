@@ -1444,9 +1444,10 @@ else:
                                 elif player_name:
                                     load_data.clear()  # 強制重讀最新資料，避免跟同時間報名的人互相覆蓋
                                     latest        = load_data()
-                                    # 防呆：members 名單 + 歷史報名過的人 合併為允許清單
+                                    # 防呆：members 名單 + 歷史報名過的人（含已封存的舊場次）合併為允許清單
                                     _allowed_keys = {normalize_name(n) for n in latest.get("members", {}).keys()}
-                                    for _sd, _sp in latest.get("sessions", {}).items():
+                                    _all_hist_sessions = {**load_archive(), **latest.get("sessions", {})}
+                                    for _sd, _sp in _all_hist_sessions.items():
                                         for _p in _sp:
                                             if not is_friend(_p["name"]):
                                                 _allowed_keys.add(normalize_name(_p["name"]))
